@@ -117,9 +117,6 @@ def api_login(request):
     raw_identifier = request.data.get('phone_number') or request.data.get('email')
     # ??? ??????? password ??? ????? ??? ???? ???? ???? ????? ????.
     password = request.data.get('password')
-    # ??? ??????? fcm_token ??? ????? ??? ???? ???? ???? ????? ????.
-    fcm_token = request.data.get('fcm_token')
-
     if not raw_identifier or not password:
         return Response({'error': 'Phone/email and password are required.'}, status=400)
 
@@ -141,10 +138,6 @@ def api_login(request):
     # ??? ??????? user ??? ????? ??? ???? ???? ???? ????? ????.
     user = authenticate(request, username=user_obj.email, password=password)
     if user:
-        if fcm_token and hasattr(user, 'fcm_token'):
-            user.fcm_token = fcm_token
-            user.save(update_fields=['fcm_token'])
-
         return Response(_build_auth_payload(user))
 
     return Response({'error': 'Invalid login credentials.'}, status=400)
@@ -431,5 +424,5 @@ def orders_endpoint(request):
         return get_user_orders(request._request)
     return create_order(request._request)
 
-# âŒ ØªÙ… Ø­Ø°Ù api_purchase Ù†Ù‡Ø§Ø¦ÙŠØ§Ù‹ Ù„Ø£Ù†Ù‡ ÙŠØ¹ØªÙ…Ø¯ Ø¹Ù„Ù‰ Firebase
+# Deprecated purchase endpoint intentionally omitted.
 

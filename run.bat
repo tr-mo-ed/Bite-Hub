@@ -24,7 +24,7 @@ if not exist .venv (
 echo Virtual environment is ready.
 
 echo.
-echo [3/5] Installing required libraries (Django, Firebase, etc.)...
+echo [3/5] Installing required libraries (Django, API, etc.)...
 echo This is a one-time setup and might take a few minutes.
 call .venv\Scripts\activate.bat
 pip install --upgrade pip >nul
