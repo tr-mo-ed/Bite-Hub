@@ -1,6 +1,7 @@
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
+from core.backoffice_services import _build_unique_cafe_code, initialize_cafe_runtime, provision_cafe
 from core.models import Cafe
 from users.models import User
 
@@ -92,22 +93,37 @@ class Command(BaseCommand):
                     if cafe.name != name:
                         cafe.name = name
                         updates.append("name")
+                    if not cafe.code:
+                        cafe.code = _build_unique_cafe_code(name)
+                        updates.append("code")
                     if not cafe.is_active:
                         cafe.is_active = True
                         updates.append("is_active")
                     if updates:
                         cafe.save(update_fields=updates)
                         self.stdout.write(self.style.WARNING(f"Updated cafe for {name}"))
+                    initialize_cafe_runtime(cafe)
                     continue
 
                 # ??? ??????? cafe ??? ????? ??? ???? ???? ???? ????? ????.
                 cafe = Cafe.objects.filter(name=name).first()
                 if cafe:
+                    updates = []
                     if cafe.owner is None:
                         cafe.owner = user
+                        updates.append("owner")
+                    if not cafe.code:
+                        cafe.code = _build_unique_cafe_code(name)
+                        updates.append("code")
+                    if not cafe.is_active:
                         cafe.is_active = True
-                        cafe.save(update_fields=["owner", "is_active"])
+                        updates.append("is_active")
+                    if updates:
+                        cafe.save(update_fields=updates)
                         self.stdout.write(self.style.WARNING(f"Linked cafe {name} to user"))
+                        initialize_cafe_runtime(cafe)
+                    elif cafe.owner == user:
+                        initialize_cafe_runtime(cafe)
                     else:
                         self.stdout.write(
                             self.style.WARNING(
@@ -117,7 +133,7 @@ class Command(BaseCommand):
                     continue
 
                 # ??? ??????? cafe ??? ????? ??? ???? ???? ???? ????? ????.
-                cafe = Cafe.objects.create(name=name, owner=user, is_active=True)
+                cafe = provision_cafe(name=name, owner_id=user.id, is_active=True)
                 self.stdout.write(self.style.SUCCESS(f"Created cafe {name}"))
 
         self.stdout.write(self.style.SUCCESS("Cafe seeding complete."))

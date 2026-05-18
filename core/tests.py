@@ -1,6 +1,8 @@
 from decimal import Decimal
+from io import StringIO
 
 from django.contrib.auth import get_user_model
+from django.core.management import call_command
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -22,6 +24,34 @@ TEST_CHANNEL_LAYERS = {
 
 # ???? ???? CafeProvisioningTests ???? ?????? ????????? ???? ???? ?????.
 class CafeProvisioningTests(TestCase):
+    def test_seed_cafes_creates_unique_codes_and_is_idempotent(self):
+        call_command("seed_cafes", stdout=StringIO())
+
+        codes = list(Cafe.objects.values_list("code", flat=True))
+        self.assertEqual(Cafe.objects.count(), 3)
+        self.assertEqual(len(set(codes)), 3)
+        self.assertTrue(all(codes))
+
+        call_command("seed_cafes", stdout=StringIO())
+
+        self.assertEqual(Cafe.objects.count(), 3)
+        self.assertEqual(get_user_model().objects.filter(email__endswith="@bitehub.local").count(), 3)
+
+    def test_seed_cafes_repairs_existing_cafe_with_blank_code(self):
+        User = get_user_model()
+        owner = User.objects.create_user(
+            email="cafe-0911111111@bitehub.local",
+            password="12345678",
+            full_name="مقهى اللغة العربية",
+            phone_number="0911111111",
+        )
+        cafe = Cafe.objects.create(name="مقهى اللغة العربية", owner=owner, code="")
+
+        call_command("seed_cafes", stdout=StringIO())
+
+        cafe.refresh_from_db()
+        self.assertTrue(cafe.code)
+
     # ???? ???? test_create_cafe_without_faculty ?????? ????? ?????? ?? ????? ????.
     def test_create_cafe_without_faculty(self):
         # ??? ??????? cafe ??? ????? ??? ???? ???? ???? ????? ????.
