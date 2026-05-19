@@ -4,127 +4,191 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}Bite Hub Control Center{% endblock %}</title>
+  <title>{% block title %}Bite Hub Operations{% endblock %}</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bh-surface: #0f172a;
-      --bh-panel: #111827;
-      --bh-card: #ffffff;
-      --bh-border: rgba(148, 163, 184, 0.18);
-      --bh-accent: #0f766e;
-      --bh-accent-soft: rgba(15, 118, 110, 0.12);
-      --bh-highlight: #f97316;
-      --bh-text: #0f172a;
-      --bh-muted: #64748b;
+      --bh-ink: #111827;
+      --bh-muted: #667085;
+      --bh-border: rgba(15, 23, 42, .10);
+      --bh-panel: #0c1222;
+      --bh-panel-2: #14213d;
+      --bh-teal: #0f766e;
+      --bh-cyan: #38bdf8;
+      --bh-orange: #f97316;
+      --bh-green: #16a34a;
+      --bh-red: #dc2626;
+      --bh-soft: #f6f8fc;
+    }
+    * {
+      letter-spacing: 0;
     }
     body {
-      font-family: "Cairo", sans-serif;
-      background: linear-gradient(180deg, #eff6ff 0%, #f8fafc 100%);
-      color: var(--bh-text);
       min-height: 100vh;
+      font-family: "Cairo", sans-serif;
+      color: var(--bh-ink);
+      background:
+        linear-gradient(135deg, rgba(56, 189, 248, .12), transparent 28%),
+        linear-gradient(225deg, rgba(249, 115, 22, .10), transparent 26%),
+        #f4f7fb;
     }
     .bh-shell {
       display: grid;
-      grid-template-columns: 280px minmax(0, 1fr);
+      grid-template-columns: 272px minmax(0, 1fr);
       min-height: 100vh;
     }
     .bh-sidebar {
-      background: linear-gradient(180deg, #0f172a 0%, #111827 100%);
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
       color: #fff;
-      padding: 28px 18px;
-      border-left: 1px solid rgba(255,255,255,0.06);
+      padding: 22px 16px;
+      background:
+        linear-gradient(160deg, rgba(56, 189, 248, .16), transparent 35%),
+        linear-gradient(24deg, rgba(249, 115, 22, .18), transparent 42%),
+        linear-gradient(180deg, var(--bh-panel), var(--bh-panel-2));
+      border-left: 1px solid rgba(255,255,255,.08);
     }
     .bh-brand {
       display: flex;
       align-items: center;
       gap: 12px;
-      font-weight: 800;
-      font-size: 1.15rem;
-      margin-bottom: 28px;
+      min-height: 54px;
+      margin-bottom: 22px;
     }
     .bh-brand-mark {
-      width: 42px;
-      height: 42px;
-      border-radius: 12px;
-      background: linear-gradient(135deg, #14b8a6, #f97316);
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 800;
+      width: 44px;
+      height: 44px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
       color: #fff;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--bh-cyan), var(--bh-teal) 45%, var(--bh-orange));
+      box-shadow: 0 14px 28px rgba(0,0,0,.22);
+    }
+    .bh-brand-title {
+      font-weight: 800;
+      line-height: 1.1;
+    }
+    .bh-brand-subtitle {
+      display: block;
+      color: rgba(255,255,255,.58);
+      font-size: .78rem;
+      margin-top: 4px;
+    }
+    .bh-nav-kicker {
+      color: rgba(255,255,255,.48);
+      font-size: .72rem;
+      font-weight: 800;
+      margin: 18px 12px 8px;
+      text-transform: uppercase;
     }
     .bh-nav-link {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      color: rgba(255,255,255,0.82);
+      gap: 10px;
+      min-height: 46px;
+      padding: 10px 12px;
+      color: rgba(255,255,255,.78);
       text-decoration: none;
-      padding: 12px 14px;
-      border-radius: 14px;
-      margin-bottom: 8px;
-      background: transparent;
-      transition: all .2s ease;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      transition: background .18s ease, border-color .18s ease, color .18s ease;
     }
     .bh-nav-link:hover,
     .bh-nav-link.active {
       color: #fff;
-      background: rgba(255,255,255,0.08);
+      background: rgba(255,255,255,.10);
+      border-color: rgba(255,255,255,.08);
+    }
+    .bh-nav-code {
+      color: rgba(255,255,255,.42);
+      font-size: .76rem;
+      font-weight: 800;
+    }
+    .bh-user-box {
+      margin-top: auto;
+      padding: 14px;
+      border-radius: 8px;
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.08);
     }
     .bh-main {
-      padding: 28px;
       min-width: 0;
+      padding: 26px;
     }
     .bh-topbar {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 16px;
-      margin-bottom: 24px;
+      gap: 18px;
+      margin-bottom: 22px;
     }
     .bh-page-title {
       margin: 0;
-      font-size: 1.9rem;
+      font-size: clamp(1.55rem, 2.2vw, 2.15rem);
       font-weight: 800;
+      line-height: 1.2;
     }
     .bh-page-subtitle {
       color: var(--bh-muted);
-      margin: 4px 0 0;
+      margin: 6px 0 0;
+      max-width: 720px;
     }
     .bh-card {
-      background: rgba(255,255,255,0.92);
-      border: 1px solid var(--bh-border);
-      border-radius: 18px;
-      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
       min-width: 0;
+      background: rgba(255,255,255,.94);
+      border: 1px solid var(--bh-border);
+      border-radius: 8px;
+      box-shadow: 0 18px 45px rgba(15, 23, 42, .07);
     }
     .bh-kpi {
-      padding: 22px;
+      padding: 20px;
+      border-top: 4px solid transparent;
     }
+    .bh-kpi.is-teal { border-top-color: var(--bh-teal); }
+    .bh-kpi.is-cyan { border-top-color: var(--bh-cyan); }
+    .bh-kpi.is-orange { border-top-color: var(--bh-orange); }
+    .bh-kpi.is-green { border-top-color: var(--bh-green); }
     .bh-kpi .label {
       color: var(--bh-muted);
-      font-size: 0.92rem;
+      font-size: .88rem;
+      font-weight: 700;
     }
     .bh-kpi .value {
-      font-size: 1.9rem;
+      margin-top: 8px;
+      font-size: 1.78rem;
       font-weight: 800;
-      margin-top: 6px;
+      line-height: 1.15;
     }
     .bh-section-title {
-      font-size: 1.1rem;
+      font-size: 1.08rem;
       font-weight: 800;
-      margin-bottom: 14px;
+      margin-bottom: 12px;
     }
     .bh-pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 30px;
       border-radius: 999px;
-      padding: 6px 12px;
-      font-size: 0.82rem;
-      background: var(--bh-accent-soft);
-      color: var(--bh-accent);
-      font-weight: 700;
+      padding: 5px 11px;
+      font-size: .78rem;
+      color: #0f4f49;
+      background: rgba(15, 118, 110, .11);
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    .bh-command-btn {
+      min-height: 40px;
+      border-radius: 8px;
+      font-weight: 800;
     }
     .bh-toast-stack {
       position: fixed;
@@ -146,8 +210,22 @@
         grid-template-columns: 1fr;
       }
       .bh-sidebar {
+        position: static;
+        height: auto;
         border-left: 0;
         border-bottom: 1px solid rgba(255,255,255,0.06);
+      }
+      .bh-sidebar nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .bh-nav-kicker,
+      .bh-nav-code {
+        display: none;
+      }
+      .bh-user-box {
+        margin-top: 16px;
       }
       .bh-main {
         padding: 20px;
@@ -166,24 +244,42 @@
       <div class="bh-brand">
         <div class="bh-brand-mark">BH</div>
         <div>
-          <div>Bite Hub</div>
-          <small class="text-white-50">Control Center</small>
+          <div class="bh-brand-title">Bite Hub</div>
+          <small class="bh-brand-subtitle">Operations OS</small>
         </div>
       </div>
       <nav>
         {% if request.user.is_superuser %}
+          <div class="bh-nav-kicker">Administration</div>
           <a href="{% url 'core:super_admin_dashboard' %}" class="bh-nav-link {% if request.resolver_match.url_name == 'super_admin_dashboard' %}active{% endif %}">
-            <span>لوحة السوبر أدمن</span>
-            <span>01</span>
+            <span>مركز الإدارة العليا</span>
+            <span class="bh-nav-code">01</span>
           </a>
         {% else %}
+          <div class="bh-nav-kicker">Cafe Operations</div>
           <a href="{% url 'core:cafe_panel' %}" class="bh-nav-link {% if request.resolver_match.url_name == 'cafe_panel' %}active{% endif %}">
-            <span>لوحة المقهى</span>
-            <span>01</span>
+            <span>نظرة عامة</span>
+            <span class="bh-nav-code">01</span>
+          </a>
+          <a href="{% url 'core:cafe_panel' %}#orders" class="bh-nav-link">
+            <span>الطلبات</span>
+            <span class="bh-nav-code">02</span>
+          </a>
+          <a href="{% url 'core:cafe_panel' %}#wallets" class="bh-nav-link">
+            <span>المحافظ والدفع</span>
+            <span class="bh-nav-code">03</span>
+          </a>
+          <a href="{% url 'core:cafe_panel' %}#nfc" class="bh-nav-link">
+            <span>بطاقات NFC</span>
+            <span class="bh-nav-code">04</span>
+          </a>
+          <a href="{% url 'core:cafe_panel' %}#menu" class="bh-nav-link">
+            <span>القائمة والمخزون</span>
+            <span class="bh-nav-code">05</span>
           </a>
         {% endif %}
       </nav>
-      <div class="mt-4 pt-3 border-top border-secondary-subtle">
+      <div class="bh-user-box">
         <div class="text-white-50 small">المستخدم الحالي</div>
         <div class="fw-bold mt-2">{{ request.user.full_name|default:request.user.email }}</div>
         <div class="small text-white-50">{{ request.user.email }}</div>
@@ -197,7 +293,7 @@
         </div>
         <div class="d-flex align-items-center gap-2">
           <span class="bh-pill">Live Ops</span>
-          <a class="btn btn-dark rounded-pill px-4" href="{% url 'core:logout' %}?next={% if request.user.is_superuser %}{% url 'core:admin_login' %}{% else %}{% url 'core:cafe_login' %}{% endif %}">تسجيل الخروج</a>
+          <a class="btn btn-dark bh-command-btn px-4" href="{% url 'core:logout' %}?next={% if request.user.is_superuser %}{% url 'core:admin_login' %}{% else %}{% url 'core:cafe_login' %}{% endif %}">تسجيل الخروج</a>
         </div>
       </div>
 

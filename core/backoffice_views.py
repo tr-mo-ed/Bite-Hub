@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from decimal import Decimal, InvalidOperation
 import json
 import logging
 
@@ -7,7 +8,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required, user_passes_test
-from django.db.models import Q
+from django.db.models import Q, Sum
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
@@ -30,6 +31,7 @@ from .serializers import OrderSerializer, ProductSerializer
 from .services import NotFoundServiceError, ValidationServiceError, update_order_status
 from .utils import normalize_libyan_phone
 from users.models import User
+from wallet.models import Transaction, Wallet
 
 # ??? ??????? logger ??? ????? ??? ???? ???? ???? ????? ????.
 logger = logging.getLogger(__name__)
@@ -160,10 +162,10 @@ def _login_role_context(*, portal: str, cafe: Cafe | None = None) -> dict:
             "portal": "cafe",
             "target_cafe": cafe,
             "login_action_url": _login_action_url(portal="cafe", cafe=cafe),
-            "page_title": cafe.name if cafe else "دخول لوحة المقهى",
-            "page_subtitle": "بوابة تشغيل خاصة بالمقهى والطلبات والمنتجات.",
+            "page_title": cafe.name if cafe else "دخول مركز عمليات المقهى",
+            "page_subtitle": "بوابة تشغيل للمبيعات والطلبات والمحافظ وبطاقات NFC.",
             "username_label": "البريد الإلكتروني أو رقم مدير المقهى",
-            "submit_label": "دخول لوحة المقهى",
+            "submit_label": "دخول مركز العمليات",
             "alternate_login_url": reverse("core:admin_login"),
             "alternate_login_label": "دخول السوبر أدمن",
         }
@@ -171,12 +173,12 @@ def _login_role_context(*, portal: str, cafe: Cafe | None = None) -> dict:
         "portal": "admin",
         "target_cafe": None,
         "login_action_url": reverse("core:admin_login"),
-        "page_title": "دخول السوبر أدمن",
-        "page_subtitle": "بوابة الإدارة العليا لمتابعة المقاهي والعمليات.",
+        "page_title": "دخول مركز الإدارة العليا",
+        "page_subtitle": "بوابة مركزية لإدارة المقاهي والأداء وروابط التشغيل.",
         "username_label": "البريد الإلكتروني أو رقم الهاتف",
-        "submit_label": "دخول لوحة الإدارة",
+        "submit_label": "دخول مركز الإدارة",
         "alternate_login_url": reverse("core:cafe_login"),
-        "alternate_login_label": "دخول لوحة مقهى",
+        "alternate_login_label": "دخول مركز عمليات مقهى",
     }
 
 
@@ -352,6 +354,45 @@ def _parse_optional_faculty_id(raw_value: str | None) -> int | None:
         raise ValidationServiceError("Selected faculty is invalid.") from exc
 
 
+def _parse_positive_amount(raw_value: str | None) -> Decimal:
+    try:
+        amount = Decimal(str(raw_value or "").strip())
+    except (InvalidOperation, ValueError) as exc:
+        raise ValidationServiceError("قيمة المبلغ غير صحيحة.") from exc
+    if amount <= 0:
+        raise ValidationServiceError("المبلغ يجب أن يكون أكبر من صفر.")
+    return amount
+
+
+def _find_wallet_by_identifier(raw_identifier: str | None) -> Wallet | None:
+    identifier = (raw_identifier or "").strip()
+    if not identifier:
+        return None
+
+    phone = normalize_libyan_phone(identifier)
+    user = User.objects.filter(
+        Q(email__iexact=identifier)
+        | Q(phone_number=phone)
+        | Q(secondary_phone_number=phone)
+    ).first()
+    if user:
+        wallet, _ = Wallet.objects.get_or_create(user=user)
+        return wallet
+
+    return Wallet.objects.select_related("user").filter(link_code__iexact=identifier).first()
+
+
+def _wallet_payload(wallet: Wallet) -> dict:
+    wallet.refresh_from_db()
+    return {
+        "user": wallet.user.full_name or wallet.user.email,
+        "email": wallet.user.email,
+        "phone": wallet.user.phone_number,
+        "balance": str(wallet.balance),
+        "link_code": wallet.link_code,
+    }
+
+
 # ???? ???? super_admin_dashboard ?????? ????? ?????? ?? ????? ????.
 @login_required(login_url="core:admin_login")
 @user_passes_test(lambda user: user.is_superuser, login_url="core:route_after_login")
@@ -503,6 +544,69 @@ def toggle_cafe_status_api(request: HttpRequest, cafe_id: int) -> JsonResponse:
     )
 
 
+@login_required(login_url="core:cafe_login")
+@user_passes_test(_is_cafe_operator, login_url="core:route_after_login")
+@require_POST
+def cafe_wallet_operation_api(request: HttpRequest) -> JsonResponse:
+    cafe = resolve_backoffice_cafe(request.user)
+    if cafe is None:
+        return JsonResponse({"success": False, "message": "No active cafe is linked to this account."}, status=403)
+
+    wallet = _find_wallet_by_identifier(request.POST.get("identifier"))
+    if wallet is None:
+        return JsonResponse({"success": False, "message": "لم يتم العثور على محفظة بهذا البريد أو الهاتف أو الكود."}, status=404)
+
+    try:
+        amount = _parse_positive_amount(request.POST.get("amount"))
+    except ValidationServiceError as exc:
+        return JsonResponse({"success": False, "message": str(exc)}, status=400)
+
+    operation = (request.POST.get("operation") or "DEPOSIT").strip().upper()
+    if operation not in {"DEPOSIT", "WITHDRAWAL"}:
+        return JsonResponse({"success": False, "message": "نوع العملية غير صحيح."}, status=400)
+
+    note = (request.POST.get("note") or "").strip()
+    description = f"{cafe.name} - {'شحن رصيد' if operation == 'DEPOSIT' else 'خصم رصيد'}"
+    if note:
+        description = f"{description} - {note}"
+
+    try:
+        Transaction.objects.create(
+            wallet=wallet,
+            amount=amount,
+            transaction_type=operation,
+            source="SYSTEM",
+            description=description,
+        )
+    except ValueError as exc:
+        return JsonResponse({"success": False, "message": str(exc)}, status=400)
+
+    return JsonResponse({"success": True, "wallet": _wallet_payload(wallet)})
+
+
+@login_required(login_url="core:cafe_login")
+@user_passes_test(_is_cafe_operator, login_url="core:route_after_login")
+@require_POST
+def cafe_bind_wallet_card_api(request: HttpRequest) -> JsonResponse:
+    cafe = resolve_backoffice_cafe(request.user)
+    if cafe is None:
+        return JsonResponse({"success": False, "message": "No active cafe is linked to this account."}, status=403)
+
+    wallet = _find_wallet_by_identifier(request.POST.get("identifier"))
+    if wallet is None:
+        return JsonResponse({"success": False, "message": "لم يتم العثور على الطالب أو المحفظة."}, status=404)
+
+    card_code = (request.POST.get("card_code") or request.POST.get("nfc_code") or "").strip().upper()
+    if not card_code:
+        return JsonResponse({"success": False, "message": "أدخل كود البطاقة أو مرر بطاقة NFC في الحقل."}, status=400)
+    if Wallet.objects.filter(link_code__iexact=card_code).exclude(pk=wallet.pk).exists():
+        return JsonResponse({"success": False, "message": "هذه البطاقة مربوطة بمحفظة أخرى."}, status=400)
+
+    wallet.link_code = card_code
+    wallet.save(update_fields=["link_code", "updated_at"])
+    return JsonResponse({"success": True, "wallet": _wallet_payload(wallet)})
+
+
 # ???? ???? cafe_panel ?????? ????? ?????? ?? ????? ????.
 @login_required(login_url="core:cafe_login")
 @user_passes_test(_is_cafe_operator, login_url="core:route_after_login")
@@ -522,6 +626,12 @@ def cafe_panel(request: HttpRequest) -> HttpResponse:
         "products": snapshot["products"],
         "categories": Category.objects.for_cafe(cafe.id).filter(is_active=True),
         "kpis": snapshot["kpis"],
+        "wallet_kpis": {
+            "total_balance": Wallet.objects.aggregate(total=Sum("balance"))["total"] or 0,
+            "linked_cards": Wallet.objects.exclude(link_code__isnull=True).exclude(link_code="").count(),
+            "wallets": Wallet.objects.count(),
+        },
+        "recent_wallet_transactions": Transaction.objects.select_related("wallet", "wallet__user").order_by("-created_at")[:8],
         "status_choices": [
             ("PENDING", "New"),
             ("PREPARING", "Preparing"),

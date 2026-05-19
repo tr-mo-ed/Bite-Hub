@@ -302,6 +302,37 @@ class Order(CafeScopedModel):
         return self.order_number or str(self.pk)
 
 
+class Notification(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="notifications",
+    )
+    order = models.ForeignKey(
+        Order,
+        on_delete=models.CASCADE,
+        related_name="notifications",
+        null=True,
+        blank=True,
+    )
+    title = models.CharField(max_length=120)
+    body = models.TextField()
+    event_type = models.CharField(max_length=60, default="SYSTEM")
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "core_notification"
+        ordering = ("-created_at",)
+        indexes = [
+            models.Index(fields=("user", "is_read")),
+            models.Index(fields=("user", "created_at")),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.title} -> {self.user_id}"
+
+
 # ???? ???? OrderItem ???? ?????? ????????? ???? ???? ?????.
 class OrderItem(models.Model):
     # ??? ??????? order ?????? ??? ?????? ???? ??? ??????? ????.

@@ -1,9 +1,9 @@
-{% extends "admin_v2/base.html" %}
+﻿{% extends "admin_v2/base.html" %}
 {% load static %}
 
-{% block title %}Cafe Live Panel | Bite Hub{% endblock %}
-{% block page_title %}لوحة المقهى الحية{% endblock %}
-{% block page_subtitle %}الطلبات تتدفق مباشرة عبر WebSockets مع أدوات سريعة للكاشير والمطبخ.{% endblock %}
+{% block title %}Cafe Operations | Bite Hub{% endblock %}
+{% block page_title %}مركز عمليات المقهى{% endblock %}
+{% block page_subtitle %}تشغيل الطلبات، الدفع، بطاقات الطلاب، والقائمة من واجهة واحدة.{% endblock %}
 
 {% block extra_head %}
   <style>
@@ -12,17 +12,58 @@
       grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 18px;
     }
+    .ops-command-strip {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .ops-command {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 68px;
+      padding: 14px 16px;
+      border-radius: 8px;
+      text-decoration: none;
+      color: #111827;
+      background: rgba(255,255,255,.92);
+      border: 1px solid rgba(15, 23, 42, .10);
+      box-shadow: 0 12px 28px rgba(15, 23, 42, .06);
+    }
+    .ops-command:hover {
+      color: #0f766e;
+      border-color: rgba(15, 118, 110, .24);
+    }
+    .ops-command strong {
+      font-size: .95rem;
+    }
+    .ops-command span {
+      color: #667085;
+      font-size: .78rem;
+    }
+    .ops-index {
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      font-weight: 800;
+      background: linear-gradient(135deg, #0f766e, #38bdf8);
+      flex: 0 0 auto;
+    }
     .kanban-column {
       min-height: 420px;
       padding: 18px;
-      border-radius: 22px;
+      border-radius: 8px;
       border: 1px solid rgba(148, 163, 184, .18);
       background: rgba(255,255,255,.88);
       box-shadow: 0 10px 24px rgba(15, 23, 42, .05);
     }
     .kanban-card {
       border: 1px solid rgba(148, 163, 184, .16);
-      border-radius: 18px;
+      border-radius: 8px;
       padding: 14px;
       background: #fff;
       box-shadow: 0 10px 20px rgba(15, 23, 42, .05);
@@ -46,7 +87,7 @@
     .kanban-empty-state {
       min-height: 210px;
       border: 1px dashed rgba(148, 163, 184, .28);
-      border-radius: 18px;
+      border-radius: 8px;
       display: grid;
       place-items: center;
       text-align: center;
@@ -56,7 +97,7 @@
     }
     .product-toggle {
       border: 1px solid rgba(148, 163, 184, .18);
-      border-radius: 16px;
+      border-radius: 8px;
       padding: 14px;
       background: rgba(255,255,255,.92);
       box-shadow: 0 10px 22px rgba(15, 23, 42, .04);
@@ -68,6 +109,49 @@
       background: #f59e0b;
       box-shadow: 0 0 0 0 rgba(245, 158, 11, .4);
       animation: pulse 1.5s infinite;
+    }
+    .ops-panel-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+    .wallet-action-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 18px;
+    }
+    .operation-card {
+      border: 1px solid rgba(15, 23, 42, .10);
+      border-radius: 8px;
+      padding: 18px;
+      background: #fff;
+    }
+    .result-panel {
+      min-height: 48px;
+      border-radius: 8px;
+      padding: 12px 14px;
+      background: #f6f8fc;
+      border: 1px solid rgba(15, 23, 42, .08);
+      color: #344054;
+      font-weight: 700;
+    }
+    .transaction-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(15, 23, 42, .08);
+    }
+    .transaction-row:last-child {
+      border-bottom: 0;
+    }
+    .nfc-reader-field {
+      direction: ltr;
+      text-align: left;
+      font-weight: 800;
+      letter-spacing: 0;
     }
     .ws-indicator.connected {
       background: #10b981;
@@ -83,41 +167,164 @@
       .kanban-grid {
         grid-template-columns: 1fr;
       }
+      .ops-command-strip,
+      .wallet-action-grid {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 {% endblock %}
 
 {% block content %}
+  <div class="ops-command-strip">
+    <a class="ops-command" href="#orders">
+      <div>
+        <strong>الطلبات الحية</strong>
+        <span>قبول، تجهيز، جاهز، إغلاق</span>
+      </div>
+      <div class="ops-index">01</div>
+    </a>
+    <a class="ops-command" href="#wallets">
+      <div>
+        <strong>المحافظ والدفع</strong>
+        <span>شحن وخصم برصيد مباشر</span>
+      </div>
+      <div class="ops-index">02</div>
+    </a>
+    <a class="ops-command" href="#nfc">
+      <div>
+        <strong>بطاقات NFC</strong>
+        <span>تعريف بطاقة طالب</span>
+      </div>
+      <div class="ops-index">03</div>
+    </a>
+    <a class="ops-command" href="#menu">
+      <div>
+        <strong>القائمة والمخزون</strong>
+        <span>منتجات وتوفر فوري</span>
+      </div>
+      <div class="ops-index">04</div>
+    </a>
+  </div>
+
   <div class="row g-4 mb-4">
     <div class="col-12 col-md-6 col-xl-3">
-      <div class="bh-card bh-kpi">
+      <div class="bh-card bh-kpi is-cyan">
         <div class="label">المقهى</div>
         <div class="value fs-3">{{ cafe.name }}</div>
       </div>
     </div>
     <div class="col-12 col-md-6 col-xl-3">
-      <div class="bh-card bh-kpi">
+      <div class="bh-card bh-kpi is-orange">
         <div class="label">الطلبات الحية</div>
         <div class="value">{{ kpis.live_orders }}</div>
       </div>
     </div>
     <div class="col-12 col-md-6 col-xl-3">
-      <div class="bh-card bh-kpi">
+      <div class="bh-card bh-kpi is-green">
         <div class="label">جاهز للاستلام</div>
         <div class="value">{{ kpis.ready_orders }}</div>
       </div>
     </div>
     <div class="col-12 col-md-6 col-xl-3">
-      <div class="bh-card bh-kpi">
+      <div class="bh-card bh-kpi is-teal">
         <div class="label">نفد من المخزون</div>
         <div class="value">{{ kpis.out_of_stock }}</div>
       </div>
     </div>
   </div>
 
+  <div class="row g-4 mb-4">
+    <div class="col-12 col-xl-7" id="wallets">
+      <section class="bh-card p-4 h-100">
+        <div class="ops-panel-title">
+          <div>
+            <div class="bh-section-title mb-1">محطة المحافظ والدفع</div>
+            <div class="text-muted small">شحن وخصم رصيد الطالب من داخل مركز العمليات.</div>
+          </div>
+          <span class="bh-pill">{{ wallet_kpis.total_balance|floatformat:2 }} د.ل</span>
+        </div>
+        <div class="wallet-action-grid">
+          <form id="walletOpsForm" class="operation-card d-grid gap-3">
+            <div>
+              <label class="form-label">الطالب أو البطاقة</label>
+              <input class="form-control" name="identifier" placeholder="email / phone / card code" required>
+            </div>
+            <div class="row g-2">
+              <div class="col-6">
+                <label class="form-label">العملية</label>
+                <select class="form-select" name="operation">
+                  <option value="DEPOSIT">شحن</option>
+                  <option value="WITHDRAWAL">خصم</option>
+                </select>
+              </div>
+              <div class="col-6">
+                <label class="form-label">المبلغ</label>
+                <input class="form-control" name="amount" type="number" min="0.01" step="0.01" required>
+              </div>
+            </div>
+            <div>
+              <label class="form-label">ملاحظة</label>
+              <input class="form-control" name="note" placeholder="اختياري">
+            </div>
+            <button class="btn btn-dark bh-command-btn" type="submit">تنفيذ العملية</button>
+            <div id="walletOpsResult" class="result-panel">جاهز لتنفيذ عملية محفظة.</div>
+          </form>
+
+          <div class="operation-card">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+              <div class="fw-bold">آخر عمليات المحافظ</div>
+              <span class="bh-pill">{{ wallet_kpis.wallets }} محفظة</span>
+            </div>
+            {% for transaction in recent_wallet_transactions %}
+              <div class="transaction-row">
+                <div>
+                  <div class="fw-bold">{{ transaction.wallet.user.full_name|default:transaction.wallet.user.email }}</div>
+                  <div class="text-muted small">{{ transaction.description|default:"عملية محفظة" }}</div>
+                </div>
+                <div class="text-end">
+                  <div class="fw-bold {% if transaction.transaction_type == 'DEPOSIT' %}text-success{% else %}text-danger{% endif %}">
+                    {% if transaction.transaction_type == 'DEPOSIT' %}+{% else %}-{% endif %}{{ transaction.amount }} د.ل
+                  </div>
+                  <div class="text-muted small">{{ transaction.created_at|date:"H:i" }}</div>
+                </div>
+              </div>
+            {% empty %}
+              <div class="result-panel">لا توجد عمليات محفظة بعد.</div>
+            {% endfor %}
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="col-12 col-xl-5" id="nfc">
+      <section class="bh-card p-4 h-100">
+        <div class="ops-panel-title">
+          <div>
+            <div class="bh-section-title mb-1">تعريف بطاقات NFC</div>
+            <div class="text-muted small">قارئ USB الذي يكتب الكود في الحقل يعمل مباشرة هنا.</div>
+          </div>
+          <span class="bh-pill">{{ wallet_kpis.linked_cards }} بطاقة</span>
+        </div>
+        <form id="cardBindForm" class="d-grid gap-3">
+          <div>
+            <label class="form-label">الطالب</label>
+            <input class="form-control" name="identifier" placeholder="email / phone / wallet code" required>
+          </div>
+          <div>
+            <label class="form-label">كود البطاقة</label>
+            <input class="form-control nfc-reader-field" name="card_code" placeholder="SCAN-CARD-HERE" required>
+          </div>
+          <button class="btn btn-dark bh-command-btn" type="submit">ربط البطاقة بالمحفظة</button>
+          <div id="cardBindResult" class="result-panel">جاهز لتعريف بطاقة طالب.</div>
+        </form>
+      </section>
+    </div>
+  </div>
+
   <div class="row g-4">
     <div class="col-12 col-xl-8">
-      <div class="bh-card p-4 mb-4">
+      <div class="bh-card p-4 mb-4" id="menu">
         <div class="d-flex align-items-center justify-content-between mb-3">
           <div class="bh-section-title mb-0">إضافة / تعديل منتج</div>
           <span class="bh-pill">Menu</span>
@@ -167,11 +374,11 @@
         </form>
       </div>
 
-      <div class="bh-card p-4">
+      <div class="bh-card p-4" id="orders">
         <div class="d-flex align-items-center justify-content-between mb-3">
           <div>
-            <div class="bh-section-title mb-1">Kanban Board</div>
-            <div class="text-muted">مربوط مباشرة بقناة المقهى {{ cafe.name }}</div>
+            <div class="bh-section-title mb-1">سير الطلبات الحية</div>
+            <div class="text-muted">قبول، تجهيز، جاهز، وإغلاق مع تحديث دوري يعمل على الاستضافة المجانية.</div>
           </div>
           <div class="d-flex align-items-center gap-2">
             <div id="wsIndicator" class="ws-indicator"></div>
@@ -186,13 +393,13 @@
             </div>
             <div class="order-column-body">
               {% for order in orders_by_status.PENDING %}
-                {% include "admin_v2/partials/order_card.html" with order=order next_status="ACCEPTED" next_label="اعتماد الطلب" %}
+                {% include "admin_v2/partials/order_card.html" with order=order next_status="ACCEPTED" next_label="قبول الطلب" %}
               {% empty %}
                 <div class="kanban-empty-state">
                   <div>
-                    <div class="fs-2 mb-2">🧾</div>
+                    <div class="fw-bold mb-2 text-uppercase">New</div>
                     <div class="fw-bold mb-1">لا توجد طلبات جديدة الآن</div>
-                    <div class="small">أي طلب جديد سيظهر هنا فوراً عبر WebSocket.</div>
+                    <div class="small">أي طلب جديد سيظهر هنا عبر التحديث الدوري.</div>
                   </div>
                 </div>
               {% endfor %}
@@ -209,7 +416,7 @@
               {% empty %}
                 <div class="kanban-empty-state">
                   <div>
-                    <div class="fs-2 mb-2">👨‍🍳</div>
+                    <div class="fw-bold mb-2 text-uppercase">Prep</div>
                     <div class="fw-bold mb-1">لا توجد طلبات قيد التجهيز</div>
                     <div class="small">بمجرد اعتماد أي طلب سينتقل إلى هذا العمود تلقائياً.</div>
                   </div>
@@ -228,7 +435,7 @@
               {% empty %}
                 <div class="kanban-empty-state">
                   <div>
-                    <div class="fs-2 mb-2">✅</div>
+                    <div class="fw-bold mb-2 text-uppercase">Ready</div>
                     <div class="fw-bold mb-1">لا توجد طلبات جاهزة الآن</div>
                     <div class="small">عند اكتمال التحضير ستظهر الطلبات هنا بانتظار التسليم.</div>
                   </div>
@@ -288,7 +495,7 @@
           {% empty %}
             <div class="kanban-empty-state">
               <div>
-                <div class="fs-2 mb-2">📦</div>
+                <div class="fw-bold mb-2 text-uppercase">Menu</div>
                 <div class="fw-bold mb-1">لا توجد منتجات بعد</div>
                 <div class="small">أضف المنتجات من لوحة الإدارة لتبدأ إدارة المخزون السريع.</div>
               </div>
@@ -306,6 +513,8 @@
       "snapshotEndpoint": "{% url 'core:cafe_panel_snapshot_api' %}",
       "statusEndpointTemplate": "{% url 'core:update_order_status_api' 0 %}",
       "stockEndpointTemplate": "{% url 'core:toggle_product_stock_api' 0 %}",
+      "walletOperationEndpoint": "{% url 'core:cafe_wallet_operation_api' %}",
+      "cardBindEndpoint": "{% url 'core:cafe_bind_wallet_card_api' %}",
       "createProductEndpoint": "{% url 'core:create_product_api' %}",
       "saveProductEndpointTemplate": "{% url 'core:save_product_api' 0 %}",
       "csrfToken": "{{ csrf_token }}"
@@ -314,7 +523,7 @@
 
   <div class="modal fade" id="confirmCafePanelActionModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content border-0 rounded-5 shadow-lg">
+      <div class="modal-content border-0 rounded-2 shadow-lg">
         <div class="modal-header border-0 pb-0">
           <div>
             <h2 class="h4 fw-bold mb-1" id="confirmCafePanelActionTitle">تأكيد العملية</h2>

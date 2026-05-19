@@ -91,7 +91,7 @@
       .join("");
     const cancelButton = ["COMPLETED", "CANCELLED"].includes(order.status)
       ? ""
-      : `<button type="button" class="btn btn-outline-danger btn-sm rounded-pill px-3 js-order-action" data-order-id="${order.id}" data-status="CANCELLED">إلغاء</button>`;
+      : `<button type="button" class="btn btn-outline-danger btn-sm rounded-2 px-3 js-order-action" data-order-id="${order.id}" data-status="CANCELLED">إلغاء</button>`;
 
     return `
       <article class="kanban-card" data-order-id="${order.id}">
@@ -104,7 +104,7 @@
         </div>
         <div class="mb-3">${items || '<div class="line-item text-muted">بدون عناصر مسجلة</div>'}</div>
         <div class="d-flex gap-2">
-          ${nextStatus ? `<button type="button" class="btn btn-dark btn-sm rounded-pill px-3 js-order-action" data-order-id="${order.id}" data-status="${nextStatus}">${nextLabel}</button>` : ""}
+          ${nextStatus ? `<button type="button" class="btn btn-dark btn-sm rounded-2 px-3 js-order-action" data-order-id="${order.id}" data-status="${nextStatus}">${nextLabel}</button>` : ""}
           ${cancelButton}
         </div>
       </article>
@@ -114,7 +114,7 @@
   function statusMeta(status) {
     switch (status) {
       case "PENDING":
-        return { column: "PENDING", nextStatus: "ACCEPTED", nextLabel: "اعتماد الطلب" };
+        return { column: "PENDING", nextStatus: "ACCEPTED", nextLabel: "قبول الطلب" };
       case "ACCEPTED":
         return { column: "PREPARING", nextStatus: "PREPARING", nextLabel: "بدء التجهيز" };
       case "PREPARING":
@@ -168,16 +168,20 @@
   }
 
   function playBeep() {
-    const context = new (window.AudioContext || window.webkitAudioContext)();
-    const oscillator = context.createOscillator();
-    const gain = context.createGain();
-    oscillator.type = "sine";
-    oscillator.frequency.value = 880;
-    gain.gain.value = 0.06;
-    oscillator.connect(gain);
-    gain.connect(context.destination);
-    oscillator.start();
-    oscillator.stop(context.currentTime + 0.18);
+    try {
+      const context = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      oscillator.type = "sine";
+      oscillator.frequency.value = 880;
+      gain.gain.value = 0.06;
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      oscillator.start();
+      oscillator.stop(context.currentTime + 0.18);
+    } catch (error) {
+      // Browsers may block audio before a user gesture.
+    }
   }
 
   function upsertOrderCard(order, eventName) {
@@ -207,13 +211,16 @@
   }
 
   async function postForm(url, body) {
+    const encodedBody = body instanceof URLSearchParams
+      ? body.toString()
+      : new URLSearchParams(body).toString();
     const response = await fetch(url, {
       method: "POST",
       headers: {
         "X-CSRFToken": getCsrfToken(),
         "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
       },
-      body: new URLSearchParams(body).toString(),
+      body: encodedBody,
       credentials: "same-origin",
     });
     const payload = await response.json();
@@ -241,6 +248,10 @@
 
   const productForm = document.getElementById("productForm");
   const resetProductForm = document.getElementById("resetProductForm");
+  const walletOpsForm = document.getElementById("walletOpsForm");
+  const walletOpsResult = document.getElementById("walletOpsResult");
+  const cardBindForm = document.getElementById("cardBindForm");
+  const cardBindResult = document.getElementById("cardBindResult");
 
   function resetProductEditor() {
     if (!productForm) {
@@ -254,6 +265,57 @@
 
   if (resetProductForm) {
     resetProductForm.addEventListener("click", resetProductEditor);
+  }
+
+  function writeResult(node, message, variant = "neutral") {
+    if (!node) {
+      return;
+    }
+    node.textContent = message;
+    node.classList.toggle("text-success", variant === "success");
+    node.classList.toggle("text-danger", variant === "danger");
+  }
+
+  if (walletOpsForm) {
+    walletOpsForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      writeResult(walletOpsResult, "جاري تنفيذ العملية...");
+      try {
+        const payload = await postForm(config.walletOperationEndpoint, new FormData(walletOpsForm));
+        const wallet = payload.wallet || {};
+        writeResult(
+          walletOpsResult,
+          `تمت العملية: ${wallet.user || ""} | الرصيد الحالي ${wallet.balance || "0.00"} د.ل | الكود ${wallet.link_code || "-"}`,
+          "success",
+        );
+        showToast("تم تحديث المحفظة.", "success");
+        walletOpsForm.reset();
+      } catch (error) {
+        writeResult(walletOpsResult, error.message || "تعذر تنفيذ عملية المحفظة.", "danger");
+        showToast(error.message || "تعذر تنفيذ عملية المحفظة.", "danger");
+      }
+    });
+  }
+
+  if (cardBindForm) {
+    cardBindForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      writeResult(cardBindResult, "جاري ربط البطاقة...");
+      try {
+        const payload = await postForm(config.cardBindEndpoint, new FormData(cardBindForm));
+        const wallet = payload.wallet || {};
+        writeResult(
+          cardBindResult,
+          `تم ربط البطاقة ${wallet.link_code || "-"} بمحفظة ${wallet.user || ""}.`,
+          "success",
+        );
+        showToast("تم تعريف بطاقة الطالب.", "success");
+        cardBindForm.reset();
+      } catch (error) {
+        writeResult(cardBindResult, error.message || "تعذر تعريف البطاقة.", "danger");
+        showToast(error.message || "تعذر تعريف البطاقة.", "danger");
+      }
+    });
   }
 
   document.addEventListener("click", (event) => {
@@ -371,7 +433,15 @@
 
   let socket = null;
   let reconnectTimer = null;
+  let pollingTimer = null;
   let reconnectDelay = 1500;
+
+  function startPollingFallback() {
+    if (pollingTimer) {
+      return;
+    }
+    pollingTimer = window.setInterval(syncLatestOrders, 8000);
+  }
 
   function connectSocket() {
     if (socket && [WebSocket.OPEN, WebSocket.CONNECTING].includes(socket.readyState)) {
@@ -387,12 +457,14 @@
         wsIndicator.classList.add("connected");
       }
       syncLatestOrders();
+      startPollingFallback();
     });
 
     socket.addEventListener("close", () => {
       if (wsIndicator) {
         wsIndicator.classList.remove("connected");
       }
+      startPollingFallback();
       reconnectTimer = window.setTimeout(connectSocket, reconnectDelay);
       reconnectDelay = Math.min(reconnectDelay * 2, 15000);
     });
@@ -426,4 +498,6 @@
   });
 
   connectSocket();
+  startPollingFallback();
+  syncLatestOrders();
 })();

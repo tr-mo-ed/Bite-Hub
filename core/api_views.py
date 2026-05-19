@@ -21,7 +21,13 @@ from .services import (
     cancel_user_order as cancel_user_order_service,
     create_order as create_order_service,
 )
-from .serializers import ProductSerializer, OrderSerializer, CafeSerializer, UserSerializer
+from .serializers import (
+    CafeSerializer,
+    NotificationSerializer,
+    OrderSerializer,
+    ProductSerializer,
+    UserSerializer,
+)
 from users.models import User
 from wallet.models import Wallet
 from .utils import normalize_libyan_phone
@@ -386,6 +392,23 @@ def get_user_orders(request):
     # ??? ??????? serializer ??? ????? ??? ???? ???? ???? ????? ????.
     serializer = OrderSerializer(orders, many=True, context={'request': request})
     return Response(serializer.data)
+
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def notifications_endpoint(request):
+    if request.method == 'POST':
+        request.user.notifications.filter(is_read=False).update(is_read=True)
+        return Response({'success': True})
+
+    notifications = request.user.notifications.select_related('order', 'order__cafe')[:50]
+    serializer = NotificationSerializer(notifications, many=True)
+    return Response(
+        {
+            'unread_count': request.user.notifications.filter(is_read=False).count(),
+            'notifications': serializer.data,
+        }
+    )
 
 
 # ???? ???? cancel_order ?????? ????? ?????? ?? ????? ????.

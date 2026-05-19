@@ -52,6 +52,14 @@ ALLOWED_ORDER_STATUS_TRANSITIONS = {
     "CANCELLED": set(),
 }
 
+ORDER_STATUS_NOTIFICATIONS = {
+    "ACCEPTED": ("تم قبول طلبك", "المقهى قبل طلبك وبدأت متابعة التجهيز."),
+    "PREPARING": ("طلبك قيد التجهيز", "الفريق يعمل على تجهيز طلبك الآن."),
+    "READY": ("طلبك جاهز للاستلام", "يمكنك استلام طلبك من نقطة المقهى."),
+    "COMPLETED": ("تم تسليم الطلب", "تم إغلاق طلبك بنجاح."),
+    "CANCELLED": ("تم إلغاء الطلب", "تم إلغاء الطلب. إذا كان الدفع من المحفظة سيتم إرجاع الرصيد عند الحاجة."),
+}
+
 
 # ???? ???? _generate_order_number ?????? ????? ?????? ?? ????? ????.
 def _generate_order_number() -> str:
@@ -287,7 +295,13 @@ def create_order(
         OrderItem.objects.bulk_create(order_items)
 
     try:
-        send_real_notification(user, "تم استلام طلبك", f"طلبك #{order.order_number} قيد المراجعة.")
+        send_real_notification(
+            user,
+            "تم استلام طلبك",
+            f"طلبك #{order.order_number} قيد المراجعة.",
+            event_type="ORDER_CREATED",
+            order=order,
+        )
     except Exception:
         pass
 
@@ -336,6 +350,13 @@ def cancel_user_order(order_id: int, user) -> Order:
         if _normalize_payment_method(order.payment_method) == PaymentMethod.WALLET:
             _refund_wallet_for_cancelled_order(order)
 
+    send_real_notification(
+        order.user,
+        "تم إلغاء الطلب",
+        f"تم إلغاء طلبك #{order.order_number or order.pk}.",
+        event_type="ORDER_CANCELLED",
+        order=order,
+    )
     _broadcast_order_event(order, "order.updated")
     return order
 
@@ -379,7 +400,20 @@ def update_order_status(order_id, cafe_id, new_status, user) -> Order:
 
         order.status = normalized_status
         order.save(update_fields=["status", "updated_at"])
+        if normalized_status == "CANCELLED" and _normalize_payment_method(order.payment_method) == PaymentMethod.WALLET:
+            _refund_wallet_for_cancelled_order(order)
 
+    title, body = ORDER_STATUS_NOTIFICATIONS.get(
+        normalized_status,
+        ("تم تحديث الطلب", f"تم تحديث طلبك #{order.order_number or order.pk}."),
+    )
+    send_real_notification(
+        order.user,
+        title,
+        f"{body} رقم الطلب: {order.order_number or order.pk}.",
+        event_type=f"ORDER_{normalized_status}",
+        order=order,
+    )
     _broadcast_order_event(order, "order.updated")
 
     return order

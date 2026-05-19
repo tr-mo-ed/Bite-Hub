@@ -9,9 +9,9 @@ from django.urls import reverse
 
 from .api_views import get_products_cached
 from .backoffice_services import CAFE_OWNER_GROUP_NAME, provision_cafe, toggle_product_stock
-from .models import Cafe, Category, Faculty, Order, OrderItem, OrderStatus, Product
+from .models import Cafe, Category, Faculty, Notification, Order, OrderItem, OrderStatus, Product
 from .services import ValidationServiceError, cancel_user_order, create_order
-from wallet.models import Transaction
+from wallet.models import Transaction, Wallet
 
 
 # ??? ??????? TEST_CHANNEL_LAYERS ??? ????? ??? ???? ???? ???? ????? ????.
@@ -294,6 +294,18 @@ class OrderWorkflowTests(TestCase):
         self.assertTrue(payload["success"])
         order.refresh_from_db()
         self.assertEqual(order.status, OrderStatus.ACCEPTED)
+        self.assertTrue(
+            Notification.objects.filter(
+                user=self.customer,
+                order=order,
+                event_type="ORDER_ACCEPTED",
+            ).exists()
+        )
+
+        self.client.force_login(self.customer)
+        notifications_response = self.client.get(reverse("v2_app_notifications"))
+        self.assertEqual(notifications_response.status_code, 200, notifications_response.content)
+        self.assertGreaterEqual(notifications_response.json()["unread_count"], 1)
 
     def test_cashier_can_progress_accepted_order_through_preparing_to_ready(self):
         order = create_order(
@@ -425,6 +437,40 @@ class OrderWorkflowTests(TestCase):
                 description__contains="Refund for cancelled order",
             ).exists()
         )
+
+    def test_cafe_cancel_wallet_order_refunds_student_balance(self):
+        wallet = self.customer.wallet
+        Transaction.objects.create(
+            wallet=wallet,
+            amount=Decimal("20.00"),
+            transaction_type="DEPOSIT",
+            source="SYSTEM",
+            description="Test wallet funding",
+        )
+        order = create_order(
+            user=self.customer,
+            cafe_id=self.cafe.id,
+            payment_method="WALLET",
+            total_price=Decimal("5.00"),
+            items_data=[
+                {
+                    "product_id": self.product.id,
+                    "quantity": 1,
+                }
+            ],
+        )
+        wallet.refresh_from_db()
+        self.assertEqual(wallet.balance, Decimal("15.00"))
+        self.client.force_login(self.cashier)
+
+        response = self.client.post(
+            reverse("core:update_order_status_api", args=[order.id]),
+            data={"cafe_id": self.cafe.id, "status": "CANCELLED"},
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        wallet.refresh_from_db()
+        self.assertEqual(wallet.balance, Decimal("20.00"))
 
     def test_create_order_rejects_unavailable_product_before_wallet_withdrawal(self):
         self.product.is_available = False
@@ -587,6 +633,12 @@ class DashboardRenderSmokeTests(TestCase):
             # ??? ??????? owner ??? ????? ??? ???? ???? ???? ????? ????.
             owner=self.cashier,
         )
+        self.student = User.objects.create_user(
+            email="student-panel@example.com",
+            password="StrongPass123",
+            full_name="Panel Student",
+            phone_number="0910000014",
+        )
 
     # ???? ???? test_super_admin_dashboard_renders_polished_controls ?????? ????? ?????? ?? ????? ????.
     def test_super_admin_dashboard_renders_polished_controls(self):
@@ -630,6 +682,39 @@ class DashboardRenderSmokeTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "confirmCafePanelActionModal")
+        self.assertContains(response, "محطة المحافظ والدفع")
+        self.assertContains(response, "تعريف بطاقات NFC")
+
+    def test_cafe_operator_can_deposit_and_withdraw_student_wallet(self):
+        self.client.force_login(self.cashier)
+
+        deposit_response = self.client.post(
+            reverse("core:cafe_wallet_operation_api"),
+            data={"identifier": self.student.email, "operation": "DEPOSIT", "amount": "25.50"},
+        )
+        self.assertEqual(deposit_response.status_code, 200, deposit_response.content)
+        self.student.wallet.refresh_from_db()
+        self.assertEqual(self.student.wallet.balance, Decimal("25.50"))
+
+        withdraw_response = self.client.post(
+            reverse("core:cafe_wallet_operation_api"),
+            data={"identifier": self.student.email, "operation": "WITHDRAWAL", "amount": "5.50"},
+        )
+        self.assertEqual(withdraw_response.status_code, 200, withdraw_response.content)
+        self.student.wallet.refresh_from_db()
+        self.assertEqual(self.student.wallet.balance, Decimal("20.00"))
+
+    def test_cafe_operator_can_bind_nfc_card_code_to_wallet(self):
+        self.client.force_login(self.cashier)
+
+        response = self.client.post(
+            reverse("core:cafe_bind_wallet_card_api"),
+            data={"identifier": self.student.email, "card_code": "CARD-001"},
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        wallet = Wallet.objects.get(user=self.student)
+        self.assertEqual(wallet.link_code, "CARD-001")
 
     def test_cafe_panel_snapshot_returns_current_live_orders(self):
         category = Category.objects.create(cafe=self.cafe, name="Coffee")

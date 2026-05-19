@@ -16,7 +16,7 @@
   <div class="d-flex gap-2">
     <button
       type="button"
-      class="btn btn-dark btn-sm rounded-pill px-3 js-order-action"
+      class="btn btn-dark btn-sm rounded-2 px-3 js-order-action"
       data-order-id="{{ order.id }}"
       {% if order.status == "ACCEPTED" %}
       data-status="PREPARING"
@@ -33,7 +33,7 @@
     {% if order.status != "CANCELLED" and order.status != "COMPLETED" %}
       <button
         type="button"
-        class="btn btn-outline-danger btn-sm rounded-pill px-3 js-order-action"
+        class="btn btn-outline-danger btn-sm rounded-2 px-3 js-order-action"
         data-order-id="{{ order.id }}"
         data-status="CANCELLED"
       >

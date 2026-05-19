@@ -1,9 +1,9 @@
-{% extends "admin_v2/base.html" %}
+﻿{% extends "admin_v2/base.html" %}
 {% load static %}
 
-{% block title %}Super Admin Dashboard | Bite Hub{% endblock %}
-{% block page_title %}لوحة السوبر أدمن{% endblock %}
-{% block page_subtitle %}مراقبة الأداء، إضافة المقاهي، ومتابعة الأعطال من نقطة واحدة.{% endblock %}
+{% block title %}Executive Operations | Bite Hub{% endblock %}
+{% block page_title %}مركز الإدارة العليا{% endblock %}
+{% block page_subtitle %}إدارة المقاهي، متابعة الأداء، وروابط التشغيل من واجهة مركزية واحدة.{% endblock %}
 
 {% block extra_head %}
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
@@ -39,11 +39,11 @@
     }
     .bh-table tbody td:first-child {
       border-right: 1px solid rgba(148, 163, 184, .12);
-      border-radius: 0 16px 16px 0;
+      border-radius: 0 8px 8px 0;
     }
     .bh-table tbody td:last-child {
       border-left: 1px solid rgba(148, 163, 184, .12);
-      border-radius: 16px 0 0 16px;
+      border-radius: 8px 0 0 8px;
     }
     .status-dot {
       width: 9px;
@@ -60,7 +60,7 @@
       padding: 32px 24px;
       text-align: center;
       border: 1px dashed rgba(148, 163, 184, .3);
-      border-radius: 22px;
+      border-radius: 8px;
       background: rgba(248, 250, 252, .72);
     }
     .bh-empty-icon {
@@ -69,7 +69,7 @@
       margin: 0 auto 14px;
       display: grid;
       place-items: center;
-      border-radius: 20px;
+      border-radius: 8px;
       background: rgba(15, 118, 110, .1);
       color: #0f766e;
       font-size: 1.8rem;
@@ -97,25 +97,25 @@
 {% block content %}
   <div class="row g-4 mb-4">
     <div class="col-12 col-md-6 col-xl-3">
-      <div class="bh-card bh-kpi">
+      <div class="bh-card bh-kpi is-teal">
         <div class="label">إجمالي المبيعات</div>
         <div class="value">{{ kpis.total_sales|floatformat:2 }} د.ل</div>
       </div>
     </div>
     <div class="col-12 col-md-6 col-xl-3">
-      <div class="bh-card bh-kpi">
+      <div class="bh-card bh-kpi is-orange">
         <div class="label">الطلبات الحية</div>
         <div class="value">{{ kpis.live_orders }}</div>
       </div>
     </div>
     <div class="col-12 col-md-6 col-xl-3">
-      <div class="bh-card bh-kpi">
+      <div class="bh-card bh-kpi is-cyan">
         <div class="label">الطلاب النشطون</div>
         <div class="value">{{ kpis.active_students }}</div>
       </div>
     </div>
     <div class="col-12 col-md-6 col-xl-3">
-      <div class="bh-card bh-kpi">
+      <div class="bh-card bh-kpi is-green">
         <div class="label">المقاهي الفعالة</div>
         <div class="value">{{ kpis.active_cafes }}</div>
       </div>
@@ -144,7 +144,7 @@
           <span class="bh-pill">Provisioning</span>
         </div>
         <div class="bh-empty-state">
-          <div class="bh-empty-icon">+</div>
+            <div class="bh-empty-icon">NEW</div>
           <h3 class="h5 fw-bold">تهيئة مقهى جديد</h3>
           <p class="text-muted mb-3">الاسم والكود مطلوبان، وربط الكلية اختياري في هذه المرحلة.</p>
           <button type="button" class="btn btn-dark btn-lg rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#createCafeModal">
@@ -191,7 +191,7 @@
         </div>
         {% else %}
           <div class="bh-empty-state">
-            <div class="bh-empty-icon">📊</div>
+            <div class="bh-empty-icon">DATA</div>
             <h3 class="h5 fw-bold">لا توجد بيانات أداء بعد</h3>
             <p class="text-muted mb-0">بمجرد وصول الطلبات الأولى ستظهر المقاهي الأعلى نشاطاً هنا تلقائياً.</p>
           </div>
@@ -206,7 +206,7 @@
         </div>
         <div class="d-grid gap-3">
           {% for error in error_snapshots %}
-            <div class="border rounded-4 p-3">
+            <div class="border rounded-2 p-3">
               <div class="d-flex align-items-center justify-content-between mb-2">
                 <strong>{{ error.source }}</strong>
                 <span class="badge text-bg-dark">{{ error.level }}</span>
@@ -214,7 +214,7 @@
               <div class="text-muted small">{{ error.message }}</div>
             </div>
           {% empty %}
-            <div class="border rounded-4 p-4 text-center text-muted">
+            <div class="border rounded-2 p-4 text-center text-muted">
               لم يتم العثور على أخطاء محلية حالياً. إذا كان Sentry مفعلاً فسيتم تجميع الأحداث هناك.
             </div>
           {% endfor %}
@@ -294,7 +294,7 @@
         </div>
         {% else %}
           <div class="bh-empty-state">
-            <div class="bh-empty-icon">☕</div>
+            <div class="bh-empty-icon">CAFE</div>
             <h3 class="h5 fw-bold">لا توجد مقاهٍ مسجلة بعد</h3>
             <p class="text-muted mb-3">ابدأ بإنشاء أول مقهى ليظهر هنا ولينعكس مباشرة في التطبيق.</p>
             <button type="button" class="btn btn-dark rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#createCafeModal">
@@ -308,7 +308,7 @@
 
   <div class="modal fade" id="createCafeModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content border-0 rounded-5 shadow-lg">
+      <div class="modal-content border-0 rounded-2 shadow-lg">
         <div class="modal-header border-0 pb-0">
           <div>
             <h2 class="h4 fw-bold mb-1">إنشاء مقهى جديد</h2>
@@ -321,11 +321,11 @@
             {% csrf_token %}
             <div class="col-12">
               <label class="form-label">اسم المقهى</label>
-              <input type="text" name="name" class="form-control form-control-lg rounded-4" placeholder="مثال: Cafe of Engineering" value="{{ cafe_form_data.name }}" required>
+              <input type="text" name="name" class="form-control form-control-lg rounded-2" placeholder="مثال: Cafe of Engineering" value="{{ cafe_form_data.name }}" required>
             </div>
             <div class="col-12">
               <label class="form-label">الكلية</label>
-              <select name="faculty_id" class="form-select form-select-lg rounded-4">
+              <select name="faculty_id" class="form-select form-select-lg rounded-2">
                 <option value="">بدون كلية محددة</option>
                 {% for faculty in faculties %}
                   <option value="{{ faculty.id }}" {% if cafe_form_data.faculty_id == faculty.id|stringformat:"s" %}selected{% endif %}>{{ faculty.name }}</option>
@@ -335,11 +335,11 @@
             </div>
             <div class="col-12">
               <label class="form-label">كود المقهى</label>
-              <input type="text" name="code" class="form-control form-control-lg rounded-4" placeholder="engineering-cafe" value="{{ cafe_form_data.code }}" required>
+              <input type="text" name="code" class="form-control form-control-lg rounded-2" placeholder="engineering-cafe" value="{{ cafe_form_data.code }}" required>
             </div>
             <div class="col-12">
               <label class="form-label">مدير المقهى</label>
-              <select name="owner_id" class="form-select form-select-lg rounded-4">
+              <select name="owner_id" class="form-select form-select-lg rounded-2">
                 <option value="">بدون مدير حاليا</option>
                 {% for manager in managers %}
                   <option value="{{ manager.id }}" {% if cafe_form_data.owner_id == manager.id|stringformat:"s" %}selected{% endif %}>
@@ -361,7 +361,7 @@
 
   <div class="modal fade" id="confirmCafeToggleModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content border-0 rounded-5 shadow-lg">
+      <div class="modal-content border-0 rounded-2 shadow-lg">
         <div class="modal-header border-0 pb-0">
           <div>
             <h2 class="h4 fw-bold mb-1">تأكيد العملية</h2>
@@ -370,7 +370,7 @@
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
-          <div class="alert alert-warning rounded-4 mb-0">
+          <div class="alert alert-warning rounded-2 mb-0">
             سيؤثر هذا التغيير على ظهور المقهى في تطبيق الطلاب وقائمة المقاهي المتاحة.
           </div>
         </div>

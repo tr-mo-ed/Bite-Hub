@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from .backoffice_services import CAFE_OWNER_GROUP_NAME
-from .models import Cafe, Product, Order, OrderItem, Category
+from .models import Cafe, Product, Order, OrderItem, Category, Notification
 from users.models import User
 
 
@@ -262,4 +262,23 @@ class OrderSerializer(serializers.ModelSerializer):
             'id', 'order_number', 'total_price', 'status', 'status_display',
             'payment_method', 'payment_method_display', 'created_at',
             'cafe_name', 'cafe_id', 'items',
+        ]
+
+
+class NotificationSerializer(serializers.ModelSerializer):
+    order_number = serializers.ReadOnlyField(source="order.order_number")
+    cafe_name = serializers.ReadOnlyField(source="order.cafe.name")
+
+    class Meta:
+        model = Notification
+        fields = [
+            "id",
+            "title",
+            "body",
+            "event_type",
+            "is_read",
+            "created_at",
+            "order_id",
+            "order_number",
+            "cafe_name",
         ]

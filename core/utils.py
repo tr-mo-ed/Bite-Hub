@@ -1,15 +1,24 @@
 import re
 
 
-def send_real_notification(user, title, body):
+def send_real_notification(user, title, body, *, event_type="SYSTEM", order=None):
     """
-    Notification hook kept for order flows.
+    Store an in-app notification without depending on Firebase or external push.
+    """
+    if not user:
+        return None
+    try:
+        from .models import Notification
 
-    External push notifications are disabled; this function intentionally does
-    nothing so order creation and status updates keep working without an
-    external notification provider.
-    """
-    return None
+        return Notification.objects.create(
+            user=user,
+            order=order,
+            title=title,
+            body=body,
+            event_type=event_type,
+        )
+    except Exception:
+        return None
 
 
 def get_smart_image_for_product(product_name):
