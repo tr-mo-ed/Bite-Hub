@@ -177,6 +177,99 @@
     .transaction-row:last-child {
       border-bottom: 0;
     }
+    .wallet-summary-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .wallet-summary-tile {
+      min-height: 104px;
+      border-radius: 8px;
+      padding: 16px;
+      border: 1px solid rgba(67, 87, 184, .14);
+      background: linear-gradient(135deg, #fff, rgba(74, 166, 220, .10));
+      box-shadow: 0 12px 28px rgba(67, 87, 184, .08);
+    }
+    .wallet-summary-tile strong {
+      display: block;
+      color: #08111f;
+      font-size: 1.55rem;
+      font-weight: 900;
+      line-height: 1.1;
+      margin-top: 8px;
+    }
+    .wallet-summary-tile span {
+      color: #667085;
+      font-size: .82rem;
+      font-weight: 800;
+    }
+    .wallet-workbench {
+      display: grid;
+      grid-template-columns: minmax(320px, .9fr) minmax(0, 1.1fr);
+      gap: 18px;
+      align-items: start;
+    }
+    .wallet-command-card,
+    .wallet-ledger-card {
+      padding: 22px;
+    }
+    .wallet-card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+    .wallet-card-title {
+      color: #08111f;
+      font-size: 1.05rem;
+      font-weight: 900;
+      margin: 0;
+    }
+    .wallet-card-subtitle {
+      color: #667085;
+      font-size: .84rem;
+      margin: 4px 0 0;
+    }
+    .wallet-form-grid {
+      display: grid;
+      gap: 14px;
+    }
+    .wallet-two-fields {
+      display: grid;
+      grid-template-columns: 150px minmax(0, 1fr);
+      gap: 12px;
+    }
+    .wallet-ledger-list {
+      display: grid;
+      gap: 10px;
+    }
+    .wallet-ledger-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 14px;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(67, 87, 184, .12);
+      background: linear-gradient(135deg, rgba(255,255,255,.96), rgba(74, 166, 220, .06));
+    }
+    .wallet-ledger-amount {
+      text-align: left;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+    .wallet-empty-ledger {
+      min-height: 118px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      padding: 18px;
+      border-radius: 8px;
+      color: #667085;
+      border: 1px dashed rgba(67, 87, 184, .22);
+      background: linear-gradient(135deg, rgba(74, 166, 220, .08), rgba(255, 241, 0, .10));
+    }
     .nfc-reader-field {
       direction: ltr;
       text-align: left;
@@ -355,7 +448,10 @@
       }
       .ops-command-strip,
       .wallet-action-grid,
-      .order-ops-toolbar {
+      .order-ops-toolbar,
+      .wallet-summary-grid,
+      .wallet-workbench,
+      .wallet-two-fields {
         grid-template-columns: 1fr;
       }
       .section-command-bar {
@@ -427,29 +523,52 @@
 
   <div class="row g-4 mb-4">
     <div class="col-12" id="wallets" data-cafe-section-panel="wallets">
-      <section class="bh-card p-4 h-100">
-        <div class="ops-panel-title">
-          <div>
-            <div class="bh-section-title mb-1">محطة المحافظ والدفع</div>
-            <div class="text-muted small">شحن وخصم رصيد الطالب من داخل مركز العمليات.</div>
-          </div>
-          <span class="bh-pill">{{ wallet_kpis.total_balance|floatformat:2 }} د.ل</span>
+      <div class="section-command-bar">
+        <div>
+          <h2 class="section-command-title">محطة المحافظ والدفع</h2>
+          <p class="section-command-subtitle">تشغيل مالي مباشر للطلاب: تحقق من المحفظة، شحن، خصم، ثم راقب السجل.</p>
         </div>
-        <div class="wallet-action-grid">
-          <form id="walletOpsForm" class="operation-card d-grid gap-3">
+        <span class="bh-pill">Finance Desk</span>
+      </div>
+
+      <div class="wallet-summary-grid">
+        <div class="wallet-summary-tile">
+          <span>إجمالي أرصدة المحافظ</span>
+          <strong>{{ wallet_kpis.total_balance|floatformat:2 }} د.ل</strong>
+        </div>
+        <div class="wallet-summary-tile">
+          <span>عدد المحافظ</span>
+          <strong>{{ wallet_kpis.wallets }}</strong>
+        </div>
+        <div class="wallet-summary-tile">
+          <span>بطاقات NFC مرتبطة</span>
+          <strong>{{ wallet_kpis.linked_cards }}</strong>
+        </div>
+      </div>
+
+      <div class="wallet-workbench">
+        <form id="walletOpsForm" class="bh-card wallet-command-card">
+          <div class="wallet-card-header">
+            <div>
+              <h3 class="wallet-card-title">تنفيذ عملية مالية</h3>
+              <p class="wallet-card-subtitle">استخدم البريد أو الهاتف أو كود البطاقة. لا يتم الشحن إلا إذا كانت المحفظة موجودة.</p>
+            </div>
+            <span class="bh-pill">Secure</span>
+          </div>
+          <div class="wallet-form-grid">
             <div>
               <label class="form-label">الطالب أو البطاقة</label>
               <input class="form-control" name="identifier" placeholder="email / phone / card code" required>
             </div>
-            <div class="row g-2">
-              <div class="col-6">
+            <div class="wallet-two-fields">
+              <div>
                 <label class="form-label">العملية</label>
                 <select class="form-select" name="operation">
                   <option value="DEPOSIT">شحن</option>
                   <option value="WITHDRAWAL">خصم</option>
                 </select>
               </div>
-              <div class="col-6">
+              <div>
                 <label class="form-label">المبلغ</label>
                 <input class="form-control" name="amount" type="number" min="0.01" step="0.01" required>
               </div>
@@ -460,32 +579,40 @@
             </div>
             <button class="btn btn-dark bh-command-btn" type="submit">تنفيذ العملية</button>
             <div id="walletOpsResult" class="result-panel">جاهز لتنفيذ عملية محفظة.</div>
-          </form>
+          </div>
+        </form>
 
-          <div class="operation-card">
-            <div class="d-flex align-items-center justify-content-between mb-3">
-              <div class="fw-bold">آخر عمليات المحافظ</div>
-              <span class="bh-pill">{{ wallet_kpis.wallets }} محفظة</span>
+        <section class="bh-card wallet-ledger-card">
+          <div class="wallet-card-header">
+            <div>
+              <h3 class="wallet-card-title">سجل عمليات المحافظ</h3>
+              <p class="wallet-card-subtitle">آخر عمليات الشحن والخصم داخل المنظومة.</p>
             </div>
+            <span class="bh-pill">Ledger</span>
+          </div>
+          <div class="wallet-ledger-list">
             {% for transaction in recent_wallet_transactions %}
-              <div class="transaction-row">
+              <div class="wallet-ledger-row">
                 <div>
                   <div class="fw-bold">{{ transaction.wallet.user.full_name|default:transaction.wallet.user.email }}</div>
                   <div class="text-muted small">{{ transaction.description|default:"عملية محفظة" }}</div>
+                  <div class="text-muted small">{{ transaction.created_at|date:"Y-m-d H:i" }}</div>
                 </div>
-                <div class="text-end">
-                  <div class="fw-bold {% if transaction.transaction_type == 'DEPOSIT' %}text-success{% else %}text-danger{% endif %}">
-                    {% if transaction.transaction_type == 'DEPOSIT' %}+{% else %}-{% endif %}{{ transaction.amount }} د.ل
-                  </div>
-                  <div class="text-muted small">{{ transaction.created_at|date:"H:i" }}</div>
+                <div class="wallet-ledger-amount {% if transaction.transaction_type == 'DEPOSIT' %}text-success{% else %}text-danger{% endif %}">
+                  {% if transaction.transaction_type == 'DEPOSIT' %}+{% else %}-{% endif %}{{ transaction.amount }} د.ل
                 </div>
               </div>
             {% empty %}
-              <div class="result-panel">لا توجد عمليات محفظة بعد.</div>
+              <div class="wallet-empty-ledger">
+                <div>
+                  <div class="fw-bold mb-1">لا توجد عمليات محفظة بعد</div>
+                  <div class="small">عند تنفيذ أول شحن أو خصم سيظهر هنا مباشرة.</div>
+                </div>
+              </div>
             {% endfor %}
           </div>
-        </div>
-      </section>
+        </section>
+      </div>
     </div>
 
     <div class="col-12" id="nfc" data-cafe-section-panel="nfc">
