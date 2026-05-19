@@ -181,6 +181,9 @@ def toggle_product_stock(*, cafe_id: int, product_id: int, is_available: bool, u
         if user_cafe is None or user_cafe.id != product.cafe_id:
             raise ValidationServiceError("You cannot update stock outside your cafe scope.")
 
+    if is_available and product.stock_quantity <= 0:
+        raise ValidationServiceError("Cannot mark product available while stock is zero.")
+
     product.is_available = is_available
     product.save(update_fields=["is_available", "updated_at"])
     cache.clear()
@@ -205,6 +208,8 @@ def save_cafe_product(*, cafe_id: int, user, data, files=None, product_id: int |
             raise ValidationServiceError("Product not found in the selected cafe.")
 
     mutable_data = data.copy()
+    if "stock_quantity" not in mutable_data:
+        mutable_data["stock_quantity"] = str(product.stock_quantity if product else 0)
     category_id = mutable_data.get("category")
     if not category_id:
         category = Category.objects.for_cafe(cafe.id).filter(is_active=True).order_by("name").first()

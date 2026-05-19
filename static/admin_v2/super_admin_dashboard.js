@@ -70,8 +70,8 @@
           label: "المبيعات",
           data: sales,
           tension: 0.35,
-          borderColor: "#0f766e",
-          backgroundColor: "rgba(15, 118, 110, 0.16)",
+          borderColor: "#4357b8",
+          backgroundColor: "rgba(67, 87, 184, 0.16)",
           fill: true,
           yAxisID: "y",
         },
@@ -79,8 +79,8 @@
           label: "الطلبات",
           data: orders,
           tension: 0.35,
-          borderColor: "#f97316",
-          backgroundColor: "rgba(249, 115, 22, 0.12)",
+          borderColor: "#f51f2e",
+          backgroundColor: "rgba(255, 122, 26, 0.14)",
           yAxisID: "y1",
         },
       ],
@@ -99,7 +99,7 @@
         y: {
           beginAtZero: true,
           grid: {
-            color: "rgba(148, 163, 184, 0.15)",
+            color: "rgba(67, 87, 184, 0.13)",
           },
         },
         y1: {

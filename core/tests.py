@@ -198,6 +198,7 @@ class OrderWorkflowTests(TestCase):
             name="Espresso",
             # ??? ??????? price ??? ????? ??? ???? ???? ???? ????? ????.
             price=Decimal("5.00"),
+            stock_quantity=20,
         )
 
     # ???? ???? test_create_order_from_app_api ?????? ????? ?????? ?? ????? ????.
@@ -368,6 +369,7 @@ class OrderWorkflowTests(TestCase):
             category=other_category,
             name="Mint Tea",
             price=Decimal("4.00"),
+            stock_quantity=5,
         )
         order = create_order(
             user=self.customer,
@@ -486,7 +488,7 @@ class OrderWorkflowTests(TestCase):
         )
         wallet.refresh_from_db()
 
-        with self.assertRaisesMessage(ValidationServiceError, "Product is not available."):
+        with self.assertRaisesMessage(ValidationServiceError, "Espresso is out of stock."):
             create_order(
                 user=self.customer,
                 cafe_id=self.cafe.id,
@@ -505,6 +507,50 @@ class OrderWorkflowTests(TestCase):
         self.assertFalse(Order.objects.exists())
         self.assertFalse(wallet.transactions.filter(transaction_type="WITHDRAWAL").exists())
 
+    def test_create_order_decrements_stock_and_marks_product_unavailable_at_zero(self):
+        order = create_order(
+            user=self.customer,
+            cafe_id=self.cafe.id,
+            payment_method="CASH",
+            total_price=Decimal("100.00"),
+            items_data=[
+                {
+                    "product_id": self.product.id,
+                    "quantity": 20,
+                }
+            ],
+        )
+
+        self.assertEqual(order.total_price, Decimal("100.00"))
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.stock_quantity, 0)
+        self.assertFalse(self.product.is_available)
+
+        response = self.client.get(reverse("v2_app_products"), data={"cafe_id": self.cafe.id})
+        self.assertEqual(response.status_code, 200, response.content)
+        product_payload = next(item for item in response.json() if item["id"] == self.product.id)
+        self.assertFalse(product_payload["is_available"])
+        self.assertEqual(product_payload["stock_quantity"], 0)
+
+    def test_create_order_rejects_quantity_above_available_stock(self):
+        with self.assertRaisesMessage(ValidationServiceError, "Only 20 items left for Espresso."):
+            create_order(
+                user=self.customer,
+                cafe_id=self.cafe.id,
+                payment_method="CASH",
+                total_price=Decimal("105.00"),
+                items_data=[
+                    {
+                        "product_id": self.product.id,
+                        "quantity": 21,
+                    }
+                ],
+            )
+
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.stock_quantity, 20)
+        self.assertFalse(Order.objects.exists())
+
     def test_toggle_product_stock_invalidates_cached_product_list(self):
         cached_products = get_products_cached(self.cafe.id)
         self.assertEqual(len(cached_products), 1)
@@ -518,7 +564,8 @@ class OrderWorkflowTests(TestCase):
         )
 
         refreshed_products = get_products_cached(self.cafe.id)
-        self.assertEqual(len(refreshed_products), 0)
+        self.assertEqual(len(refreshed_products), 1)
+        self.assertFalse(refreshed_products[0].is_in_stock)
 
     def test_cafe_panel_creates_product_with_image_discount_and_app_order_uses_current_price(self):
         self.client.force_login(self.cashier)
@@ -538,6 +585,7 @@ class OrderWorkflowTests(TestCase):
                 "original_price": "10.00",
                 "description": "Morning offer",
                 "image": image,
+                "stock_quantity": "10",
                 "is_available": "on",
             },
         )
@@ -549,6 +597,7 @@ class OrderWorkflowTests(TestCase):
         self.assertTrue(product.has_discount)
         self.assertEqual(product.discount_percentage, 20)
         self.assertTrue(product.image.name.startswith("products/"))
+        self.assertEqual(product.stock_quantity, 10)
 
         products_response = self.client.get(
             reverse("v2_app_products"),
@@ -561,6 +610,8 @@ class OrderWorkflowTests(TestCase):
         self.assertEqual(created_payload["original_price"], "10.00")
         self.assertTrue(created_payload["has_discount"])
         self.assertEqual(created_payload["discount_percentage"], 20)
+        self.assertEqual(created_payload["stock_quantity"], 10)
+        self.assertTrue(created_payload["is_available"])
         self.assertIn("/media/products/", created_payload["image_url"])
 
         self.client.force_login(self.customer)
@@ -588,6 +639,8 @@ class OrderWorkflowTests(TestCase):
         order = Order.objects.latest("id")
         self.assertEqual(order.total_price, Decimal("16.00"))
         self.assertEqual(order.items.get().price, Decimal("8.00"))
+        product.refresh_from_db()
+        self.assertEqual(product.stock_quantity, 8)
 
         orders_response = self.client.get(reverse("v2_app_orders"))
         self.assertEqual(orders_response.status_code, 200, orders_response.content)
@@ -648,6 +701,7 @@ class DashboardRenderSmokeTests(TestCase):
             category=category,
             name="Latte",
             price=Decimal("7.00"),
+            stock_quantity=5,
         )
         create_order(
             user=self.student,
@@ -725,6 +779,17 @@ class DashboardRenderSmokeTests(TestCase):
         self.student.wallet.refresh_from_db()
         self.assertEqual(self.student.wallet.balance, Decimal("20.00"))
 
+    def test_cafe_wallet_operation_requires_existing_wallet_code(self):
+        self.client.force_login(self.cashier)
+
+        response = self.client.post(
+            reverse("core:cafe_wallet_operation_api"),
+            data={"identifier": "MISSING-CARD", "operation": "DEPOSIT", "amount": "10.00"},
+        )
+
+        self.assertEqual(response.status_code, 404, response.content)
+        self.assertFalse(Transaction.objects.filter(amount=Decimal("10.00")).exists())
+
     def test_cafe_operator_can_bind_nfc_card_code_to_wallet(self):
         self.client.force_login(self.cashier)
 
@@ -744,6 +809,7 @@ class DashboardRenderSmokeTests(TestCase):
             category=category,
             name="Latte",
             price=Decimal("7.00"),
+            stock_quantity=4,
         )
         order = create_order(
             user=self.superuser,

@@ -260,6 +260,7 @@
     productForm.reset();
     productForm.elements.product_id.value = "";
     productForm.elements.cafe_id.value = config.cafeId;
+    productForm.elements.stock_quantity.value = "";
     productForm.elements.is_available.checked = true;
   }
 
@@ -328,6 +329,7 @@
     productForm.elements.name.value = button.dataset.productName || "";
     productForm.elements.price.value = button.dataset.productPrice || "";
     productForm.elements.original_price.value = button.dataset.productOriginalPrice || "";
+    productForm.elements.stock_quantity.value = button.dataset.productStock || "0";
     productForm.elements.category.value = button.dataset.productCategory || "";
     productForm.elements.description.value = button.dataset.productDescription || "";
     productForm.elements.is_available.checked = button.dataset.productAvailable === "true";

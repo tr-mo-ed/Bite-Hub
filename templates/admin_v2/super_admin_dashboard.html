@@ -9,12 +9,12 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <style>
     .bh-table thead th {
-      color: #64748b;
+      color: #24348b;
       font-size: .86rem;
       font-weight: 800;
       border-bottom-width: 1px;
       white-space: nowrap;
-      background: #f8fafc;
+      background: linear-gradient(135deg, rgba(74, 166, 220, .14), rgba(255, 241, 0, .16));
     }
     .bh-table {
       border-collapse: separate;
@@ -22,15 +22,15 @@
       min-width: 720px;
     }
     .bh-table tbody tr {
-      box-shadow: 0 10px 24px rgba(15, 23, 42, .05);
+      box-shadow: 0 12px 28px rgba(67, 87, 184, .08);
     }
     .bh-table tbody td {
       vertical-align: middle;
       padding-top: 1rem;
       padding-bottom: 1rem;
       background: #fff;
-      border-top: 1px solid rgba(148, 163, 184, .12);
-      border-bottom: 1px solid rgba(148, 163, 184, .12);
+      border-top: 1px solid rgba(67, 87, 184, .12);
+      border-bottom: 1px solid rgba(67, 87, 184, .12);
       overflow-wrap: anywhere;
     }
     .bh-table code {
@@ -38,11 +38,11 @@
       overflow-wrap: anywhere;
     }
     .bh-table tbody td:first-child {
-      border-right: 1px solid rgba(148, 163, 184, .12);
+      border-right: 1px solid rgba(67, 87, 184, .12);
       border-radius: 0 8px 8px 0;
     }
     .bh-table tbody td:last-child {
-      border-left: 1px solid rgba(148, 163, 184, .12);
+      border-left: 1px solid rgba(67, 87, 184, .12);
       border-radius: 8px 0 0 8px;
     }
     .status-dot {
@@ -54,14 +54,15 @@
       background: #94a3b8;
     }
     .status-dot.active {
-      background: #10b981;
+      background: #fff100;
+      box-shadow: 0 0 0 3px rgba(255, 241, 0, .22);
     }
     .bh-empty-state {
       padding: 32px 24px;
       text-align: center;
-      border: 1px dashed rgba(148, 163, 184, .3);
+      border: 1px dashed rgba(67, 87, 184, .26);
       border-radius: 8px;
-      background: rgba(248, 250, 252, .72);
+      background: linear-gradient(135deg, rgba(74, 166, 220, .10), rgba(255, 241, 0, .12), rgba(245, 31, 46, .06));
     }
     .bh-empty-icon {
       width: 68px;
@@ -70,9 +71,10 @@
       display: grid;
       place-items: center;
       border-radius: 8px;
-      background: rgba(15, 118, 110, .1);
-      color: #0f766e;
-      font-size: 1.8rem;
+      background: var(--bh-brand-gradient);
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 800;
     }
     .bh-table-actions {
       display: flex;
@@ -85,6 +87,9 @@
       position: relative;
       height: clamp(260px, 32vh, 360px);
       min-height: 260px;
+      padding: 10px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, rgba(67, 87, 184, .07), rgba(255, 241, 0, .08), rgba(245, 31, 46, .05));
     }
     .bh-chart-frame canvas {
       display: block;
