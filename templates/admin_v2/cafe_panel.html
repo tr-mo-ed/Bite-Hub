@@ -270,6 +270,58 @@
       border: 1px dashed rgba(67, 87, 184, .22);
       background: linear-gradient(135deg, rgba(74, 166, 220, .08), rgba(255, 241, 0, .10));
     }
+    .wallet-directory-card {
+      margin-top: 18px;
+      padding: 22px;
+    }
+    .wallet-directory-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0 10px;
+    }
+    .wallet-directory-table th {
+      color: #667085;
+      font-size: .78rem;
+      font-weight: 900;
+      padding: 0 12px 2px;
+      white-space: nowrap;
+    }
+    .wallet-directory-table td {
+      padding: 14px 12px;
+      background: rgba(255, 255, 255, .96);
+      border-top: 1px solid rgba(67, 87, 184, .12);
+      border-bottom: 1px solid rgba(67, 87, 184, .12);
+      vertical-align: middle;
+    }
+    .wallet-directory-table td:first-child {
+      border-right: 1px solid rgba(67, 87, 184, .12);
+      border-radius: 0 8px 8px 0;
+    }
+    .wallet-directory-table td:last-child {
+      border-left: 1px solid rgba(67, 87, 184, .12);
+      border-radius: 8px 0 0 8px;
+    }
+    .wallet-owner-name {
+      color: #08111f;
+      font-weight: 900;
+    }
+    .wallet-muted-value {
+      color: #667085;
+      font-size: .82rem;
+      direction: ltr;
+      unicode-bidi: plaintext;
+    }
+    .wallet-code-chip {
+      direction: ltr;
+      display: inline-flex;
+      padding: 6px 9px;
+      border-radius: 8px;
+      color: #263789;
+      background: rgba(67, 87, 184, .10);
+      font-size: .78rem;
+      font-weight: 900;
+      white-space: nowrap;
+    }
     .nfc-reader-field {
       direction: ltr;
       text-align: left;
@@ -884,6 +936,56 @@
           </div>
         </section>
       </div>
+
+      <section class="bh-card wallet-directory-card">
+        <div class="wallet-card-header">
+          <div>
+            <h3 class="wallet-card-title">دليل المحافظ</h3>
+            <p class="wallet-card-subtitle">كل محفظة ظاهرة هنا مرتبطة بحساب مستخدم محدد داخل النظام.</p>
+          </div>
+          <span class="bh-pill">{{ wallet_kpis.wallets }} محفظة</span>
+        </div>
+        <div class="table-responsive">
+          <table class="wallet-directory-table">
+            <thead>
+              <tr>
+                <th>صاحب المحفظة</th>
+                <th>الهاتف</th>
+                <th>البريد</th>
+                <th>الكود / البطاقة</th>
+                <th>الرصيد</th>
+                <th>آخر تحديث</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for wallet in wallet_directory %}
+                <tr>
+                  <td>
+                    <div class="wallet-owner-name">{{ wallet.user.full_name|default:wallet.user.email }}</div>
+                    <div class="wallet-muted-value">{{ wallet.college|default:"Bite Hub" }}</div>
+                  </td>
+                  <td><div class="wallet-muted-value">{{ wallet.user.phone_number|default:"-" }}</div></td>
+                  <td><div class="wallet-muted-value">{{ wallet.user.email|default:"-" }}</div></td>
+                  <td><span class="wallet-code-chip">{{ wallet.link_code|default:"بدون كود" }}</span></td>
+                  <td><strong>{{ wallet.balance|floatformat:2 }} د.ل</strong></td>
+                  <td><div class="wallet-muted-value">{{ wallet.updated_at|date:"Y-m-d H:i" }}</div></td>
+                </tr>
+              {% empty %}
+                <tr>
+                  <td colspan="6">
+                    <div class="wallet-empty-ledger">
+                      <div>
+                        <div class="fw-bold mb-1">لا توجد محافظ مسجلة</div>
+                        <div class="small">عند إنشاء أول حساب طالب ستظهر محفظته هنا.</div>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
 
     <div class="col-12" id="nfc" data-cafe-section-panel="nfc">

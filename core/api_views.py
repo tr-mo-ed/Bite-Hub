@@ -35,7 +35,7 @@ from .utils import normalize_libyan_phone
 # --- Caching Setup ---
 PRODUCTS_CACHE_KEY = "products:list:v3"
 # ??? ??????? PRODUCTS_TTL ??? ????? ??? ???? ???? ???? ????? ????.
-PRODUCTS_TTL = 1800  # 30 Ø¯Ù‚ÙŠÙ‚Ø©
+PRODUCTS_TTL = 1800  # 30 دقيقة
 
 
 # ???? ???? _products_cache_key_for_cafe ?????? ????? ?????? ?? ????? ????.
@@ -297,7 +297,7 @@ def get_user_profile(request):
     uploaded_image = request.FILES.get('image') or request.FILES.get('profile_image')
 
     if not full_name:
-        return Response({'error': 'Ø§Ù„Ø§Ø³Ù… Ù…Ø·Ù„ÙˆØ¨.'}, status=400)
+        return Response({'error': 'الاسم مطلوب.'}, status=400)
 
     # ??? ??????? update_fields ??? ????? ??? ???? ???? ???? ????? ????.
     update_fields = []
@@ -369,7 +369,7 @@ def create_order(request):
         return Response({'error': str(exc)}, status=404)
     except Exception as exc:
         print(f"Order Error: {exc}")
-        return Response({'error': 'Ø­Ø¯Ø« Ø®Ø·Ø£ Ø£Ø«Ù†Ø§Ø¡ Ø¥Ù†Ø´Ø§Ø¡ Ø§Ù„Ø·Ù„Ø¨.'}, status=500)
+        return Response({'error': 'حدث خطأ أثناء إنشاء الطلب.'}, status=500)
 
 
 @api_view(['POST'])
@@ -441,10 +441,10 @@ def cancel_order(request, order_id: int):
 @permission_classes([IsAuthenticated])
 def orders_endpoint(request):
     """
-    Ù†Ù‚Ø·Ø© ØªØ¬Ù…Ø¹ Ø§Ù„Ø·Ù„Ø¨Ø§Øª Ù„Ø¹Ø±Ø¶Ù‡Ø§ Ø£Ùˆ Ø¥Ù†Ø´Ø§Ø¦Ù‡Ø§.
+    نقطة تجمع الطلبات لعرضها أو إنشائها.
     """
     if request.method == 'GET':
-        # ØªÙ…Ø±ÙŠØ± Ø§Ù„Ø·Ù„Ø¨ Ø§Ù„Ø£ØµÙ„ÙŠ Ù„ØªØ¬Ù†Ø¨ Ù…Ø´Ø§ÙƒÙ„ Ø§Ù„ØµÙ„Ø§Ø­ÙŠØ§Øª
+        # تمرير الطلب الأصلي لتجنب مشاكل الصلاحيات
         return get_user_orders(request._request)
     return create_order(request._request)
 

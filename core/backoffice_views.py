@@ -333,6 +333,13 @@ def _wallet_payload(wallet: Wallet) -> dict:
     }
 
 
+def _wallet_directory_queryset():
+    return (
+        Wallet.objects.select_related("user")
+        .order_by("user__full_name", "user__email", "id")
+    )
+
+
 # ???? ???? super_admin_dashboard ?????? ????? ?????? ?? ????? ????.
 @login_required(login_url="core:admin_login")
 @user_passes_test(lambda user: user.is_superuser, login_url="core:route_after_login")
@@ -611,6 +618,7 @@ def cafe_panel(request: HttpRequest) -> HttpResponse:
             "linked_cards": Wallet.objects.exclude(link_code__isnull=True).exclude(link_code="").count(),
             "wallets": Wallet.objects.count(),
         },
+        "wallet_directory": _wallet_directory_queryset(),
         "recent_wallet_transactions": Transaction.objects.select_related("wallet", "wallet__user").order_by("-created_at")[:8],
         "status_choices": [
             ("PENDING", "New"),
