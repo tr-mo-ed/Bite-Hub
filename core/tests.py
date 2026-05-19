@@ -157,6 +157,43 @@ class CafeProvisioningTests(TestCase):
         self.assertEqual(login_response.status_code, 200)
         self.assertContains(login_response, "confirmCafePanelActionModal")
 
+    def test_super_admin_can_reset_cafe_password_from_dashboard(self):
+        User = get_user_model()
+        superuser = User.objects.create_superuser(
+            email="root-reset@example.com",
+            password="StrongPass123",
+            full_name="Root Admin",
+            phone_number="0911000021",
+        )
+        manager = User.objects.create_user(
+            email="reset-manager@example.com",
+            password="OldCafePass1",
+            full_name="Reset Manager",
+            phone_number="0911000022",
+            is_staff=True,
+        )
+        cafe = provision_cafe(name="Reset Cafe", code="reset-cafe", owner_id=manager.id)
+        self.client.force_login(superuser)
+
+        response = self.client.post(
+            reverse("core:reset_cafe_password_from_dashboard", args=[cafe.id]),
+            data={"manager_password": "NewCafePass2026"},
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        manager.refresh_from_db()
+        self.assertTrue(manager.check_password("NewCafePass2026"))
+
+        self.client.logout()
+        login_response = self.client.post(
+            reverse("core:cafe_login"),
+            data={"cafe_id": cafe.id, "password": "NewCafePass2026"},
+            follow=True,
+        )
+        self.assertEqual(login_response.status_code, 200)
+        self.assertContains(login_response, "confirmCafePanelActionModal")
+
     def test_super_admin_cannot_assign_same_manager_to_two_cafes(self):
         User = get_user_model()
         manager = User.objects.create_user(

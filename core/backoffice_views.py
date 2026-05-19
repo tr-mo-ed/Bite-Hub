@@ -428,6 +428,32 @@ def toggle_cafe_status_from_dashboard(request: HttpRequest, cafe_id: int) -> Htt
     return redirect("core:super_admin_dashboard")
 
 
+@login_required(login_url="core:admin_login")
+@user_passes_test(lambda user: user.is_superuser, login_url="core:route_after_login")
+@require_POST
+def reset_cafe_password_from_dashboard(request: HttpRequest, cafe_id: int) -> HttpResponse:
+    cafe = Cafe.objects.select_related("owner").filter(pk=cafe_id).first()
+    new_password = (request.POST.get("manager_password") or "").strip()
+    if cafe is None:
+        messages.error(request, "المقهى غير موجود.")
+        return redirect("core:super_admin_dashboard")
+    if cafe.owner is None:
+        messages.error(request, "لا يوجد حساب تشغيل مرتبط بهذا المقهى.")
+        return redirect("core:super_admin_dashboard")
+    if len(new_password) < 8:
+        messages.error(request, "كلمة مرور المقهى يجب ألا تقل عن 8 أحرف.")
+        return redirect("core:super_admin_dashboard")
+
+    cafe.owner.set_password(new_password)
+    if not cafe.owner.is_staff:
+        cafe.owner.is_staff = True
+        cafe.owner.save(update_fields=["password", "is_staff"])
+    else:
+        cafe.owner.save(update_fields=["password"])
+    messages.success(request, f"تم تغيير كلمة مرور {cafe.name}: {new_password}")
+    return redirect("core:super_admin_dashboard")
+
+
 # ???? ???? create_cafe_api ?????? ????? ?????? ?? ????? ????.
 @login_required(login_url="core:admin_login")
 @user_passes_test(lambda user: user.is_superuser, login_url="core:route_after_login")

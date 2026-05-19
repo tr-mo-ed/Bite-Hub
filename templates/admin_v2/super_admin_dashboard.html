@@ -298,6 +298,7 @@
                   <td>{{ cafe.total_orders|default:0 }}</td>
                   <td>{{ cafe.sold_items|default:0 }}</td>
                   <td>
+                    <div class="d-flex flex-wrap gap-2">
                     <form
                       method="post"
                       action="{% url 'core:toggle_cafe_status_from_dashboard' cafe.id %}"
@@ -310,6 +311,19 @@
                         {% if cafe.is_active %}إيقاف{% else %}تفعيل{% endif %}
                       </button>
                     </form>
+                    {% if cafe.owner_id %}
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-dark rounded-pill js-open-password-modal"
+                        data-bs-toggle="modal"
+                        data-bs-target="#resetCafePasswordModal"
+                        data-cafe-name="{{ cafe.name }}"
+                        data-action="{% url 'core:reset_cafe_password_from_dashboard' cafe.id %}"
+                      >
+                        كلمة المرور
+                      </button>
+                    {% endif %}
+                    </div>
                   </td>
                 </tr>
               {% empty %}
@@ -327,6 +341,37 @@
             </button>
           </div>
         {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="resetCafePasswordModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 rounded-2 shadow-lg">
+        <div class="modal-header border-0 pb-0">
+          <div>
+            <h2 class="h4 fw-bold mb-1">تغيير كلمة مرور المقهى</h2>
+            <div class="text-muted small" id="resetCafePasswordSubtitle">اختر كلمة مرور جديدة لحساب تشغيل المقهى.</div>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body pt-3">
+          <form method="post" action="" class="d-grid gap-3" id="resetCafePasswordForm">
+            {% csrf_token %}
+            <div>
+              <label class="form-label">كلمة المرور الجديدة</label>
+              <div class="generated-password-row">
+                <input type="text" name="manager_password" id="resetCafePasswordInput" class="form-control form-control-lg rounded-2" required minlength="8" autocomplete="off">
+                <button type="button" class="btn btn-outline-dark rounded-2 px-4" id="generateResetCafePassword">توليد</button>
+              </div>
+              <div class="credential-note mt-2">بعد الحفظ، صاحب المقهى يدخل باختيار الكلية ثم هذه الكلمة فقط.</div>
+            </div>
+            <div class="d-flex justify-content-end gap-2">
+              <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">إلغاء</button>
+              <button type="submit" class="btn btn-dark rounded-pill px-4">حفظ كلمة المرور</button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   </div>

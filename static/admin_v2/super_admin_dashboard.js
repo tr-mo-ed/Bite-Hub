@@ -52,6 +52,10 @@
 
   const generatedCafePassword = document.getElementById("generatedCafePassword");
   const generateCafePassword = document.getElementById("generateCafePassword");
+  const resetCafePasswordForm = document.getElementById("resetCafePasswordForm");
+  const resetCafePasswordInput = document.getElementById("resetCafePasswordInput");
+  const resetCafePasswordSubtitle = document.getElementById("resetCafePasswordSubtitle");
+  const generateResetCafePassword = document.getElementById("generateResetCafePassword");
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
 
   function randomPassword() {
@@ -74,6 +78,33 @@
     generatedCafePassword.value = randomPassword();
     generatedCafePassword.focus();
     generatedCafePassword.select();
+  });
+
+  document.querySelectorAll(".js-open-password-modal").forEach((button) => {
+    button.addEventListener("click", () => {
+      if (resetCafePasswordForm) {
+        resetCafePasswordForm.action = button.dataset.action || "";
+      }
+      if (resetCafePasswordSubtitle) {
+        resetCafePasswordSubtitle.textContent = `تغيير كلمة مرور ${button.dataset.cafeName || "المقهى"}.`;
+      }
+      if (resetCafePasswordInput) {
+        resetCafePasswordInput.value = randomPassword();
+        window.setTimeout(() => {
+          resetCafePasswordInput.focus();
+          resetCafePasswordInput.select();
+        }, 200);
+      }
+    });
+  });
+
+  generateResetCafePassword?.addEventListener("click", () => {
+    if (!resetCafePasswordInput) {
+      return;
+    }
+    resetCafePasswordInput.value = randomPassword();
+    resetCafePasswordInput.focus();
+    resetCafePasswordInput.select();
   });
 
   const node = document.getElementById("sales-series-data");
