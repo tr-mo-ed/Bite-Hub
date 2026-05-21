@@ -1,0 +1,905 @@
+import 'dart:convert';
+
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'package:bitehub_app/app/data/models/college_model.dart';
+import 'package:bitehub_app/app/data/models/order_model.dart';
+import 'package:bitehub_app/app/data/models/product_model.dart';
+import 'package:bitehub_app/app/data/models/user_model.dart' as app_user;
+import 'package:bitehub_app/app/data/models/wallet_model.dart';
+
+// ???? ???? ApiException ???? ???? ????? ???? ?? ???? ????.
+class ApiException implements Exception {
+  // ??? ??????? message ??? ?????? ???? ????? ????.
+  final String message;
+  // ??? ??????? statusCode ??? ?????? ???? ????? ????.
+  final int? statusCode;
+
+  ApiException(this.message, {this.statusCode});
+
+  @override
+  // ???? ???? toString ???? ??????? ?? ????? ???? ?????? ?????.
+  String toString() => message;
+}
+
+// ???? ???? ApiService ???? ???? ????? ???? ?? ???? ????.
+class ApiService {
+  // ??? ??????? baseUrl ??? ?????? ???? ????? ????.
+  static const String baseUrl = String.fromEnvironment(
+    'BITE_HUB_API_BASE_URL',
+    defaultValue: 'https://fooood.pythonanywhere.com',
+  );
+  // ??? ??????? _tokenKey ??? ?????? ???? ????? ????.
+  static const String _tokenKey = 'auth_token';
+  // ??? ??????? _refreshTokenKey ??? ?????? ???? ????? ????.
+  static const String _refreshTokenKey = 'refresh_token';
+  static const FlutterSecureStorage _secureStorage = FlutterSecureStorage();
+
+  Future<String?> _readSecret(String key) async {
+    final secureValue = await _secureStorage.read(key: key);
+    if (secureValue != null && secureValue.isNotEmpty) {
+      return secureValue;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final legacyValue = prefs.getString(key);
+    if (legacyValue != null && legacyValue.isNotEmpty) {
+      await _secureStorage.write(key: key, value: legacyValue);
+      await prefs.remove(key);
+    }
+    return legacyValue;
+  }
+
+  Future<void> _writeSecret(String key, String value) async {
+    await _secureStorage.write(key: key, value: value);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(key);
+  }
+
+  Future<void> _deleteSecret(String key) async {
+    await _secureStorage.delete(key: key);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(key);
+  }
+
+  // ???? ???? getToken ???? ??????? ?? ????? ???? ?????? ?????.
+  Future<String?> getToken() async {
+    return _readSecret(_tokenKey);
+  }
+
+  // ???? ???? saveToken ???? ??????? ?? ????? ???? ?????? ?????.
+  Future<void> saveToken(String token) async {
+    await _writeSecret(_tokenKey, token);
+  }
+
+  // ???? ???? saveRefreshToken ???? ??????? ?? ????? ???? ?????? ?????.
+  Future<void> saveRefreshToken(String token) async {
+    await _writeSecret(_refreshTokenKey, token);
+  }
+
+  // ???? ???? removeToken ???? ??????? ?? ????? ???? ?????? ?????.
+  Future<void> removeToken() async {
+    await _deleteSecret(_tokenKey);
+    await _deleteSecret(_refreshTokenKey);
+  }
+
+  // ???? ???? getRefreshToken ???? ??????? ?? ????? ???? ?????? ?????.
+  Future<String?> getRefreshToken() async {
+    return _readSecret(_refreshTokenKey);
+  }
+
+  // ???? ???? _buildAuthorizationValue ???? ??????? ?? ????? ???? ?????? ?????.
+  String _buildAuthorizationValue(String token) {
+    final normalized = token.trim();
+    final jwtParts = normalized.split('.');
+    final looksLikeJwt =
+        jwtParts.length == 3 && jwtParts.every((part) => part.isNotEmpty);
+    return looksLikeJwt ? 'Bearer $normalized' : 'Token $normalized';
+  }
+
+  // ???? ???? _headers ???? ??????? ?? ????? ???? ?????? ?????.
+  Future<Map<String, String>> _headers({bool authRequired = false}) async {
+    final headers = <String, String>{
+      'Content-Type': 'application/json; charset=UTF-8',
+      'Accept': 'application/json',
+    };
+
+    if (authRequired) {
+      final token = await getToken();
+      if (token == null || token.isEmpty) {
+        throw ApiException('يرجى تسجيل الدخول من جديد.', statusCode: 401);
+      }
+      headers['Authorization'] = _buildAuthorizationValue(token);
+    }
+
+    return headers;
+  }
+
+  // ???? ???? _multipartHeaders ???? ??????? ?? ????? ???? ?????? ?????.
+  Future<Map<String, String>> _multipartHeaders() async {
+    final token = await getToken();
+    if (token == null || token.isEmpty) {
+      throw ApiException('يرجى تسجيل الدخول من جديد.', statusCode: 401);
+    }
+    return {
+      'Accept': 'application/json',
+      'Authorization': _buildAuthorizationValue(token),
+    };
+  }
+
+  // ???? ???? _tryRefreshToken ???? ??????? ?? ????? ???? ?????? ?????.
+  Future<bool> _tryRefreshToken() async {
+    final refreshToken = await getRefreshToken();
+    if (refreshToken == null || refreshToken.isEmpty) {
+      return false;
+    }
+
+    final url = Uri.parse('$baseUrl/api/v2/app/auth/refresh/');
+    try {
+      final response = await http.post(
+        url,
+        headers: const {
+          'Content-Type': 'application/json; charset=UTF-8',
+          'Accept': 'application/json',
+        },
+        body: json.encode({'refresh': refreshToken}),
+      );
+      final data = _decodeBody(response);
+      if (response.statusCode == 200 && data is Map) {
+        final accessToken = data['access']?.toString();
+        if (accessToken != null && accessToken.isNotEmpty) {
+          await saveToken(accessToken);
+          final rotatedRefreshToken = data['refresh']?.toString();
+          if (rotatedRefreshToken != null && rotatedRefreshToken.isNotEmpty) {
+            await saveRefreshToken(rotatedRefreshToken);
+          }
+          return true;
+        }
+      }
+    } catch (_) {
+      // JWT refresh is optional until the backend refresh endpoint is enabled.
+    }
+    return false;
+  }
+
+  // ???? ???? _sendWithAuthRetry ???? ??????? ?? ????? ???? ?????? ?????.
+  Future<http.Response> _sendWithAuthRetry(
+    // ???? ???? Function ???? ??????? ?? ????? ???? ?????? ?????.
+    Future<http.Response> Function(Map<String, String> headers) requestBuilder,
+  ) async {
+    var headers = await _headers(authRequired: true);
+    var response = await requestBuilder(headers);
+    if (response.statusCode != 401 && response.statusCode != 403) {
+      return response;
+    }
+
+    final refreshed = await _tryRefreshToken();
+    if (!refreshed) {
+      return response;
+    }
+
+    headers = await _headers(authRequired: true);
+    return requestBuilder(headers);
+  }
+
+  // ???? ???? _decodeBody ???? ??????? ?? ????? ???? ?????? ?????.
+  dynamic _decodeBody(http.Response response) {
+    if (response.bodyBytes.isEmpty) {
+      return null;
+    }
+    final bodyText = utf8.decode(response.bodyBytes);
+    if (bodyText.isEmpty) {
+      return null;
+    }
+    try {
+      return json.decode(bodyText);
+    } catch (_) {
+      return bodyText;
+    }
+  }
+
+  // ???? ???? _extractMessage ???? ??????? ?? ????? ???? ?????? ?????.
+  String _friendlyServerMessage(String message, {int? statusCode}) {
+    final normalized = message.trim();
+    final lower = normalized.toLowerCase();
+
+    if (statusCode == 401 ||
+        statusCode == 403 ||
+        lower.contains('not authenticated') ||
+        lower.contains('authentication') ||
+        lower.contains('credentials')) {
+      return 'بيانات الدخول غير صحيحة أو انتهت الجلسة.';
+    }
+    if (lower.contains('network error') ||
+        lower.contains('socketexception') ||
+        lower.contains('failed host lookup') ||
+        lower.contains('connection refused') ||
+        lower.contains('handshakeexception') ||
+        lower.contains('xmlhttprequest')) {
+      return 'تعذر الاتصال بالخادم. تأكد من الإنترنت ثم حاول مرة أخرى.';
+    }
+    if (lower.contains('account was not found')) {
+      return 'لا يوجد حساب بهذه البيانات.';
+    }
+    if (lower.contains('invalid login') ||
+        lower.contains('invalid credentials')) {
+      return 'البريد الإلكتروني أو رقم الهاتف أو كلمة السر غير صحيحة.';
+    }
+    if (lower.contains('phone number is already registered') ||
+        normalized.contains('رقم الهاتف مسجل')) {
+      return 'رقم الهاتف مسجل مسبقاً.';
+    }
+    if (lower.contains('email') && lower.contains('already') ||
+        lower.contains('unique constraint') && lower.contains('email') ||
+        normalized.contains('البريد الإلكتروني مسجل')) {
+      return 'البريد الإلكتروني مسجل مسبقاً.';
+    }
+    if (lower.contains('invalid libyan phone')) {
+      return 'رقم الهاتف غير صحيح. استخدم رقم ليبي مثل 09XXXXXXXX.';
+    }
+    if (lower.contains('password is required')) {
+      return 'كلمة السر مطلوبة.';
+    }
+    if (normalized.contains('اسم الطالب مطلوب') ||
+        lower.contains('full_name') ||
+        lower.contains('full name')) {
+      return 'اسم الطالب مطلوب.';
+    }
+    if (lower.contains('insufficient wallet balance')) {
+      return 'رصيد المحفظة غير كافٍ لإتمام العملية.';
+    }
+    if (lower.contains('wallet top-up is not enabled')) {
+      return 'شحن المحفظة يتم من لوحة المقهى أو المشرف حالياً.';
+    }
+    if (lower.contains('some products do not belong')) {
+      return 'لا يمكن طلب منتجات من أكثر من مقهى في نفس الطلب.';
+    }
+    if (lower.contains('out of stock') || lower.contains('stock')) {
+      return 'أحد الأصناف غير متوفر حالياً.';
+    }
+    if (statusCode != null && statusCode >= 500) {
+      return 'حدث خلل في الخادم. حاول بعد قليل.';
+    }
+    if (normalized.isEmpty ||
+        normalized.startsWith('Exception:') ||
+        normalized.startsWith('ApiException')) {
+      return 'تعذر تنفيذ العملية. حاول مرة أخرى.';
+    }
+    return normalized;
+  }
+
+  ApiException _networkException(Object error) {
+    return ApiException(
+      _friendlyServerMessage('Network error: $error'),
+    );
+  }
+
+  String _extractMessage(dynamic body,
+      {String fallback = 'تعذر تنفيذ الطلب.'}) {
+    if (body is Map) {
+      for (final key in ['detail', 'error', 'message']) {
+        final value = body[key];
+        if (value != null && value.toString().trim().isNotEmpty) {
+          return _friendlyServerMessage(value.toString());
+        }
+      }
+    }
+    if (body is String && body.trim().isNotEmpty) {
+      return _friendlyServerMessage(body);
+    }
+    return fallback;
+  }
+
+  // ???? ???? _buildException ???? ??????? ?? ????? ???? ?????? ?????.
+  ApiException _buildException(http.Response response, dynamic body) {
+    return ApiException(
+      _extractMessage(body,
+          fallback:
+              _friendlyServerMessage('', statusCode: response.statusCode)),
+      statusCode: response.statusCode,
+    );
+  }
+
+  String _absoluteMediaUrl(String? value) {
+    final path = (value ?? '').trim();
+    if (path.isEmpty ||
+        path.startsWith('http://') ||
+        path.startsWith('https://')) {
+      return path;
+    }
+    final normalized = path.startsWith('/') ? path : '/$path';
+    return '$baseUrl$normalized';
+  }
+
+  Map<String, dynamic> _normalizeProductPayload(Map<String, dynamic> map) {
+    map['image_url'] = _absoluteMediaUrl(
+      (map['image_url'] ?? map['image'] ?? map['imageUrl'])?.toString(),
+    );
+    return map;
+  }
+
+  Map<String, dynamic> _normalizeOrderPayload(Map<String, dynamic> map) {
+    map['cafe_logo'] = _absoluteMediaUrl(
+      (map['cafe_logo'] ?? map['image_url'])?.toString(),
+    );
+    final items = map['items'];
+    if (items is List) {
+      map['items'] = items.map((raw) {
+        if (raw is! Map) {
+          return raw;
+        }
+        final item = Map<String, dynamic>.from(raw);
+        item['product_image'] = _absoluteMediaUrl(
+          (item['product_image'] ?? item['image_url'] ?? item['image'])
+              ?.toString(),
+        );
+        return item;
+      }).toList();
+    }
+    return map;
+  }
+
+  // ???? ???? login ???? ??????? ?? ????? ???? ?????? ?????.
+  Future<Map<String, dynamic>> login(
+      String phoneNumber, String password) async {
+    final url = Uri.parse('$baseUrl/api/v2/app/auth/login/');
+    final payload = <String, dynamic>{
+      'phone_number': phoneNumber.trim(),
+      'password': password,
+    };
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json; charset=UTF-8',
+          'Accept': 'application/json',
+        },
+        body: json.encode(payload),
+      );
+      final data = _decodeBody(response);
+
+      if (response.statusCode == 200) {
+        if (data is Map) {
+          final accessToken =
+              data['access']?.toString() ?? data['token']?.toString();
+          if (accessToken != null && accessToken.isNotEmpty) {
+            await saveToken(accessToken);
+          }
+        }
+        if (data is Map && data['refresh'] != null) {
+          await saveRefreshToken(data['refresh'].toString());
+        }
+        return data is Map
+            ? Map<String, dynamic>.from(data)
+            : <String, dynamic>{};
+      }
+
+      throw _buildException(response, data);
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      throw _networkException(e);
+    }
+  }
+
+  // ???? ???? signup ???? ??????? ?? ????? ???? ?????? ?????.
+  Future<Map<String, dynamic>> signup(
+    String fullName,
+    String email,
+    String phone,
+    String password,
+  ) async {
+    final url = Uri.parse('$baseUrl/api/v2/app/auth/signup/');
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json; charset=UTF-8',
+          'Accept': 'application/json',
+        },
+        body: json.encode({
+          'full_name': fullName,
+          'email': email,
+          'phone_number': phone,
+          'password': password,
+        }),
+      );
+      final data = _decodeBody(response);
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        if (data is Map) {
+          final accessToken =
+              data['access']?.toString() ?? data['token']?.toString();
+          if (accessToken != null && accessToken.isNotEmpty) {
+            await saveToken(accessToken);
+          }
+        }
+        if (data is Map && data['refresh'] != null) {
+          await saveRefreshToken(data['refresh'].toString());
+        }
+        return data is Map
+            ? Map<String, dynamic>.from(data)
+            : <String, dynamic>{};
+      }
+
+      throw _buildException(response, data);
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      throw _networkException(e);
+    }
+  }
+
+  // ???? ???? getUserProfile ???? ??????? ?? ????? ???? ?????? ?????.
+  Future<app_user.User> getUserProfile() async {
+    final url = Uri.parse('$baseUrl/api/v2/app/user/');
+
+    try {
+      final response = await _sendWithAuthRetry(
+          (headers) => http.get(url, headers: headers));
+      final data = _decodeBody(response);
+
+      if (response.statusCode == 200 && data is Map<String, dynamic>) {
+        return app_user.User.fromJson(data);
+      }
+
+      throw _buildException(response, data);
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      throw _networkException(e);
+    }
+  }
+
+  // ???? ???? getCafes ???? ??????? ?? ????? ???? ?????? ?????.
+  Future<List<CollegeModel>> getCafes() async {
+    final url = Uri.parse('$baseUrl/api/v2/app/cafes/');
+
+    try {
+      final response = await http.get(url, headers: await _headers());
+      final data = _decodeBody(response);
+
+      if (response.statusCode == 200 && data is List) {
+        return data.map((raw) {
+          final map = Map<String, dynamic>.from(raw as Map);
+          map['image'] = _absoluteMediaUrl(map['image']?.toString());
+          return CollegeModel.fromJson(map);
+        }).toList();
+      }
+
+      throw _buildException(response, data);
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      throw _networkException(e);
+    }
+  }
+
+  // ???? ???? getProducts ???? ??????? ?? ????? ???? ?????? ?????.
+  Future<List<ProductModel>> getProducts({String? cafeId}) async {
+    final normalizedCafeId = (cafeId ?? '').trim();
+    final url = Uri.parse('$baseUrl/api/v2/app/products/').replace(
+      queryParameters:
+          normalizedCafeId.isEmpty ? null : {'cafe_id': normalizedCafeId},
+    );
+
+    try {
+      final response = await http.get(url, headers: await _headers());
+      final data = _decodeBody(response);
+
+      if (response.statusCode == 200 && data is List) {
+        return data.map((raw) {
+          final map = Map<String, dynamic>.from(raw as Map);
+          return ProductModel.fromJson(_normalizeProductPayload(map));
+        }).toList();
+      }
+
+      throw _buildException(response, data);
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      throw _networkException(e);
+    }
+  }
+
+  // ???? ???? getWallet ???? ??????? ?? ????? ???? ?????? ?????.
+  Future<WalletModel> getWallet() async {
+    final url = Uri.parse('$baseUrl/api/v2/app/wallet/');
+
+    try {
+      final response = await _sendWithAuthRetry(
+          (headers) => http.get(url, headers: headers));
+      final data = _decodeBody(response);
+
+      if (response.statusCode == 200 && data is Map<String, dynamic>) {
+        return WalletModel.fromJson(data);
+      }
+
+      throw _buildException(response, data);
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      throw _networkException(e);
+    }
+  }
+
+  // ???? ???? linkWalletWithCode ???? ??????? ?? ????? ???? ?????? ?????.
+  Future<bool> linkWalletWithCode(String linkCode) async {
+    final url = Uri.parse('$baseUrl/api/v2/app/wallet/link/');
+
+    try {
+      final response = await _sendWithAuthRetry(
+        (headers) => http.post(
+          url,
+          headers: headers,
+          body: json.encode({'link_code': linkCode}),
+        ),
+      );
+      final data = _decodeBody(response);
+
+      if (response.statusCode == 200) {
+        return true;
+      }
+
+      throw _buildException(response, data);
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      throw _networkException(e);
+    }
+  }
+
+  // ???? ???? updateUserProfile ???? ??????? ?? ????? ???? ?????? ?????.
+  Future<app_user.User> updateUserProfile({
+    required String fullName,
+    String? profileImageUrl,
+  }) async {
+    final url = Uri.parse('$baseUrl/api/v2/app/user/');
+    final payload = <String, dynamic>{
+      'full_name': fullName.trim(),
+      if (profileImageUrl != null) 'profile_image_url': profileImageUrl.trim(),
+    };
+
+    try {
+      final response = await _sendWithAuthRetry(
+        (headers) => http.patch(
+          url,
+          headers: headers,
+          body: json.encode(payload),
+        ),
+      );
+      final data = _decodeBody(response);
+
+      if (response.statusCode == 200 && data is Map<String, dynamic>) {
+        return app_user.User.fromJson(data);
+      }
+
+      throw _buildException(response, data);
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      throw _networkException(e);
+    }
+  }
+
+  // ???? ???? updateUserProfileMultipart ???? ??????? ?? ????? ???? ?????? ?????.
+  Future<app_user.User> updateUserProfileMultipart({
+    required String fullName,
+    String? imagePath,
+  }) async {
+    final url = Uri.parse('$baseUrl/api/v2/app/user/');
+    final request = http.MultipartRequest('PATCH', url);
+    request.headers.addAll(await _multipartHeaders());
+    request.fields['full_name'] = fullName.trim();
+
+    final normalizedPath = (imagePath ?? '').trim();
+    if (normalizedPath.isNotEmpty) {
+      request.files.add(
+        await http.MultipartFile.fromPath('profile_image', normalizedPath),
+      );
+    }
+
+    try {
+      final streamed = await request.send();
+      final response = await http.Response.fromStream(streamed);
+      final data = _decodeBody(response);
+
+      if (response.statusCode == 200 && data is Map<String, dynamic>) {
+        return app_user.User.fromJson(data);
+      }
+
+      throw _buildException(response, data);
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      throw _networkException(e);
+    }
+  }
+
+  Future<void> deleteCurrentUser() async {
+    final url = Uri.parse('$baseUrl/api/v2/app/user/');
+
+    try {
+      final response = await _sendWithAuthRetry(
+        (headers) => http.delete(url, headers: headers),
+      );
+
+      if (response.statusCode == 204 || response.statusCode == 200) {
+        await removeToken();
+        return;
+      }
+
+      final data = _decodeBody(response);
+      throw _buildException(response, data);
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      throw _networkException(e);
+    }
+  }
+
+  // ???? ???? transferWallet ???? ??????? ?? ????? ???? ?????? ?????.
+  Future<bool> transferWallet({
+    required String walletCode,
+    required double amount,
+    String? note,
+  }) async {
+    final url = Uri.parse('$baseUrl/api/v2/app/wallet/transfer/');
+
+    try {
+      final response = await _sendWithAuthRetry(
+        (headers) => http.post(
+          url,
+          headers: headers,
+          body: json.encode({
+            'wallet_code': walletCode,
+            'amount': amount,
+            if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
+          }),
+        ),
+      );
+      final data = _decodeBody(response);
+
+      if (response.statusCode == 200 &&
+          data is Map &&
+          data['success'] == true) {
+        return true;
+      }
+
+      throw _buildException(response, data);
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      throw _networkException(e);
+    }
+  }
+
+  Future<bool> topUpWallet({
+    required double amount,
+    String? note,
+  }) async {
+    final url = Uri.parse('$baseUrl/api/v2/app/wallet/topup/');
+
+    try {
+      final response = await _sendWithAuthRetry(
+        (headers) => http.post(
+          url,
+          headers: headers,
+          body: json.encode({
+            'amount': amount,
+            if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
+          }),
+        ),
+      );
+      final data = _decodeBody(response);
+
+      if (response.statusCode == 200 &&
+          data is Map &&
+          data['success'] == true) {
+        return true;
+      }
+
+      throw _buildException(response, data);
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      throw _networkException(e);
+    }
+  }
+
+  // ???? ???? withdrawWallet ???? ??????? ?? ????? ???? ?????? ?????.
+  Future<bool> withdrawWallet({
+    required double amount,
+    String? note,
+  }) async {
+    final url = Uri.parse('$baseUrl/api/v2/app/wallet/withdraw/');
+
+    try {
+      final response = await _sendWithAuthRetry(
+        (headers) => http.post(
+          url,
+          headers: headers,
+          body: json.encode({
+            'amount': amount,
+            if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
+          }),
+        ),
+      );
+      final data = _decodeBody(response);
+
+      if (response.statusCode == 200 &&
+          data is Map &&
+          data['success'] == true) {
+        return true;
+      }
+
+      throw _buildException(response, data);
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      throw _networkException(e);
+    }
+  }
+
+  // ???? ???? createOrder ???? ??????? ?? ????? ???? ?????? ?????.
+  Future<OrderModel> createOrder(
+      double totalPrice, List<Map<String, dynamic>> items, String collegeId,
+      {String paymentMethod = 'WALLET', String? orderNote}) async {
+    final url = Uri.parse('$baseUrl/api/v2/app/orders/');
+
+    try {
+      final response = await _sendWithAuthRetry(
+        (headers) => http.post(
+          url,
+          headers: headers,
+          body: json.encode({
+            'total_price': totalPrice,
+            'cafe_id': collegeId,
+            'items': items,
+            'payment_method': paymentMethod,
+            if (orderNote != null && orderNote.trim().isNotEmpty)
+              'order_note': orderNote.trim(),
+            if (orderNote != null && orderNote.trim().isNotEmpty)
+              'notes': orderNote.trim(),
+          }),
+        ),
+      );
+      final data = _decodeBody(response);
+
+      if ((response.statusCode == 201 || response.statusCode == 200) &&
+          data is Map<String, dynamic>) {
+        final orderPayload = data['order'];
+        if (orderPayload is Map<String, dynamic>) {
+          return OrderModel.fromJson(_normalizeOrderPayload(orderPayload));
+        }
+
+        return OrderModel(
+          id: data['order_id'] is int
+              ? data['order_id']
+              : int.tryParse(data['order_id'].toString()) ?? 0,
+          orderNumber: data['order_number']?.toString() ?? '---',
+          totalPrice: totalPrice,
+          status: 'PENDING',
+          createdAt: DateTime.now().toIso8601String(),
+          items: items
+              .map(
+                (item) => OrderItem(
+                  productId: int.tryParse(item['product_id'].toString()) ?? 0,
+                  productName: item['product_name']?.toString() ?? 'منتج',
+                  quantity: int.tryParse(item['quantity'].toString()) ?? 1,
+                  price: double.tryParse(item['price']?.toString() ?? '0') ?? 0,
+                  options: item['options']?.toString() ?? '',
+                ),
+              )
+              .toList(),
+          cafeId: collegeId,
+        );
+      }
+
+      throw _buildException(response, data);
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      throw _networkException(e);
+    }
+  }
+
+  // ???? ???? getOrders ???? ??????? ?? ????? ???? ?????? ?????.
+  Future<List<OrderModel>> getOrders() async {
+    final url = Uri.parse('$baseUrl/api/v2/app/orders/');
+
+    try {
+      final response = await _sendWithAuthRetry(
+          (headers) => http.get(url, headers: headers));
+      final data = _decodeBody(response);
+
+      if (response.statusCode == 200 && data is List) {
+        return data.map((item) {
+          final map = Map<String, dynamic>.from(item as Map);
+          return OrderModel.fromJson(_normalizeOrderPayload(map));
+        }).toList();
+      }
+
+      throw _buildException(response, data);
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      throw _networkException(e);
+    }
+  }
+
+  // ???? ???? cancelOrder ???? ??????? ?? ????? ???? ?????? ?????.
+  Future<void> cancelOrder(int orderId) async {
+    final endpoints = <Uri>[
+      Uri.parse('$baseUrl/api/v2/app/orders/$orderId/cancel/'),
+      Uri.parse('$baseUrl/api/v2/app/orders/$orderId/status/'),
+      Uri.parse('$baseUrl/api/v2/app/orders/$orderId/'),
+    ];
+
+    ApiException? lastError;
+    for (final url in endpoints) {
+      try {
+        final response = await _sendWithAuthRetry(
+          (headers) => http.patch(
+            url,
+            headers: headers,
+            body: json.encode({'status': 'CANCELLED'}),
+          ),
+        );
+        final data = _decodeBody(response);
+
+        if (response.statusCode == 200 || response.statusCode == 204) {
+          return;
+        }
+
+        if (response.statusCode == 404 || response.statusCode == 405) {
+          lastError = _buildException(response, data);
+          continue;
+        }
+
+        throw _buildException(response, data);
+      } on ApiException catch (error) {
+        lastError = error;
+        if (error.statusCode == 404 || error.statusCode == 405) {
+          continue;
+        }
+        rethrow;
+      } catch (e) {
+        throw _networkException(e);
+      }
+    }
+
+    throw lastError ??
+        ApiException('تعذر الوصول إلى مسار إلغاء الطلب في الخادم.');
+  }
+
+  // ???? ???? updateSecondaryPhone ???? ??????? ?? ????? ???? ?????? ?????.
+  Future<bool> updateSecondaryPhone(String phone) async {
+    final url = Uri.parse('$baseUrl/api/v2/app/user/secondary-phone/');
+
+    try {
+      final response = await _sendWithAuthRetry(
+        (headers) => http.post(
+          url,
+          headers: headers,
+          body: json.encode({'secondary_phone': phone}),
+        ),
+      );
+      final data = _decodeBody(response);
+
+      if (response.statusCode == 200) {
+        return true;
+      }
+
+      throw _buildException(response, data);
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      throw _networkException(e);
+    }
+  }
+}

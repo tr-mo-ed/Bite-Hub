@@ -1,0 +1,218 @@
+import 'dart:convert';
+
+import 'package:awesome_notifications/awesome_notifications.dart';
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'package:bitehub_app/app/data/models/notification_model.dart';
+import 'package:bitehub_app/app/data/models/order_model.dart';
+
+class NotificationService {
+  NotificationService._();
+
+  static final NotificationService instance = NotificationService._();
+
+  static const String _notificationsKey = 'local_notifications';
+  static const String _statusCacheKey = 'order_status_cache';
+  static const String _channelKey = 'order_updates';
+  static const int _maxNotifications = 50;
+
+  Future<void> initialize() async {
+    await AwesomeNotifications().initialize(
+      null,
+      [
+        NotificationChannel(
+          channelKey: _channelKey,
+          channelName: 'تحديثات الطلبات',
+          channelDescription: 'إشعارات حالة الطلبات القادمة من النظام',
+          importance: NotificationImportance.High,
+          defaultColor: const Color(0xFFE0B42C),
+          ledColor: Colors.white,
+          playSound: true,
+          enableVibration: true,
+        ),
+      ],
+      debug: false,
+    );
+  }
+
+  Future<void> requestPermissionIfNeeded() async {
+    final isAllowed = await AwesomeNotifications().isNotificationAllowed();
+    if (isAllowed) {
+      return;
+    }
+    await AwesomeNotifications().requestPermissionToSendNotifications();
+  }
+
+  Future<List<NotificationItem>> loadNotifications() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_notificationsKey);
+    if (raw == null || raw.isEmpty) {
+      return [];
+    }
+    try {
+      final decoded = json.decode(raw) as List<dynamic>;
+      return decoded
+          .map(
+            (item) => NotificationItem.fromJson(item as Map<String, dynamic>),
+          )
+          .toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<void> saveNotifications(List<NotificationItem> items) async {
+    final prefs = await SharedPreferences.getInstance();
+    final trimmed = items.take(_maxNotifications).toList();
+    final encoded = json.encode(
+      trimmed.map((item) => item.toJson()).toList(),
+    );
+    await prefs.setString(_notificationsKey, encoded);
+  }
+
+  Future<void> markAllRead() async {
+    final items = await loadNotifications();
+    final updated = items.map((item) => item.copyWith(isRead: true)).toList();
+    await saveNotifications(updated);
+  }
+
+  Future<void> markAsRead(String id) async {
+    final items = await loadNotifications();
+    final updated = items
+        .map((item) => item.id == id ? item.copyWith(isRead: true) : item)
+        .toList();
+    await saveNotifications(updated);
+  }
+
+  Future<int> getUnreadCount() async {
+    final items = await loadNotifications();
+    return items.where((item) => !item.isRead).length;
+  }
+
+  Future<List<NotificationItem>> updateFromOrders(
+      List<OrderModel> orders) async {
+    final statusCache = await _loadStatusCache();
+    final items = await loadNotifications();
+
+    for (final order in orders) {
+      final key = order.id.toString();
+      final status = order.status.toUpperCase();
+      final previousStatus = statusCache[key];
+
+      if (previousStatus == null) {
+        statusCache[key] = status;
+        if (status != 'PENDING') {
+          final notification = _buildNotification(order, status);
+          if (notification != null) {
+            items.insert(0, notification);
+            await _showSystemNotification(notification);
+          }
+        }
+        continue;
+      }
+
+      if (previousStatus == status) {
+        continue;
+      }
+
+      final notification = _buildNotification(order, status);
+      if (notification != null) {
+        items.insert(0, notification);
+        await _showSystemNotification(notification);
+      }
+      statusCache[key] = status;
+    }
+
+    await saveNotifications(items);
+    await _saveStatusCache(statusCache);
+    return items;
+  }
+
+  NotificationItem? _buildNotification(OrderModel order, String status) {
+    final orderNumber =
+        order.orderNumber.isNotEmpty ? order.orderNumber : order.id.toString();
+
+    switch (status) {
+      case 'ACCEPTED':
+        return NotificationItem(
+          id: '${order.id}-accepted-${DateTime.now().millisecondsSinceEpoch}',
+          orderId: order.id,
+          status: status,
+          title: 'تم قبول طلبك',
+          body: 'طلبك رقم #$orderNumber تم قبوله وبدأت معالجته.',
+          createdAt: DateTime.now().toIso8601String(),
+        );
+      case 'PREPARING':
+        return NotificationItem(
+          id: '${order.id}-preparing-${DateTime.now().millisecondsSinceEpoch}',
+          orderId: order.id,
+          status: status,
+          title: 'طلبك قيد التحضير',
+          body: 'المقهى يعمل الآن على تجهيز الطلب رقم #$orderNumber.',
+          createdAt: DateTime.now().toIso8601String(),
+        );
+      case 'READY':
+        return NotificationItem(
+          id: '${order.id}-ready-${DateTime.now().millisecondsSinceEpoch}',
+          orderId: order.id,
+          status: status,
+          title: 'طلبك جاهز للاستلام',
+          body: 'يمكنك الآن استلام الطلب رقم #$orderNumber من نقطة الاستلام.',
+          createdAt: DateTime.now().toIso8601String(),
+        );
+      case 'CANCELLED':
+        return NotificationItem(
+          id: '${order.id}-cancelled-${DateTime.now().millisecondsSinceEpoch}',
+          orderId: order.id,
+          status: status,
+          title: 'تم إلغاء الطلب',
+          body: 'تم إلغاء الطلب رقم #$orderNumber. راجع تفاصيل الطلب للتأكد.',
+          createdAt: DateTime.now().toIso8601String(),
+        );
+      default:
+        return null;
+    }
+  }
+
+  Future<void> _showSystemNotification(NotificationItem item) async {
+    await requestPermissionIfNeeded();
+
+    await AwesomeNotifications().createNotification(
+      content: NotificationContent(
+        id: DateTime.now().millisecondsSinceEpoch.remainder(2147483647),
+        channelKey: _channelKey,
+        title: item.title,
+        body: item.body,
+        summary: 'تحديث حالة الطلب',
+        icon: 'resource://drawable/ic_launcher_foreground',
+        largeIcon: 'asset://assets/images/logo.png',
+        notificationLayout: NotificationLayout.BigText,
+        payload: {
+          'order_id': item.orderId?.toString() ?? '',
+          'status': item.status,
+          'notification_id': item.id,
+        },
+      ),
+    );
+  }
+
+  Future<Map<String, String>> _loadStatusCache() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_statusCacheKey);
+    if (raw == null || raw.isEmpty) {
+      return {};
+    }
+    try {
+      final decoded = json.decode(raw) as Map<String, dynamic>;
+      return decoded.map((key, value) => MapEntry(key, value.toString()));
+    } catch (_) {
+      return {};
+    }
+  }
+
+  Future<void> _saveStatusCache(Map<String, String> cache) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_statusCacheKey, json.encode(cache));
+  }
+}
