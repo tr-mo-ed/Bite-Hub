@@ -3,8 +3,11 @@ from django.conf import settings
 import uuid
 from django.db import transaction
 from django.db.models.signals import post_save
+from django.db.models import Q
 from django.dispatch import receiver
 from django.core.exceptions import ObjectDoesNotExist
+
+INTERNAL_CAFE_EMAIL_DOMAIN = "@bitehub.local"
 
 # ???? ???? Wallet ???? ?????? ????????? ???? ???? ?????.
 class Wallet(models.Model):
@@ -33,13 +36,45 @@ class Wallet(models.Model):
 def user_can_have_wallet(user) -> bool:
     if user is None or not getattr(user, "pk", None):
         return False
-    if getattr(user, "is_superuser", False) or getattr(user, "is_staff", False):
+    email = str(getattr(user, "email", "") or "").strip().lower()
+    if (
+        getattr(user, "is_superuser", False)
+        or getattr(user, "is_staff", False)
+        or email.endswith(INTERNAL_CAFE_EMAIL_DOMAIN)
+    ):
         return False
     try:
         user.my_cafe
     except ObjectDoesNotExist:
         return True
     return False
+
+
+def ineligible_wallets_queryset(queryset=None):
+    base_queryset = queryset if queryset is not None else Wallet.objects.all()
+    return base_queryset.filter(
+        Q(user__is_superuser=True)
+        | Q(user__is_staff=True)
+        | Q(user__email__iendswith=INTERNAL_CAFE_EMAIL_DOMAIN)
+        | Q(user__my_cafe__isnull=False)
+    ).distinct()
+
+
+def student_wallets_queryset(queryset=None):
+    base_queryset = queryset if queryset is not None else Wallet.objects.all()
+    return (
+        base_queryset.select_related("user")
+        .exclude(pk__in=ineligible_wallets_queryset(base_queryset).values("pk"))
+        .order_by("user__full_name", "user__email", "id")
+    )
+
+
+def purge_ineligible_wallets() -> int:
+    wallets = list(ineligible_wallets_queryset().values_list("pk", flat=True))
+    if not wallets:
+        return 0
+    deleted_count, _ = Wallet.objects.filter(pk__in=wallets).delete()
+    return deleted_count
 
 
 def remove_ineligible_wallet_if_empty(user) -> None:

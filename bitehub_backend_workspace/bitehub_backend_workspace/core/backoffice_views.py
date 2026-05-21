@@ -38,7 +38,13 @@ from .serializers import OrderSerializer, ProductSerializer
 from .services import NotFoundServiceError, ValidationServiceError, update_order_status
 from .utils import normalize_libyan_phone
 from users.models import User
-from wallet.models import Transaction, Wallet, ensure_student_wallet
+from wallet.models import (
+    Transaction,
+    Wallet,
+    ensure_student_wallet,
+    purge_ineligible_wallets,
+    student_wallets_queryset,
+)
 
 # ??? ??????? logger ??? ????? ??? ???? ???? ???? ????? ????.
 logger = logging.getLogger(__name__)
@@ -334,19 +340,16 @@ def _wallet_payload(wallet: Wallet) -> dict:
 
 
 def _wallet_directory_queryset():
-    return (
-        Wallet.objects.select_related("user")
-        .filter(user__is_staff=False, user__is_superuser=False, user__my_cafe__isnull=True)
-        .order_by("user__full_name", "user__email", "id")
-    )
+    return student_wallets_queryset()
 
 
 def _student_wallets_queryset():
-    return Wallet.objects.select_related("user").filter(
-        user__is_staff=False,
-        user__is_superuser=False,
-        user__my_cafe__isnull=True,
-    )
+    return student_wallets_queryset()
+
+
+def _synchronize_wallet_boundary() -> None:
+    User.objects.filter(my_cafe__isnull=False, is_staff=False).update(is_staff=True)
+    purge_ineligible_wallets()
 
 
 # ???? ???? super_admin_dashboard ?????? ????? ?????? ?? ????? ????.
@@ -584,6 +587,7 @@ def toggle_cafe_status_api(request: HttpRequest, cafe_id: int) -> JsonResponse:
 @user_passes_test(_is_cafe_operator, login_url="core:route_after_login")
 @require_POST
 def cafe_wallet_operation_api(request: HttpRequest) -> JsonResponse:
+    _synchronize_wallet_boundary()
     cafe = resolve_backoffice_cafe(request.user)
     if cafe is None:
         return JsonResponse({"success": False, "message": "No active cafe is linked to this account."}, status=403)
@@ -624,6 +628,7 @@ def cafe_wallet_operation_api(request: HttpRequest) -> JsonResponse:
 @user_passes_test(_is_cafe_operator, login_url="core:route_after_login")
 @require_POST
 def cafe_bind_wallet_card_api(request: HttpRequest) -> JsonResponse:
+    _synchronize_wallet_boundary()
     cafe = resolve_backoffice_cafe(request.user)
     if cafe is None:
         return JsonResponse({"success": False, "message": "No active cafe is linked to this account."}, status=403)
@@ -647,6 +652,7 @@ def cafe_bind_wallet_card_api(request: HttpRequest) -> JsonResponse:
 @login_required(login_url="core:cafe_login")
 @user_passes_test(_is_cafe_operator, login_url="core:route_after_login")
 def cafe_panel(request: HttpRequest) -> HttpResponse:
+    _synchronize_wallet_boundary()
     # ??? ??????? cafe ??? ????? ??? ???? ???? ???? ????? ????.
     cafe = resolve_backoffice_cafe(request.user, cafe_id=request.GET.get("cafe_id"))
     if cafe is None:

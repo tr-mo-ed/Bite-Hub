@@ -64,6 +64,7 @@ class Command(BaseCommand):
                         full_name=name,
                         # ??? ??????? phone_number ??? ????? ??? ???? ???? ???? ????? ????.
                         phone_number=phone,
+                        is_staff=True,
                     )
                     self.stdout.write(self.style.SUCCESS(f"Created user for {name}"))
                 else:
@@ -80,6 +81,9 @@ class Command(BaseCommand):
                     if not user.check_password(password):
                         user.set_password(password)
                         # ??? ??????? updated ??? ????? ??? ???? ???? ???? ????? ????.
+                        updated = True
+                    if not user.is_staff:
+                        user.is_staff = True
                         updated = True
                     if updated:
                         user.save()

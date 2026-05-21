@@ -248,16 +248,69 @@
     .wallet-ledger-row {
       display: grid;
       grid-template-columns: minmax(0, 1fr) auto;
-      gap: 14px;
-      padding: 12px;
+      gap: 16px;
+      padding: 14px;
       border-radius: 8px;
       border: 1px solid rgba(67, 87, 184, .12);
-      background: linear-gradient(135deg, rgba(255,255,255,.96), rgba(74, 166, 220, .06));
+      background: #fff;
+      align-items: start;
+    }
+    .wallet-ledger-person {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 6px;
+    }
+    .wallet-ledger-person strong {
+      color: #08111f;
+      font-weight: 900;
+    }
+    .wallet-ledger-chip {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 0 9px;
+      border-radius: 999px;
+      font-size: .72rem;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+    .wallet-ledger-chip.is-deposit {
+      color: #047857;
+      background: rgba(16, 185, 129, .14);
+    }
+    .wallet-ledger-chip.is-withdrawal {
+      color: #b91c1c;
+      background: rgba(239, 68, 68, .14);
+    }
+    .wallet-ledger-caption {
+      color: #475467;
+      font-size: .84rem;
+      line-height: 1.55;
+      margin-bottom: 6px;
+    }
+    .wallet-ledger-time {
+      color: #667085;
+      font-size: .76rem;
+      direction: ltr;
+      unicode-bidi: plaintext;
+    }
+    .wallet-ledger-side {
+      display: grid;
+      justify-items: end;
+      gap: 6px;
     }
     .wallet-ledger-amount {
       text-align: left;
       font-weight: 900;
       white-space: nowrap;
+      font-size: 1rem;
+    }
+    .wallet-ledger-source {
+      color: #667085;
+      font-size: .74rem;
+      font-weight: 800;
     }
     .wallet-empty-ledger {
       min-height: 118px;
@@ -338,41 +391,19 @@
       position: relative;
       overflow: hidden;
       min-height: 420px;
-      padding: 26px;
-      color: #fff;
-      background:
-        linear-gradient(135deg, rgba(67, 87, 184, .92) 0%, rgba(74, 166, 220, .82) 32%, rgba(112, 52, 121, .84) 58%, rgba(245, 31, 46, .92) 100%),
-        #111827;
-      border: 0;
-    }
-    .nfc-identity-card::before {
-      content: "";
-      position: absolute;
-      inset: -90px auto auto -70px;
-      width: 260px;
-      height: 260px;
-      border-radius: 50%;
-      background: rgba(255, 241, 0, .22);
-    }
-    .nfc-identity-card::after {
-      content: "";
-      position: absolute;
-      right: -120px;
-      bottom: -120px;
-      width: 310px;
-      height: 310px;
-      border-radius: 50%;
-      border: 44px solid rgba(255,255,255,.12);
+      padding: 24px;
+      color: #08111f;
+      background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(241, 245, 249, .98));
+      border: 1px solid rgba(67, 87, 184, .12);
+      border-top: 4px solid var(--bh-byte-blue);
     }
     .nfc-visual-content {
-      position: relative;
-      z-index: 1;
       display: flex;
       flex-direction: column;
       min-height: 368px;
     }
     .nfc-system-label {
-      color: rgba(255,255,255,.72);
+      color: #4357b8;
       font-size: .78rem;
       font-weight: 900;
       letter-spacing: 0;
@@ -380,65 +411,88 @@
     }
     .nfc-visual-title {
       max-width: 430px;
-      margin: 16px 0 10px;
-      font-size: clamp(1.8rem, 3vw, 2.7rem);
+      margin: 14px 0 10px;
+      font-size: clamp(1.4rem, 2vw, 2rem);
       font-weight: 950;
-      line-height: 1.08;
+      line-height: 1.16;
     }
     .nfc-visual-subtitle {
       max-width: 420px;
       margin: 0;
-      color: rgba(255,255,255,.78);
+      color: #667085;
+      line-height: 1.7;
     }
     .nfc-device-row {
       display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 18px;
-      align-items: end;
-      margin-top: auto;
+      grid-template-columns: 1fr;
+      gap: 14px;
+      align-items: stretch;
+      margin-top: 24px;
     }
     .nfc-device-card {
-      min-height: 150px;
-      border-radius: 14px;
+      min-height: 160px;
+      border-radius: 12px;
       padding: 18px;
-      background: rgba(255,255,255,.16);
-      border: 1px solid rgba(255,255,255,.24);
-      box-shadow: 0 22px 54px rgba(0,0,0,.20);
-      backdrop-filter: blur(16px);
+      background: linear-gradient(135deg, rgba(67, 87, 184, .06), rgba(74, 166, 220, .10));
+      border: 1px solid rgba(67, 87, 184, .14);
+      box-shadow: 0 18px 34px rgba(67, 87, 184, .10);
     }
     .nfc-device-card .code {
       direction: ltr;
-      margin-top: 30px;
-      color: rgba(255,255,255,.88);
-      font-size: 1.1rem;
+      margin-top: 18px;
+      color: #08111f;
+      font-size: 1rem;
       font-weight: 900;
       letter-spacing: 0;
     }
+    .nfc-card-meta {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 16px;
+    }
+    .nfc-card-meta-item {
+      padding: 10px 12px;
+      border-radius: 8px;
+      background: #fff;
+      border: 1px solid rgba(67, 87, 184, .10);
+    }
+    .nfc-card-meta-item .label {
+      color: #667085;
+      font-size: .74rem;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+    .nfc-card-meta-item .value {
+      color: #08111f;
+      font-size: .92rem;
+      font-weight: 900;
+    }
     .nfc-reader-orbit {
       position: relative;
-      width: 118px;
-      height: 118px;
-      border-radius: 50%;
+      width: 100%;
+      min-height: 148px;
+      border-radius: 12px;
       display: grid;
       place-items: center;
-      background: rgba(255,255,255,.12);
-      border: 1px solid rgba(255,255,255,.24);
+      background: #fff;
+      border: 1px dashed rgba(67, 87, 184, .22);
     }
     .nfc-reader-orbit span {
       position: absolute;
-      inset: 16px;
+      inset: 24px;
       border-radius: 50%;
-      border: 1px solid rgba(255,255,255,.36);
+      border: 1px solid rgba(67, 87, 184, .24);
     }
     .nfc-reader-orbit span:nth-child(2) {
-      inset: 30px;
+      inset: 40px;
     }
     .nfc-reader-core {
-      width: 42px;
-      height: 42px;
+      width: 44px;
+      height: 44px;
       border-radius: 50%;
-      background: #fff;
-      box-shadow: 0 0 0 10px rgba(255,255,255,.18);
+      background: var(--bh-brand-gradient);
+      box-shadow: 0 0 0 10px rgba(67, 87, 184, .10);
     }
     .nfc-workflow-card {
       padding: 24px;
@@ -916,13 +970,23 @@
           <div class="wallet-ledger-list">
             {% for transaction in recent_wallet_transactions %}
               <div class="wallet-ledger-row">
-                <div>
-                  <div class="fw-bold">{{ transaction.wallet.user.full_name|default:transaction.wallet.user.email }}</div>
-                  <div class="text-muted small">{{ transaction.description|default:"عملية محفظة" }}</div>
-                  <div class="text-muted small">{{ transaction.created_at|date:"Y-m-d H:i" }}</div>
+                <div class="wallet-ledger-meta">
+                  <div class="wallet-ledger-person">
+                    <strong>{{ transaction.wallet.user.full_name|default:transaction.wallet.user.email }}</strong>
+                    <span class="wallet-ledger-chip {% if transaction.transaction_type == 'DEPOSIT' %}is-deposit{% else %}is-withdrawal{% endif %}">
+                      {% if transaction.transaction_type == 'DEPOSIT' %}شحن{% else %}خصم{% endif %}
+                    </span>
+                  </div>
+                  <div class="wallet-ledger-caption">{{ transaction.description|default:"عملية محفظة" }}</div>
+                  <div class="wallet-ledger-time">
+                    {{ transaction.created_at|date:"Y-m-d H:i" }}{% if transaction.wallet.user.email %} • {{ transaction.wallet.user.email }}{% endif %}
+                  </div>
                 </div>
-                <div class="wallet-ledger-amount {% if transaction.transaction_type == 'DEPOSIT' %}text-success{% else %}text-danger{% endif %}">
-                  {% if transaction.transaction_type == 'DEPOSIT' %}+{% else %}-{% endif %}{{ transaction.amount }} د.ل
+                <div class="wallet-ledger-side">
+                  <div class="wallet-ledger-amount {% if transaction.transaction_type == 'DEPOSIT' %}text-success{% else %}text-danger{% endif %}">
+                    {% if transaction.transaction_type == 'DEPOSIT' %}+{% else %}-{% endif %}{{ transaction.amount }} د.ل
+                  </div>
+                  <div class="wallet-ledger-source">{{ transaction.get_source_display|default:"المنظومة" }}</div>
                 </div>
               </div>
             {% empty %}
@@ -1000,16 +1064,26 @@
       <div class="nfc-command-center">
         <section class="bh-card nfc-identity-card">
           <div class="nfc-visual-content">
-            <div class="nfc-system-label">Bite Hub Card Identity</div>
-            <h3 class="nfc-visual-title">بطاقة طالب رقمية جاهزة للدفع داخل الحرم.</h3>
-            <p class="nfc-visual-subtitle">كل بطاقة NFC ترتبط بمحفظة واحدة، وتتحول إلى وسيلة دفع وتشغيل داخل نقاط المقاهي.</p>
+            <div class="nfc-system-label">Bite Hub NFC Desk</div>
+            <h3 class="nfc-visual-title">بطاقة واحدة لكل طالب، وربط واضح بدون تكرار أو تشويش.</h3>
+            <p class="nfc-visual-subtitle">واجهة الربط هنا مخصصة للطالب فقط. أي حساب مقهى أو إدارة يتم استبعاده من الدليل والمحافظ قبل إظهار بيانات البطاقات.</p>
             <div class="nfc-device-row">
               <div class="nfc-device-card">
                 <div class="d-flex align-items-center justify-content-between">
-                  <strong>BYTE HUB</strong>
-                  <span>NFC</span>
+                  <strong>بطاقة الطالب</strong>
+                  <span class="bh-pill">NFC</span>
                 </div>
                 <div class="code">SCAN-CARD-HERE</div>
+                <div class="nfc-card-meta">
+                  <div class="nfc-card-meta-item">
+                    <div class="label">محافظ صالحة</div>
+                    <div class="value">{{ wallet_kpis.wallets }}</div>
+                  </div>
+                  <div class="nfc-card-meta-item">
+                    <div class="label">بطاقات مرتبطة</div>
+                    <div class="value">{{ wallet_kpis.linked_cards }}</div>
+                  </div>
+                </div>
               </div>
               <div class="nfc-reader-orbit" aria-hidden="true">
                 <span></span>
@@ -1024,9 +1098,9 @@
           <div class="wallet-card-header">
             <div>
               <h3 class="wallet-card-title">محطة ربط البطاقة</h3>
-              <p class="wallet-card-subtitle">أدخل هوية الطالب ثم امسح البطاقة من القارئ.</p>
+              <p class="wallet-card-subtitle">أدخل هوية الطالب أولاً، ثم مرر البطاقة أو الصق الكود القادم من القارئ.</p>
             </div>
-            <span class="bh-pill">Reader Online</span>
+            <span class="bh-pill">قارئ جاهز</span>
           </div>
 
           <div class="nfc-status-strip">
@@ -1040,7 +1114,7 @@
             </div>
             <div class="nfc-status-chip">
               <div class="label">الحالة</div>
-              <div class="value">نشط</div>
+              <div class="value">فلترة الطلاب</div>
             </div>
           </div>
 
@@ -1058,7 +1132,7 @@
             <button class="btn btn-dark bh-command-btn" type="submit">ربط البطاقة بالمحفظة</button>
             <div id="cardBindResult" class="result-panel nfc-result-panel">
               <span>جاهز لتعريف بطاقة طالب.</span>
-              <span class="bh-pill">Secure Link</span>
+              <span class="bh-pill">Student Only</span>
             </div>
           </form>
 

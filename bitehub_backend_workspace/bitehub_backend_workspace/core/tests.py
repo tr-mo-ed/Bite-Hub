@@ -1038,6 +1038,29 @@ class DashboardRenderSmokeTests(TestCase):
         self.assertContains(response, self.student.email)
         self.assertNotContains(response, self.cashier.email)
 
+    def test_cafe_panel_purges_internal_wallets_and_shows_students_only(self):
+        User = get_user_model()
+        rogue_internal = User.objects.create_user(
+            email="rogue-cafe@bitehub.local",
+            password="StrongPass123",
+            full_name="مقهى تجريبي",
+            phone_number="0910000015",
+        )
+        super_wallet = Wallet.objects.create(user=self.superuser)
+        rogue_wallet = Wallet.objects.create(user=rogue_internal)
+
+        self.client.force_login(self.cashier)
+        response = self.client.get(reverse("core:cafe_panel"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["wallet_kpis"]["wallets"], 1)
+        self.assertEqual(len(response.context["wallet_directory"]), 1)
+        self.assertContains(response, self.student.email)
+        self.assertNotContains(response, rogue_internal.email)
+        self.assertNotContains(response, self.superuser.email)
+        self.assertFalse(Wallet.objects.filter(pk=super_wallet.pk).exists())
+        self.assertFalse(Wallet.objects.filter(pk=rogue_wallet.pk).exists())
+
     def test_cafe_operator_can_deposit_and_withdraw_student_wallet(self):
         self.client.force_login(self.cashier)
 
