@@ -1,0 +1,79 @@
+/* static/css/main.css (النسخة النهائية والنظيفة) */
+
+/* --- الخطوط الأساسية --- */
+body {
+    font-family: 'Cairo', sans-serif;
+    overflow-x: hidden; /* يمنع ظهور شريط التمرير الأفقي */
+}
+
+/* --- هيكل الواجهة والقائمة الجانبية --- */
+#wrapper {
+    display: flex;
+    transition: all 0.3s ease;
+}
+
+#sidebar-wrapper {
+    min-height: 100vh;
+    width: 250px; /* عرض القائمة الجانبية */
+    background-color: #212529; /* لون الخلفية الداكن */
+    color: white;
+    transition: margin-right 0.3s ease;
+    margin-right: 0; /* القائمة ظاهرة بشكل افتراضي */
+}
+
+#page-content-wrapper {
+    flex-grow: 1; /* ✨✨✨ السطر الحاسم: يجبر منطقة المحتوى على أخذ كل المساحة المتبقية ✨✨✨ */
+    width: calc(100% - 250px); /* عرض المحتوى يساوي 100% ناقص عرض القائمة */
+    min-width: 0; /* يمنع المحتوى من التمدد بشكل غير مرغوب */
+    transition: width 0.3s ease;
+}
+
+/* --- حالة إخفاء القائمة الجانبية --- */
+#wrapper.toggled #sidebar-wrapper {
+    margin-right: -250px; /* إخفاء القائمة عن طريق تحريكها إلى اليمين */
+}
+
+#wrapper.toggled #page-content-wrapper {
+    width: 100%; /* عندما تكون القائمة مخفية، المحتوى يأخذ العرض الكامل */
+}
+
+/* --- تنسيقات القائمة الجانبية --- */
+.sidebar-heading {
+    padding: 1.5rem 1.25rem;
+    font-size: 1.2rem;
+    font-weight: bold;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.list-group-item {
+    background-color: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.7);
+    padding: 1rem 1.25rem;
+    transition: all 0.2s ease-in-out;
+}
+
+.list-group-item-action:hover,
+.list-group-item-action:focus {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.list-group-item.active {
+    background-color: #0d6efd; /* لون العنصر النشط */
+    color: white;
+    border-radius: 0.25rem;
+    margin: 0 0.5rem;
+    padding: 1rem 0.75rem;
+}
+
+/* --- تنسيقات إضافية لتحسين المظهر --- */
+.card {
+    border: none;
+}
+
+.bg-success-soft { background-color: rgba(25, 135, 84, 0.1); }
+.text-success { color: #198754 !important; }
+.bg-danger-soft { background-color: rgba(220, 53, 69, 0.1); }
+.text-danger { color: #dc3545 !important; }
+.object-fit-cover { object-fit: cover; }

@@ -1,7 +1,9 @@
 # Bite Hub
 
-## Development Status
+Bite Hub contains the Flutter customer application and the Django backend.
 
-- [✅ مكتملة] المرحلة 1: التوثيق الشامل
-- [✅ مكتملة] المرحلة 2: إعادة تنظيم الملفات والتهيئة الأساسية
-- [✅ مكتملة] المرحلة 3: تغيير الهوية - Bite Hub Rebranding
+## Project Layout
+
+- `bitehub_app/`: Flutter customer application.
+- `manage.py`, `core/`, `wallet/`, `users/`: deployable Django backend.
+- `bitehub_backend_workspace/`: local backend workspace and historical source.

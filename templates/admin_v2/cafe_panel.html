@@ -1,0 +1,1363 @@
+﻿{% extends "admin_v2/base.html" %}
+{% load static %}
+
+{% block title %}Cafe Operations | Bite Hub{% endblock %}
+{% block page_title %}مركز عمليات المقهى{% endblock %}
+{% block page_subtitle %}تشغيل الطلبات، الدفع، بطاقات الطلاب، والقائمة من واجهة واحدة.{% endblock %}
+
+{% block extra_head %}
+  <style>
+    .kanban-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px;
+    }
+    .ops-command-strip {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .ops-command {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 68px;
+      padding: 14px 16px;
+      border-radius: 8px;
+      text-decoration: none;
+      color: #111827;
+      background: linear-gradient(135deg, rgba(255,255,255,.96), rgba(74, 166, 220, .10));
+      border: 1px solid rgba(67, 87, 184, .14);
+      box-shadow: 0 14px 30px rgba(67, 87, 184, .10);
+    }
+    .ops-command:hover {
+      color: #263789;
+      border-color: rgba(245, 31, 46, .26);
+      background: linear-gradient(135deg, rgba(255,255,255,.98), rgba(255, 241, 0, .16), rgba(245, 31, 46, .08));
+    }
+    .ops-command strong {
+      font-size: .95rem;
+    }
+    .ops-command span {
+      color: #667085;
+      font-size: .78rem;
+    }
+    .ops-index {
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      font-weight: 800;
+      background: var(--bh-brand-gradient);
+      flex: 0 0 auto;
+    }
+    .kanban-column {
+      min-height: 420px;
+      padding: 18px;
+      border-radius: 8px;
+      border: 1px solid rgba(67, 87, 184, .14);
+      background: rgba(255,255,255,.90);
+      box-shadow: 0 14px 32px rgba(67, 87, 184, .08);
+      border-top: 4px solid var(--bh-byte-blue);
+    }
+    .kanban-column[data-status="PENDING"] {
+      border-top-color: var(--bh-byte-yellow);
+    }
+    .kanban-column[data-status="PREPARING"] {
+      border-top-color: var(--bh-byte-orange);
+    }
+    .kanban-column[data-status="READY"] {
+      border-top-color: var(--bh-byte-sky);
+    }
+    .kanban-card {
+      border: 1px solid rgba(67, 87, 184, .14);
+      border-radius: 8px;
+      padding: 14px;
+      background: #fff;
+      box-shadow: 0 12px 24px rgba(67, 87, 184, .08);
+      margin-bottom: 12px;
+      transition: transform .18s ease, box-shadow .18s ease;
+    }
+    .kanban-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 16px 30px rgba(245, 31, 46, .10);
+    }
+    .kanban-card .order-number {
+      font-weight: 800;
+    }
+    .kanban-card .meta {
+      color: #64748b;
+      font-size: .9rem;
+    }
+    .kanban-card .line-item {
+      font-size: .9rem;
+    }
+    .kanban-empty-state {
+      min-height: 210px;
+      border: 1px dashed rgba(67, 87, 184, .24);
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      padding: 20px;
+      color: #64748b;
+      background: linear-gradient(135deg, rgba(74, 166, 220, .08), rgba(255, 241, 0, .10));
+    }
+    .product-toggle {
+      border: 1px solid rgba(67, 87, 184, .14);
+      border-radius: 8px;
+      padding: 14px;
+      background: rgba(255,255,255,.92);
+      box-shadow: 0 12px 24px rgba(67, 87, 184, .08);
+    }
+    .product-thumb {
+      width: 54px;
+      height: 54px;
+      border-radius: 8px;
+      overflow: hidden;
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      color: #fff;
+      font-size: .74rem;
+      font-weight: 800;
+      background: var(--bh-brand-gradient);
+    }
+    .product-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .ws-indicator {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--bh-byte-orange);
+      box-shadow: 0 0 0 0 rgba(255, 122, 26, .4);
+      animation: pulse 1.5s infinite;
+    }
+    .ops-panel-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+    .wallet-action-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 18px;
+    }
+    .operation-card {
+      border: 1px solid rgba(67, 87, 184, .14);
+      border-radius: 8px;
+      padding: 18px;
+      background: linear-gradient(135deg, #fff, rgba(74, 166, 220, .06));
+    }
+    .result-panel {
+      min-height: 48px;
+      border-radius: 8px;
+      padding: 12px 14px;
+      background: linear-gradient(135deg, rgba(74, 166, 220, .08), rgba(255, 241, 0, .10));
+      border: 1px solid rgba(67, 87, 184, .12);
+      color: #344054;
+      font-weight: 700;
+    }
+    .transaction-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(15, 23, 42, .08);
+    }
+    .transaction-row:last-child {
+      border-bottom: 0;
+    }
+    .wallet-summary-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .wallet-summary-tile {
+      min-height: 104px;
+      border-radius: 8px;
+      padding: 16px;
+      border: 1px solid rgba(67, 87, 184, .14);
+      background: linear-gradient(135deg, #fff, rgba(74, 166, 220, .10));
+      box-shadow: 0 12px 28px rgba(67, 87, 184, .08);
+    }
+    .wallet-summary-tile strong {
+      display: block;
+      color: #08111f;
+      font-size: 1.55rem;
+      font-weight: 900;
+      line-height: 1.1;
+      margin-top: 8px;
+    }
+    .wallet-summary-tile span {
+      color: #667085;
+      font-size: .82rem;
+      font-weight: 800;
+    }
+    .wallet-workbench {
+      display: grid;
+      grid-template-columns: minmax(320px, .9fr) minmax(0, 1.1fr);
+      gap: 18px;
+      align-items: start;
+    }
+    .wallet-command-card,
+    .wallet-ledger-card {
+      padding: 22px;
+    }
+    .wallet-card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+    .wallet-card-title {
+      color: #08111f;
+      font-size: 1.05rem;
+      font-weight: 900;
+      margin: 0;
+    }
+    .wallet-card-subtitle {
+      color: #667085;
+      font-size: .84rem;
+      margin: 4px 0 0;
+    }
+    .wallet-form-grid {
+      display: grid;
+      gap: 14px;
+    }
+    .wallet-two-fields {
+      display: grid;
+      grid-template-columns: 150px minmax(0, 1fr);
+      gap: 12px;
+    }
+    .wallet-ledger-list {
+      display: grid;
+      gap: 10px;
+    }
+    .wallet-ledger-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 14px;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(67, 87, 184, .12);
+      background: linear-gradient(135deg, rgba(255,255,255,.96), rgba(74, 166, 220, .06));
+    }
+    .wallet-ledger-amount {
+      text-align: left;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+    .wallet-empty-ledger {
+      min-height: 118px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      padding: 18px;
+      border-radius: 8px;
+      color: #667085;
+      border: 1px dashed rgba(67, 87, 184, .22);
+      background: linear-gradient(135deg, rgba(74, 166, 220, .08), rgba(255, 241, 0, .10));
+    }
+    .wallet-directory-card {
+      margin-top: 18px;
+      padding: 22px;
+    }
+    .wallet-directory-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0 10px;
+    }
+    .wallet-directory-table th {
+      color: #667085;
+      font-size: .78rem;
+      font-weight: 900;
+      padding: 0 12px 2px;
+      white-space: nowrap;
+    }
+    .wallet-directory-table td {
+      padding: 14px 12px;
+      background: rgba(255, 255, 255, .96);
+      border-top: 1px solid rgba(67, 87, 184, .12);
+      border-bottom: 1px solid rgba(67, 87, 184, .12);
+      vertical-align: middle;
+    }
+    .wallet-directory-table td:first-child {
+      border-right: 1px solid rgba(67, 87, 184, .12);
+      border-radius: 0 8px 8px 0;
+    }
+    .wallet-directory-table td:last-child {
+      border-left: 1px solid rgba(67, 87, 184, .12);
+      border-radius: 8px 0 0 8px;
+    }
+    .wallet-owner-name {
+      color: #08111f;
+      font-weight: 900;
+    }
+    .wallet-muted-value {
+      color: #667085;
+      font-size: .82rem;
+      direction: ltr;
+      unicode-bidi: plaintext;
+    }
+    .wallet-code-chip {
+      direction: ltr;
+      display: inline-flex;
+      padding: 6px 9px;
+      border-radius: 8px;
+      color: #263789;
+      background: rgba(67, 87, 184, .10);
+      font-size: .78rem;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+    .nfc-reader-field {
+      direction: ltr;
+      text-align: left;
+      font-weight: 800;
+      letter-spacing: 0;
+    }
+    .nfc-command-center {
+      display: grid;
+      grid-template-columns: minmax(320px, .95fr) minmax(0, 1.05fr);
+      gap: 18px;
+      align-items: stretch;
+    }
+    .nfc-identity-card {
+      position: relative;
+      overflow: hidden;
+      min-height: 420px;
+      padding: 26px;
+      color: #fff;
+      background:
+        linear-gradient(135deg, rgba(67, 87, 184, .92) 0%, rgba(74, 166, 220, .82) 32%, rgba(112, 52, 121, .84) 58%, rgba(245, 31, 46, .92) 100%),
+        #111827;
+      border: 0;
+    }
+    .nfc-identity-card::before {
+      content: "";
+      position: absolute;
+      inset: -90px auto auto -70px;
+      width: 260px;
+      height: 260px;
+      border-radius: 50%;
+      background: rgba(255, 241, 0, .22);
+    }
+    .nfc-identity-card::after {
+      content: "";
+      position: absolute;
+      right: -120px;
+      bottom: -120px;
+      width: 310px;
+      height: 310px;
+      border-radius: 50%;
+      border: 44px solid rgba(255,255,255,.12);
+    }
+    .nfc-visual-content {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 368px;
+    }
+    .nfc-system-label {
+      color: rgba(255,255,255,.72);
+      font-size: .78rem;
+      font-weight: 900;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+    .nfc-visual-title {
+      max-width: 430px;
+      margin: 16px 0 10px;
+      font-size: clamp(1.8rem, 3vw, 2.7rem);
+      font-weight: 950;
+      line-height: 1.08;
+    }
+    .nfc-visual-subtitle {
+      max-width: 420px;
+      margin: 0;
+      color: rgba(255,255,255,.78);
+    }
+    .nfc-device-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 18px;
+      align-items: end;
+      margin-top: auto;
+    }
+    .nfc-device-card {
+      min-height: 150px;
+      border-radius: 14px;
+      padding: 18px;
+      background: rgba(255,255,255,.16);
+      border: 1px solid rgba(255,255,255,.24);
+      box-shadow: 0 22px 54px rgba(0,0,0,.20);
+      backdrop-filter: blur(16px);
+    }
+    .nfc-device-card .code {
+      direction: ltr;
+      margin-top: 30px;
+      color: rgba(255,255,255,.88);
+      font-size: 1.1rem;
+      font-weight: 900;
+      letter-spacing: 0;
+    }
+    .nfc-reader-orbit {
+      position: relative;
+      width: 118px;
+      height: 118px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: rgba(255,255,255,.12);
+      border: 1px solid rgba(255,255,255,.24);
+    }
+    .nfc-reader-orbit span {
+      position: absolute;
+      inset: 16px;
+      border-radius: 50%;
+      border: 1px solid rgba(255,255,255,.36);
+    }
+    .nfc-reader-orbit span:nth-child(2) {
+      inset: 30px;
+    }
+    .nfc-reader-core {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 0 0 10px rgba(255,255,255,.18);
+    }
+    .nfc-workflow-card {
+      padding: 24px;
+    }
+    .nfc-status-strip {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+    .nfc-status-chip {
+      min-height: 76px;
+      border-radius: 8px;
+      padding: 12px;
+      border: 1px solid rgba(67, 87, 184, .14);
+      background: linear-gradient(135deg, #fff, rgba(74, 166, 220, .08));
+    }
+    .nfc-status-chip .label {
+      color: #667085;
+      font-size: .74rem;
+      font-weight: 900;
+    }
+    .nfc-status-chip .value {
+      color: #08111f;
+      font-size: 1.2rem;
+      font-weight: 950;
+      margin-top: 8px;
+    }
+    .nfc-form-shell {
+      display: grid;
+      gap: 14px;
+      padding: 18px;
+      border-radius: 8px;
+      border: 1px solid rgba(67, 87, 184, .14);
+      background: linear-gradient(135deg, rgba(255,255,255,.98), rgba(74, 166, 220, .06));
+    }
+    .nfc-form-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 14px;
+    }
+    .nfc-scan-input {
+      min-height: 54px;
+      border-color: rgba(67, 87, 184, .20);
+      background:
+        linear-gradient(90deg, rgba(67, 87, 184, .04), rgba(255, 241, 0, .08), rgba(245, 31, 46, .04)),
+        #fff;
+      font-size: 1rem;
+    }
+    .nfc-result-panel {
+      min-height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .nfc-flow-steps {
+      display: grid;
+      gap: 10px;
+      margin-top: 18px;
+    }
+    .nfc-flow-step {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 12px;
+      align-items: center;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(67, 87, 184, .12);
+      background: #fff;
+    }
+    .nfc-step-index {
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      font-weight: 950;
+      background: var(--bh-brand-gradient);
+    }
+    .nfc-step-title {
+      font-weight: 900;
+      color: #08111f;
+    }
+    .nfc-step-copy {
+      color: #667085;
+      font-size: .82rem;
+      margin-top: 2px;
+    }
+    [data-cafe-section-panel][hidden] {
+      display: none !important;
+    }
+    [data-cafe-section-panel="overview"] .bh-kpi {
+      min-height: 132px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .cafe-identity-card {
+      min-height: 132px;
+      padding: 18px;
+      border-top: 4px solid var(--bh-byte-sky);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      background:
+        radial-gradient(circle at 18% 16%, rgba(74, 166, 220, .18), transparent 34%),
+        linear-gradient(135deg, rgba(255,255,255,.98), rgba(255, 241, 0, .10), rgba(245, 31, 46, .05));
+    }
+    .cafe-identity-copy {
+      min-width: 0;
+    }
+    .cafe-identity-label {
+      color: #667085;
+      font-size: .82rem;
+      font-weight: 900;
+      margin-bottom: 8px;
+    }
+    .cafe-identity-name {
+      color: #08111f;
+      font-size: clamp(1.12rem, 1.2vw, 1.38rem);
+      font-weight: 950;
+      line-height: 1.28;
+      overflow-wrap: anywhere;
+    }
+    .cafe-identity-code {
+      direction: ltr;
+      display: inline-flex;
+      max-width: 100%;
+      margin-top: 10px;
+      padding: 5px 9px;
+      border-radius: 8px;
+      color: #4357b8;
+      background: rgba(67, 87, 184, .08);
+      font-size: .72rem;
+      font-weight: 800;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .cafe-identity-mark {
+      width: 54px;
+      height: 54px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      color: #fff;
+      font-weight: 950;
+      letter-spacing: 0;
+      background: var(--bh-brand-gradient);
+      box-shadow: 0 14px 28px rgba(67, 87, 184, .20);
+    }
+    .ops-command.is-active {
+      color: #263789;
+      border-color: rgba(245, 31, 46, .32);
+      background: linear-gradient(135deg, rgba(255,255,255,.98), rgba(74, 166, 220, .14), rgba(255, 241, 0, .14));
+    }
+    .section-command-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+    .section-command-title {
+      font-size: 1.45rem;
+      font-weight: 900;
+      color: #08111f;
+      margin: 0;
+    }
+    .section-command-subtitle {
+      color: #667085;
+      margin: 4px 0 0;
+    }
+    .order-ops-toolbar {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .order-ops-metric {
+      border-radius: 8px;
+      padding: 14px 16px;
+      border: 1px solid rgba(67, 87, 184, .14);
+      background: linear-gradient(135deg, #fff, rgba(74, 166, 220, .08));
+    }
+    .order-ops-metric .label {
+      color: #667085;
+      font-size: .78rem;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+    .order-ops-metric .value {
+      color: #08111f;
+      font-size: 1.45rem;
+      font-weight: 900;
+      line-height: 1;
+    }
+    .kanban-column {
+      min-height: 520px;
+      padding: 0;
+      overflow: hidden;
+      background: #f8fbff;
+    }
+    .kanban-column-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 16px 18px;
+      border-bottom: 1px solid rgba(67, 87, 184, .12);
+      background: #fff;
+    }
+    .kanban-column-title {
+      font-weight: 900;
+      color: #08111f;
+    }
+    .kanban-column-caption {
+      color: #667085;
+      font-size: .78rem;
+      margin-top: 2px;
+    }
+    .order-column-body {
+      padding: 16px;
+      max-height: 68vh;
+      overflow: auto;
+    }
+    .kanban-card.order-ticket {
+      padding: 0;
+      overflow: hidden;
+      border-color: rgba(67, 87, 184, .16);
+      box-shadow: 0 14px 28px rgba(8, 17, 31, .08);
+    }
+    .order-ticket-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px;
+      background: linear-gradient(135deg, rgba(67, 87, 184, .08), rgba(74, 166, 220, .08), rgba(255, 241, 0, .08));
+      border-bottom: 1px solid rgba(67, 87, 184, .12);
+    }
+    .order-ticket .order-number {
+      color: #08111f;
+      font-size: 1.05rem;
+      font-weight: 900;
+    }
+    .order-ticket .meta {
+      color: #667085;
+      font-size: .8rem;
+      margin-top: 3px;
+    }
+    .order-price {
+      white-space: nowrap;
+      border-radius: 999px;
+      padding: 6px 10px;
+      color: #fff;
+      font-weight: 900;
+      background: var(--bh-brand-gradient);
+    }
+    .order-ticket-items {
+      display: grid;
+      gap: 8px;
+      padding: 14px;
+    }
+    .order-ticket .line-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 9px 10px;
+      border-radius: 8px;
+      background: rgba(255,255,255,.92);
+      border: 1px solid rgba(67, 87, 184, .10);
+      color: #344054;
+      font-weight: 700;
+    }
+    .line-qty {
+      min-width: 34px;
+      height: 26px;
+      border-radius: 999px;
+      display: inline-grid;
+      place-items: center;
+      color: #263789;
+      background: rgba(74, 166, 220, .14);
+      font-weight: 900;
+    }
+    .order-ticket-footer {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 14px 14px;
+      border-top: 1px solid rgba(67, 87, 184, .10);
+      background: #fff;
+    }
+    .order-primary-action {
+      flex: 1 1 auto;
+      border: 0;
+      color: #fff;
+      font-weight: 900;
+      background: var(--bh-brand-gradient);
+    }
+    .order-secondary-action {
+      font-weight: 800;
+    }
+    .ws-indicator.connected {
+      background: var(--bh-byte-yellow);
+      box-shadow: none;
+      animation: none;
+    }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(255, 122, 26, .4); }
+      70% { box-shadow: 0 0 0 12px rgba(255, 122, 26, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(255, 122, 26, 0); }
+    }
+    @media (max-width: 1199px) {
+      .kanban-grid {
+        grid-template-columns: 1fr;
+      }
+      .ops-command-strip,
+      .wallet-action-grid,
+      .order-ops-toolbar,
+      .wallet-summary-grid,
+      .wallet-workbench,
+      .wallet-two-fields,
+      .nfc-command-center,
+      .nfc-status-strip,
+      .nfc-form-grid,
+      .nfc-device-row {
+        grid-template-columns: 1fr;
+      }
+      .section-command-bar {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+  <div class="ops-command-strip" data-cafe-section-panel="overview">
+    <a class="ops-command" href="#orders" data-cafe-section-link data-section="orders">
+      <div>
+        <strong>الطلبات الحية</strong>
+        <span>قبول، تجهيز، جاهز، إغلاق</span>
+      </div>
+      <div class="ops-index">01</div>
+    </a>
+    <a class="ops-command" href="#wallets" data-cafe-section-link data-section="wallets">
+      <div>
+        <strong>المحافظ والدفع</strong>
+        <span>شحن وخصم برصيد مباشر</span>
+      </div>
+      <div class="ops-index">02</div>
+    </a>
+    <a class="ops-command" href="#nfc" data-cafe-section-link data-section="nfc">
+      <div>
+        <strong>بطاقات NFC</strong>
+        <span>تعريف بطاقة طالب</span>
+      </div>
+      <div class="ops-index">03</div>
+    </a>
+    <a class="ops-command" href="#menu" data-cafe-section-link data-section="menu">
+      <div>
+        <strong>القائمة والمخزون</strong>
+        <span>منتجات وتوفر فوري</span>
+      </div>
+      <div class="ops-index">04</div>
+    </a>
+  </div>
+
+  <div class="row g-4 mb-4" data-cafe-section-panel="overview">
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="bh-card cafe-identity-card">
+        <div class="cafe-identity-copy">
+          <div class="cafe-identity-label">الكلية / نقطة التشغيل</div>
+          <div class="cafe-identity-name">{{ cafe.faculty.name|default:cafe.name }}</div>
+          <div class="cafe-identity-code">{{ cafe.code }}</div>
+        </div>
+        <div class="cafe-identity-mark">BH</div>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="bh-card bh-kpi is-orange">
+        <div class="label">الطلبات الحية</div>
+        <div class="value">{{ kpis.live_orders }}</div>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="bh-card bh-kpi is-green">
+        <div class="label">جاهز للاستلام</div>
+        <div class="value">{{ kpis.ready_orders }}</div>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="bh-card bh-kpi is-teal">
+        <div class="label">نفد من المخزون</div>
+        <div class="value">{{ kpis.out_of_stock }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4 mb-4">
+    <div class="col-12" id="wallets" data-cafe-section-panel="wallets">
+      <div class="section-command-bar">
+        <div>
+          <h2 class="section-command-title">محطة المحافظ والدفع</h2>
+          <p class="section-command-subtitle">تشغيل مالي مباشر للطلاب: تحقق من المحفظة، شحن، خصم، ثم راقب السجل.</p>
+        </div>
+        <span class="bh-pill">Finance Desk</span>
+      </div>
+
+      <div class="wallet-summary-grid">
+        <div class="wallet-summary-tile">
+          <span>إجمالي أرصدة المحافظ</span>
+          <strong>{{ wallet_kpis.total_balance|floatformat:2 }} د.ل</strong>
+        </div>
+        <div class="wallet-summary-tile">
+          <span>عدد المحافظ</span>
+          <strong>{{ wallet_kpis.wallets }}</strong>
+        </div>
+        <div class="wallet-summary-tile">
+          <span>بطاقات NFC مرتبطة</span>
+          <strong>{{ wallet_kpis.linked_cards }}</strong>
+        </div>
+      </div>
+
+      <div class="wallet-workbench">
+        <form id="walletOpsForm" class="bh-card wallet-command-card">
+          <div class="wallet-card-header">
+            <div>
+              <h3 class="wallet-card-title">تنفيذ عملية مالية</h3>
+              <p class="wallet-card-subtitle">استخدم البريد أو الهاتف أو كود البطاقة. لا يتم الشحن إلا إذا كانت المحفظة موجودة.</p>
+            </div>
+            <span class="bh-pill">Secure</span>
+          </div>
+          <div class="wallet-form-grid">
+            <div>
+              <label class="form-label">الطالب أو البطاقة</label>
+              <input class="form-control" name="identifier" placeholder="email / phone / card code" required>
+            </div>
+            <div class="wallet-two-fields">
+              <div>
+                <label class="form-label">العملية</label>
+                <select class="form-select" name="operation">
+                  <option value="DEPOSIT">شحن</option>
+                  <option value="WITHDRAWAL">خصم</option>
+                </select>
+              </div>
+              <div>
+                <label class="form-label">المبلغ</label>
+                <input class="form-control" name="amount" type="number" min="0.01" step="0.01" required>
+              </div>
+            </div>
+            <div>
+              <label class="form-label">ملاحظة</label>
+              <input class="form-control" name="note" placeholder="اختياري">
+            </div>
+            <button class="btn btn-dark bh-command-btn" type="submit">تنفيذ العملية</button>
+            <div id="walletOpsResult" class="result-panel">جاهز لتنفيذ عملية محفظة.</div>
+          </div>
+        </form>
+
+        <section class="bh-card wallet-ledger-card">
+          <div class="wallet-card-header">
+            <div>
+              <h3 class="wallet-card-title">سجل عمليات المحافظ</h3>
+              <p class="wallet-card-subtitle">آخر عمليات الشحن والخصم داخل المنظومة.</p>
+            </div>
+            <span class="bh-pill">Ledger</span>
+          </div>
+          <div class="wallet-ledger-list">
+            {% for transaction in recent_wallet_transactions %}
+              <div class="wallet-ledger-row">
+                <div>
+                  <div class="fw-bold">{{ transaction.wallet.user.full_name|default:transaction.wallet.user.email }}</div>
+                  <div class="text-muted small">{{ transaction.description|default:"عملية محفظة" }}</div>
+                  <div class="text-muted small">{{ transaction.created_at|date:"Y-m-d H:i" }}</div>
+                </div>
+                <div class="wallet-ledger-amount {% if transaction.transaction_type == 'DEPOSIT' %}text-success{% else %}text-danger{% endif %}">
+                  {% if transaction.transaction_type == 'DEPOSIT' %}+{% else %}-{% endif %}{{ transaction.amount }} د.ل
+                </div>
+              </div>
+            {% empty %}
+              <div class="wallet-empty-ledger">
+                <div>
+                  <div class="fw-bold mb-1">لا توجد عمليات محفظة بعد</div>
+                  <div class="small">عند تنفيذ أول شحن أو خصم سيظهر هنا مباشرة.</div>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        </section>
+      </div>
+
+      <section class="bh-card wallet-directory-card">
+        <div class="wallet-card-header">
+          <div>
+            <h3 class="wallet-card-title">دليل المحافظ</h3>
+            <p class="wallet-card-subtitle">كل محفظة ظاهرة هنا مرتبطة بحساب مستخدم محدد داخل النظام.</p>
+          </div>
+          <span class="bh-pill">{{ wallet_kpis.wallets }} محفظة</span>
+        </div>
+        <div class="table-responsive">
+          <table class="wallet-directory-table">
+            <thead>
+              <tr>
+                <th>صاحب المحفظة</th>
+                <th>الهاتف</th>
+                <th>البريد</th>
+                <th>الكود / البطاقة</th>
+                <th>الرصيد</th>
+                <th>آخر تحديث</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for wallet in wallet_directory %}
+                <tr>
+                  <td>
+                    <div class="wallet-owner-name">{{ wallet.user.full_name|default:wallet.user.email }}</div>
+                    <div class="wallet-muted-value">{{ wallet.college|default:"Bite Hub" }}</div>
+                  </td>
+                  <td><div class="wallet-muted-value">{{ wallet.user.phone_number|default:"-" }}</div></td>
+                  <td><div class="wallet-muted-value">{{ wallet.user.email|default:"-" }}</div></td>
+                  <td><span class="wallet-code-chip">{{ wallet.link_code|default:"بدون كود" }}</span></td>
+                  <td><strong>{{ wallet.balance|floatformat:2 }} د.ل</strong></td>
+                  <td><div class="wallet-muted-value">{{ wallet.updated_at|date:"Y-m-d H:i" }}</div></td>
+                </tr>
+              {% empty %}
+                <tr>
+                  <td colspan="6">
+                    <div class="wallet-empty-ledger">
+                      <div>
+                        <div class="fw-bold mb-1">لا توجد محافظ مسجلة</div>
+                        <div class="small">عند إنشاء أول حساب طالب ستظهر محفظته هنا.</div>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <div class="col-12" id="nfc" data-cafe-section-panel="nfc">
+      <div class="section-command-bar">
+        <div>
+          <h2 class="section-command-title">تعريف بطاقات NFC</h2>
+          <p class="section-command-subtitle">ربط بطاقة الطالب بمحفظته من نقطة تشغيل رقمية واضحة ومباشرة.</p>
+        </div>
+        <span class="bh-pill">{{ wallet_kpis.linked_cards }} بطاقة مرتبطة</span>
+      </div>
+
+      <div class="nfc-command-center">
+        <section class="bh-card nfc-identity-card">
+          <div class="nfc-visual-content">
+            <div class="nfc-system-label">Bite Hub Card Identity</div>
+            <h3 class="nfc-visual-title">بطاقة طالب رقمية جاهزة للدفع داخل الحرم.</h3>
+            <p class="nfc-visual-subtitle">كل بطاقة NFC ترتبط بمحفظة واحدة، وتتحول إلى وسيلة دفع وتشغيل داخل نقاط المقاهي.</p>
+            <div class="nfc-device-row">
+              <div class="nfc-device-card">
+                <div class="d-flex align-items-center justify-content-between">
+                  <strong>BYTE HUB</strong>
+                  <span>NFC</span>
+                </div>
+                <div class="code">SCAN-CARD-HERE</div>
+              </div>
+              <div class="nfc-reader-orbit" aria-hidden="true">
+                <span></span>
+                <span></span>
+                <div class="nfc-reader-core"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="bh-card nfc-workflow-card">
+          <div class="wallet-card-header">
+            <div>
+              <h3 class="wallet-card-title">محطة ربط البطاقة</h3>
+              <p class="wallet-card-subtitle">أدخل هوية الطالب ثم امسح البطاقة من القارئ.</p>
+            </div>
+            <span class="bh-pill">Reader Online</span>
+          </div>
+
+          <div class="nfc-status-strip">
+            <div class="nfc-status-chip">
+              <div class="label">المحافظ</div>
+              <div class="value">{{ wallet_kpis.wallets }}</div>
+            </div>
+            <div class="nfc-status-chip">
+              <div class="label">البطاقات</div>
+              <div class="value">{{ wallet_kpis.linked_cards }}</div>
+            </div>
+            <div class="nfc-status-chip">
+              <div class="label">الحالة</div>
+              <div class="value">نشط</div>
+            </div>
+          </div>
+
+          <form id="cardBindForm" class="nfc-form-shell">
+            <div class="nfc-form-grid">
+              <div>
+                <label class="form-label">الطالب</label>
+                <input class="form-control" name="identifier" placeholder="email / phone / wallet code" required>
+              </div>
+              <div>
+                <label class="form-label">كود البطاقة</label>
+                <input class="form-control nfc-reader-field nfc-scan-input" name="card_code" placeholder="SCAN-CARD-HERE" required>
+              </div>
+            </div>
+            <button class="btn btn-dark bh-command-btn" type="submit">ربط البطاقة بالمحفظة</button>
+            <div id="cardBindResult" class="result-panel nfc-result-panel">
+              <span>جاهز لتعريف بطاقة طالب.</span>
+              <span class="bh-pill">Secure Link</span>
+            </div>
+          </form>
+
+          <div class="nfc-flow-steps">
+            <div class="nfc-flow-step">
+              <div class="nfc-step-index">01</div>
+              <div>
+                <div class="nfc-step-title">تحقق من المحفظة</div>
+                <div class="nfc-step-copy">النظام يرفض أي كود غير مربوط بمحفظة موجودة.</div>
+              </div>
+            </div>
+            <div class="nfc-flow-step">
+              <div class="nfc-step-index">02</div>
+              <div>
+                <div class="nfc-step-title">قراءة البطاقة</div>
+                <div class="nfc-step-copy">القارئ يكتب كود البطاقة مباشرة داخل حقل التشغيل.</div>
+              </div>
+            </div>
+            <div class="nfc-flow-step">
+              <div class="nfc-step-index">03</div>
+              <div>
+                <div class="nfc-step-title">تفعيل الدفع</div>
+                <div class="nfc-step-copy">بعد الربط تصبح البطاقة جاهزة لعمليات الشحن والخصم.</div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-12">
+      <div class="bh-card p-4 mb-4" id="menu" data-cafe-section-panel="menu">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+          <div class="bh-section-title mb-0">إضافة / تعديل منتج</div>
+          <span class="bh-pill">Menu</span>
+        </div>
+        <form id="productForm" enctype="multipart/form-data" class="d-grid gap-3">
+          <input type="hidden" name="cafe_id" value="{{ cafe.id }}">
+          <input type="hidden" name="product_id" value="">
+          <div>
+            <label class="form-label">اسم المنتج</label>
+            <input class="form-control" name="name" required maxlength="100">
+          </div>
+          <div class="row g-2">
+            <div class="col-6">
+              <label class="form-label">السعر الحالي</label>
+              <input class="form-control" name="price" required type="number" min="0.01" step="0.01">
+            </div>
+            <div class="col-6">
+              <label class="form-label">السعر قبل التخفيض</label>
+              <input class="form-control" name="original_price" type="number" min="0.01" step="0.01">
+            </div>
+          </div>
+          <div>
+            <label class="form-label">كمية المخزون</label>
+            <input class="form-control" name="stock_quantity" required type="number" min="0" step="1" placeholder="مثال: 40">
+            <div class="form-text">عند وصول الكمية إلى صفر سيختفي الصنف من الطلب تلقائيا ويظهر في التطبيق كغير متوفر.</div>
+          </div>
+          <div>
+            <label class="form-label">الفئة</label>
+            <select class="form-select" name="category">
+              <option value="">الفئة الافتراضية</option>
+              {% for category in categories %}
+                <option value="{{ category.id }}">{{ category.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="form-label">رفع صورة الصنف</label>
+            <input class="form-control" name="image" type="file" accept="image/*">
+            <div class="form-text">الصورة تظهر في التطبيق وفي بطاقة الصنف داخل مركز العمليات.</div>
+          </div>
+          <div>
+            <label class="form-label">الوصف</label>
+            <textarea class="form-control" name="description" rows="2"></textarea>
+          </div>
+          <div class="form-check form-switch">
+            <input class="form-check-input" name="is_available" value="on" type="checkbox" role="switch" checked>
+            <label class="form-check-label">متاح للطلب</label>
+          </div>
+          <div class="d-flex gap-2">
+            <button class="btn btn-primary flex-fill" type="submit">حفظ المنتج</button>
+            <button class="btn btn-outline-secondary" type="button" id="resetProductForm">جديد</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="bh-card p-4" id="orders" data-cafe-section-panel="orders">
+        <div class="section-command-bar">
+          <div>
+            <h2 class="section-command-title">مركز تنفيذ الطلبات</h2>
+            <p class="section-command-subtitle">قبول الطلب، بدء التجهيز، إعلان الجاهزية، ثم إغلاق الطلب من مسار واضح.</p>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <div id="wsIndicator" class="ws-indicator"></div>
+            <span class="small text-muted">WebSocket</span>
+          </div>
+        </div>
+        <div class="order-ops-toolbar">
+          <div class="order-ops-metric">
+            <div class="label">الطلبات الحية</div>
+            <div class="value">{{ kpis.live_orders }}</div>
+          </div>
+          <div class="order-ops-metric">
+            <div class="label">طلبات جديدة</div>
+            <div class="value">{{ orders_by_status.PENDING|length }}</div>
+          </div>
+          <div class="order-ops-metric">
+            <div class="label">قيد التجهيز</div>
+            <div class="value">{{ orders_by_status.PREPARING|length }}</div>
+          </div>
+          <div class="order-ops-metric">
+            <div class="label">جاهز للتسليم</div>
+            <div class="value">{{ orders_by_status.READY|length }}</div>
+          </div>
+        </div>
+        <div class="kanban-grid" id="kanbanBoard">
+          <section class="kanban-column" data-status="PENDING">
+            <div class="kanban-column-header">
+              <div>
+                <div class="kanban-column-title">طلبات جديدة</div>
+                <div class="kanban-column-caption">راجع الطلب ثم اقبله للتجهيز.</div>
+              </div>
+              <span class="badge text-bg-warning">{{ orders_by_status.PENDING|length }}</span>
+            </div>
+            <div class="order-column-body">
+              {% for order in orders_by_status.PENDING %}
+                {% include "admin_v2/partials/order_card.html" with order=order next_status="ACCEPTED" next_label="قبول الطلب" %}
+              {% empty %}
+                <div class="kanban-empty-state">
+                  <div>
+                    <div class="fw-bold mb-2 text-uppercase">New</div>
+                    <div class="fw-bold mb-1">لا توجد طلبات جديدة الآن</div>
+                    <div class="small">أي طلب جديد سيظهر هنا عبر التحديث الدوري.</div>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          </section>
+          <section class="kanban-column" data-status="PREPARING">
+            <div class="kanban-column-header">
+              <div>
+                <div class="kanban-column-title">قيد التجهيز</div>
+                <div class="kanban-column-caption">طلبات داخل المطبخ أو نقطة التحضير.</div>
+              </div>
+              <span class="badge text-bg-primary">{{ orders_by_status.PREPARING|length }}</span>
+            </div>
+            <div class="order-column-body">
+              {% for order in orders_by_status.PREPARING %}
+                {% include "admin_v2/partials/order_card.html" with order=order next_status="READY" next_label="إعلان الجاهزية" %}
+              {% empty %}
+                <div class="kanban-empty-state">
+                  <div>
+                    <div class="fw-bold mb-2 text-uppercase">Prep</div>
+                    <div class="fw-bold mb-1">لا توجد طلبات قيد التجهيز</div>
+                    <div class="small">بمجرد اعتماد أي طلب سينتقل إلى هذا العمود تلقائياً.</div>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          </section>
+          <section class="kanban-column" data-status="READY">
+            <div class="kanban-column-header">
+              <div>
+                <div class="kanban-column-title">جاهز للتسليم</div>
+                <div class="kanban-column-caption">أغلق الطلب بعد استلام الطالب.</div>
+              </div>
+              <span class="badge text-bg-success">{{ orders_by_status.READY|length }}</span>
+            </div>
+            <div class="order-column-body">
+              {% for order in orders_by_status.READY %}
+                {% include "admin_v2/partials/order_card.html" with order=order next_status="COMPLETED" next_label="إغلاق الطلب" %}
+              {% empty %}
+                <div class="kanban-empty-state">
+                  <div>
+                    <div class="fw-bold mb-2 text-uppercase">Ready</div>
+                    <div class="fw-bold mb-1">لا توجد طلبات جاهزة الآن</div>
+                    <div class="small">عند اكتمال التحضير ستظهر الطلبات هنا بانتظار التسليم.</div>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12">
+      <div class="bh-card p-4 mb-4" data-cafe-section-panel="overview">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+          <div class="bh-section-title mb-0">مؤشرات سريعة</div>
+          <span class="bh-pill">{{ kpis.today_sales|floatformat:2 }} د.ل اليوم</span>
+        </div>
+        <p class="text-muted mb-0">أي طلب جديد سيظهر فوراً هنا مع تنبيه صوتي، وأي تغيير حالة سيدفع إلى تطبيق الطالب في نفس الدورة.</p>
+      </div>
+
+      <div class="bh-card p-4" data-cafe-section-panel="menu">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+          <div class="bh-section-title mb-0">إدارة المخزون السريعة</div>
+          <span class="bh-pill">Out of Stock</span>
+        </div>
+        <div class="d-grid gap-3">
+          {% for product in products %}
+            <div class="product-toggle">
+              <div class="d-flex align-items-center justify-content-between gap-3">
+                <div class="d-flex align-items-center gap-3 min-w-0">
+                  <div class="product-thumb">
+                    {% if product.image %}
+                      <img src="{{ product.image.url }}" alt="{{ product.name }}">
+                    {% else %}
+                      IMG
+                    {% endif %}
+                  </div>
+                  <div>
+                  <div class="fw-bold">{{ product.name }}</div>
+                    <div class="small text-muted">
+                      {{ product.category.name }} - {{ product.price }} د.ل
+                      {% if product.has_discount %}بدل {{ product.original_price }} د.ل - خصم {{ product.discount_percentage }}%{% endif %}
+                      - المخزون: {{ product.stock_quantity }}
+                    </div>
+                    <div class="small {% if product.is_in_stock %}text-success{% else %}text-danger{% endif %}">
+                      {% if product.is_in_stock %}متوفر في التطبيق{% else %}غير متوفر في التطبيق{% endif %}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  class="btn btn-sm btn-outline-secondary js-edit-product"
+                  type="button"
+                  data-product-id="{{ product.id }}"
+                  data-product-name="{{ product.name }}"
+                  data-product-price="{{ product.price }}"
+                  data-product-original-price="{{ product.original_price|default_if_none:'' }}"
+                  data-product-stock="{{ product.stock_quantity }}"
+                  data-product-category="{{ product.category_id }}"
+                  data-product-description="{{ product.description }}"
+                  data-product-available="{% if product.is_in_stock %}true{% else %}false{% endif %}"
+                >تعديل</button>
+                <div class="form-check form-switch m-0">
+                  <input
+                    class="form-check-input js-stock-toggle"
+                    type="checkbox"
+                    role="switch"
+                    {% if product.is_in_stock %}checked{% endif %}
+                    data-product-id="{{ product.id }}"
+                    data-product-name="{{ product.name }}"
+                  >
+                </div>
+              </div>
+            </div>
+          {% empty %}
+            <div class="kanban-empty-state">
+              <div>
+                <div class="fw-bold mb-2 text-uppercase">Menu</div>
+                <div class="fw-bold mb-1">لا توجد منتجات بعد</div>
+                <div class="small">أضف المنتجات من لوحة الإدارة لتبدأ إدارة المخزون السريع.</div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script id="cafe-panel-config" type="application/json">
+    {
+      "cafeId": "{{ cafe.id }}",
+      "wsPath": "{{ ws_path }}",
+      "snapshotEndpoint": "{% url 'core:cafe_panel_snapshot_api' %}",
+      "statusEndpointTemplate": "{% url 'core:update_order_status_api' 0 %}",
+      "stockEndpointTemplate": "{% url 'core:toggle_product_stock_api' 0 %}",
+      "walletOperationEndpoint": "{% url 'core:cafe_wallet_operation_api' %}",
+      "cardBindEndpoint": "{% url 'core:cafe_bind_wallet_card_api' %}",
+      "createProductEndpoint": "{% url 'core:create_product_api' %}",
+      "saveProductEndpointTemplate": "{% url 'core:save_product_api' 0 %}",
+      "csrfToken": "{{ csrf_token }}"
+    }
+  </script>
+
+  <div class="modal fade" id="confirmCafePanelActionModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 rounded-2 shadow-lg">
+        <div class="modal-header border-0 pb-0">
+          <div>
+            <h2 class="h4 fw-bold mb-1" id="confirmCafePanelActionTitle">تأكيد العملية</h2>
+            <div class="text-muted small" id="confirmCafePanelActionText">هل تريد تنفيذ هذا الإجراء؟</div>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-footer border-0">
+          <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">إلغاء</button>
+          <button type="button" class="btn btn-dark rounded-pill px-4" id="confirmCafePanelActionSubmit">تأكيد</button>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block extra_scripts %}
+  <script src="{% static 'admin_v2/cafe_panel.js' %}"></script>
+{% endblock %}

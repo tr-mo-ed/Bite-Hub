@@ -1,8 +1,11 @@
 # Django/backend runtime
 *.pyc
+*.py[cod]
+*$py.class
 __pycache__/
 db.sqlite3
 *.sqlite3
+*.db
 .venv/
 env/
 venv/
@@ -10,8 +13,11 @@ venv/
 .env.local
 .env.*.local
 *.log
+logs/
 media/
 staticfiles/
+bitehub-server*.out.log
+bitehub-server*.err.log
 
 # Flutter runtime/build
 .dart_tool/

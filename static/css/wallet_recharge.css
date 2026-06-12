@@ -1,0 +1,56 @@
+/* تحسينات عامة على التصميم */
+body {
+    background-color: #f8f9fa; /* لون خلفية رمادي فاتح */
+}
+
+.page-header {
+    border-bottom: 2px solid #dee2e6;
+    padding-bottom: 10px;
+    margin-bottom: 2rem !important;
+}
+
+.card {
+    border: none; /* إزالة الحدود الافتراضية للبطاقات */
+    transition: box-shadow 0.3s ease-in-out;
+}
+
+.card:hover {
+    box-shadow: 0 .5rem 1rem rgba(0,0,0,.15)!important;
+}
+
+.card-header {
+    background-color: #ffffff;
+    border-bottom: 1px solid #e9ecef;
+    font-weight: 600;
+    color: #495057;
+}
+
+/* تصميم قسم بيانات الطالب */
+.student-info p {
+    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
+}
+
+.wallet-balance .display-6 {
+    font-weight: 700 !important; /* استخدام !important لضمان تطبيق النمط */
+}
+
+/* تصميم أزرار وحقول الإدخال */
+.btn-primary {
+    border-radius: 0 0.25rem 0.25rem 0; /* لجعل الزر يلتصق بحقل البحث */
+}
+
+.btn i {
+    margin-right: 8px; /* مسافة بين الأيقونة والنص */
+}
+
+.form-control-lg {
+    font-size: 1.5rem;
+    text-align: center;
+}
+
+.alert {
+    font-size: 1.1rem;
+    font-weight: 500;
+}
+

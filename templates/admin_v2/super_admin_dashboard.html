@@ -1,0 +1,449 @@
+﻿{% extends "admin_v2/base.html" %}
+{% load static %}
+
+{% block title %}Executive Operations | Bite Hub{% endblock %}
+{% block page_title %}مركز الإدارة العليا{% endblock %}
+{% block page_subtitle %}إدارة المقاهي، متابعة الأداء، وروابط التشغيل من واجهة مركزية واحدة.{% endblock %}
+
+{% block extra_head %}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <style>
+    .bh-table thead th {
+      color: #24348b;
+      font-size: .86rem;
+      font-weight: 800;
+      border-bottom-width: 1px;
+      white-space: nowrap;
+      background: linear-gradient(135deg, rgba(74, 166, 220, .14), rgba(255, 241, 0, .16));
+    }
+    .bh-table {
+      border-collapse: separate;
+      border-spacing: 0 10px;
+      min-width: 720px;
+    }
+    .bh-table tbody tr {
+      box-shadow: 0 12px 28px rgba(67, 87, 184, .08);
+    }
+    .bh-table tbody td {
+      vertical-align: middle;
+      padding-top: 1rem;
+      padding-bottom: 1rem;
+      background: #fff;
+      border-top: 1px solid rgba(67, 87, 184, .12);
+      border-bottom: 1px solid rgba(67, 87, 184, .12);
+      overflow-wrap: anywhere;
+    }
+    .bh-table code {
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+    .bh-table tbody td:first-child {
+      border-right: 1px solid rgba(67, 87, 184, .12);
+      border-radius: 0 8px 8px 0;
+    }
+    .bh-table tbody td:last-child {
+      border-left: 1px solid rgba(67, 87, 184, .12);
+      border-radius: 8px 0 0 8px;
+    }
+    .status-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 999px;
+      display: inline-block;
+      margin-left: 6px;
+      background: #94a3b8;
+    }
+    .status-dot.active {
+      background: #fff100;
+      box-shadow: 0 0 0 3px rgba(255, 241, 0, .22);
+    }
+    .bh-empty-state {
+      padding: 32px 24px;
+      text-align: center;
+      border: 1px dashed rgba(67, 87, 184, .26);
+      border-radius: 8px;
+      background: linear-gradient(135deg, rgba(74, 166, 220, .10), rgba(255, 241, 0, .12), rgba(245, 31, 46, .06));
+    }
+    .bh-empty-icon {
+      width: 68px;
+      height: 68px;
+      margin: 0 auto 14px;
+      display: grid;
+      place-items: center;
+      border-radius: 8px;
+      background: var(--bh-brand-gradient);
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 800;
+    }
+    .bh-table-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .bh-chart-frame {
+      position: relative;
+      height: clamp(260px, 32vh, 360px);
+      min-height: 260px;
+      padding: 10px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, rgba(67, 87, 184, .07), rgba(255, 241, 0, .08), rgba(245, 31, 46, .05));
+    }
+    .bh-chart-frame canvas {
+      display: block;
+      width: 100% !important;
+      height: 100% !important;
+    }
+    .credential-workflow {
+      display: grid;
+      gap: 14px;
+      padding: 16px;
+      border-radius: 8px;
+      border: 1px solid rgba(67, 87, 184, .14);
+      background: linear-gradient(135deg, #fff, rgba(74, 166, 220, .07), rgba(255, 241, 0, .08));
+    }
+    .generated-password-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+    }
+    .credential-note {
+      color: #667085;
+      font-size: .84rem;
+      line-height: 1.7;
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+  <div class="row g-4 mb-4">
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="bh-card bh-kpi is-teal">
+        <div class="label">إجمالي المبيعات</div>
+        <div class="value">{{ kpis.total_sales|floatformat:2 }} د.ل</div>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="bh-card bh-kpi is-orange">
+        <div class="label">الطلبات الحية</div>
+        <div class="value">{{ kpis.live_orders }}</div>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="bh-card bh-kpi is-cyan">
+        <div class="label">الطلاب النشطون</div>
+        <div class="value">{{ kpis.active_students }}</div>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="bh-card bh-kpi is-green">
+        <div class="label">المقاهي الفعالة</div>
+        <div class="value">{{ kpis.active_cafes }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-12 col-xl-8">
+      <div class="bh-card p-4 h-100">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+          <div class="bh-section-title mb-0">الأداء خلال آخر 7 أيام</div>
+          <span class="bh-pill">Chart.js</span>
+        </div>
+        <div class="bh-chart-frame">
+          <canvas id="salesTrendChart"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-xl-4">
+      <div class="bh-card p-4 h-100">
+        <div class="bh-table-actions mb-3">
+          <div>
+            <div class="bh-section-title mb-1">إضافة مقهى جديد</div>
+            <div class="text-muted small">إنشاء مقهى جديد من نفس الواجهة دون مغادرة اللوحة.</div>
+          </div>
+          <span class="bh-pill">Provisioning</span>
+        </div>
+        <div class="bh-empty-state">
+            <div class="bh-empty-icon">NEW</div>
+          <h3 class="h5 fw-bold">تهيئة مقهى جديد</h3>
+          <p class="text-muted mb-3">الاسم والكود مطلوبان، وربط الكلية اختياري في هذه المرحلة.</p>
+          <button type="button" class="btn btn-dark btn-lg rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#createCafeModal">
+            فتح نافذة الإنشاء
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4 mt-1">
+    <div class="col-12 col-xl-7">
+      <div class="bh-card p-4">
+        <div class="bh-table-actions mb-3">
+          <div class="bh-section-title mb-0">المقاهي الأعلى نشاطاً</div>
+          <span class="bh-pill">Realtime-ready</span>
+        </div>
+        {% if cafe_breakdown %}
+        <div class="table-responsive">
+          <table class="table table-hover bh-table align-middle">
+            <thead>
+              <tr>
+                <th>المقهى</th>
+                <th>الكلية</th>
+                <th>المبيعات</th>
+                <th>الطلبات الحية</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for cafe in cafe_breakdown %}
+                <tr>
+                  <td class="fw-bold">{{ cafe.name }}</td>
+                  <td>{{ cafe.faculty.name|default:"-" }}</td>
+                  <td>{{ cafe.total_sales|default:0|floatformat:2 }} د.ل</td>
+                  <td>{{ cafe.live_orders|default:0 }}</td>
+                </tr>
+              {% empty %}
+                <tr>
+                  <td colspan="4" class="text-muted">لا توجد بيانات بعد.</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+          <div class="bh-empty-state">
+            <div class="bh-empty-icon">DATA</div>
+            <h3 class="h5 fw-bold">لا توجد بيانات أداء بعد</h3>
+            <p class="text-muted mb-0">بمجرد وصول الطلبات الأولى ستظهر المقاهي الأعلى نشاطاً هنا تلقائياً.</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+    <div class="col-12 col-xl-5">
+      <div class="bh-card p-4 h-100">
+        <div class="bh-table-actions mb-3">
+          <div class="bh-section-title mb-0">مراقبة الأخطاء</div>
+          <span class="bh-pill">Sentry / Local</span>
+        </div>
+        <div class="d-grid gap-3">
+          {% for error in error_snapshots %}
+            <div class="border rounded-2 p-3">
+              <div class="d-flex align-items-center justify-content-between mb-2">
+                <strong>{{ error.source }}</strong>
+                <span class="badge text-bg-dark">{{ error.level }}</span>
+              </div>
+              <div class="text-muted small">{{ error.message }}</div>
+            </div>
+          {% empty %}
+            <div class="border rounded-2 p-4 text-center text-muted">
+              لم يتم العثور على أخطاء محلية حالياً. إذا كان Sentry مفعلاً فسيتم تجميع الأحداث هناك.
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4 mt-1">
+    <div class="col-12">
+      <div class="bh-card p-4">
+        <div class="bh-table-actions mb-3">
+          <div class="bh-section-title mb-0">إدارة المقاهي</div>
+          <div class="d-flex align-items-center gap-2">
+            <span class="bh-pill">Create / Toggle</span>
+            <button type="button" class="btn btn-outline-dark rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#createCafeModal">
+              مقهى جديد
+            </button>
+          </div>
+        </div>
+        {% if cafes %}
+        <div class="table-responsive">
+          <table class="table table-hover bh-table align-middle">
+            <thead>
+              <tr>
+                <th>المقهى</th>
+                <th>الكلية</th>
+                <th>الكود</th>
+                <th>رابط الدخول</th>
+                <th>الحالة</th>
+                <th>الطلبات</th>
+                <th>الأصناف المباعة</th>
+                <th>الإجراء</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for cafe in cafes %}
+                <tr>
+                  <td class="fw-bold">{{ cafe.name }}</td>
+                  <td>{{ cafe.faculty.name|default:"-" }}</td>
+                  <td><code>{{ cafe.code }}</code></td>
+                  <td>
+                    {% if cafe.owner_id %}
+                      <a class="btn btn-sm btn-outline-dark rounded-pill" href="{% url 'core:cafe_login_for_code' cafe.code %}" target="_blank" rel="noopener">
+                        فتح رابط المقهى
+                      </a>
+                    {% else %}
+                      <span class="text-muted small">اربط مديرًا أولًا</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if cafe.is_active %}
+                      <span class="badge text-bg-success"><span class="status-dot active"></span>نشط</span>
+                    {% else %}
+                      <span class="badge text-bg-secondary"><span class="status-dot"></span>موقوف</span>
+                    {% endif %}
+                  </td>
+                  <td>{{ cafe.total_orders|default:0 }}</td>
+                  <td>{{ cafe.sold_items|default:0 }}</td>
+                  <td>
+                    <div class="d-flex flex-wrap gap-2">
+                    <form
+                      method="post"
+                      action="{% url 'core:toggle_cafe_status_from_dashboard' cafe.id %}"
+                      class="d-inline js-toggle-cafe-form"
+                      data-cafe-name="{{ cafe.name }}"
+                      data-next-action="{% if cafe.is_active %}إيقاف{% else %}تفعيل{% endif %}"
+                    >
+                      {% csrf_token %}
+                      <button type="button" class="btn btn-sm {% if cafe.is_active %}btn-outline-danger{% else %}btn-outline-success{% endif %} rounded-pill js-toggle-cafe-button">
+                        {% if cafe.is_active %}إيقاف{% else %}تفعيل{% endif %}
+                      </button>
+                    </form>
+                    {% if cafe.owner_id %}
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-dark rounded-pill js-open-password-modal"
+                        data-bs-toggle="modal"
+                        data-bs-target="#resetCafePasswordModal"
+                        data-cafe-name="{{ cafe.name }}"
+                        data-action="{% url 'core:reset_cafe_password_from_dashboard' cafe.id %}"
+                      >
+                        كلمة المرور
+                      </button>
+                    {% endif %}
+                    </div>
+                  </td>
+                </tr>
+              {% empty %}
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+          <div class="bh-empty-state">
+            <div class="bh-empty-icon">CAFE</div>
+            <h3 class="h5 fw-bold">لا توجد مقاهٍ مسجلة بعد</h3>
+            <p class="text-muted mb-3">ابدأ بإنشاء أول مقهى ليظهر هنا ولينعكس مباشرة في التطبيق.</p>
+            <button type="button" class="btn btn-dark rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#createCafeModal">
+              إنشاء أول مقهى
+            </button>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="resetCafePasswordModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 rounded-2 shadow-lg">
+        <div class="modal-header border-0 pb-0">
+          <div>
+            <h2 class="h4 fw-bold mb-1">تغيير كلمة مرور المقهى</h2>
+            <div class="text-muted small" id="resetCafePasswordSubtitle">اختر كلمة مرور جديدة لحساب تشغيل المقهى.</div>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body pt-3">
+          <form method="post" action="" class="d-grid gap-3" id="resetCafePasswordForm">
+            {% csrf_token %}
+            <div>
+              <label class="form-label">كلمة المرور الجديدة</label>
+              <div class="generated-password-row">
+                <input type="text" name="manager_password" id="resetCafePasswordInput" class="form-control form-control-lg rounded-2" required minlength="8" autocomplete="off">
+                <button type="button" class="btn btn-outline-dark rounded-2 px-4" id="generateResetCafePassword">توليد</button>
+              </div>
+              <div class="credential-note mt-2">بعد الحفظ، صاحب المقهى يدخل باختيار الكلية ثم هذه الكلمة فقط.</div>
+            </div>
+            <div class="d-flex justify-content-end gap-2">
+              <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">إلغاء</button>
+              <button type="submit" class="btn btn-dark rounded-pill px-4">حفظ كلمة المرور</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="createCafeModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 rounded-2 shadow-lg">
+        <div class="modal-header border-0 pb-0">
+          <div>
+            <h2 class="h4 fw-bold mb-1">إنشاء مقهى جديد</h2>
+            <div class="text-muted small">سيظهر المقهى فوراً في التطبيق ولوحة الإدارة بعد الحفظ.</div>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body pt-3">
+          <form method="post" action="{% url 'core:create_cafe_from_dashboard' %}" class="row g-3" id="createCafeForm">
+            {% csrf_token %}
+            <input type="hidden" name="name" value="">
+            <input type="hidden" name="code" value="">
+            <div class="col-12">
+              <div class="credential-workflow">
+                <div>
+                  <label class="form-label">اسم الكلية</label>
+                  <input type="text" name="faculty_name" class="form-control form-control-lg rounded-2" placeholder="مثال: كلية تقنية المعلومات" value="{{ cafe_form_data.faculty_name }}" required>
+                  <div class="form-text">سيتم إنشاء مقهى وحساب تشغيل لهذه الكلية مباشرة.</div>
+                </div>
+                <div>
+                  <label class="form-label">كلمة مرور المقهى</label>
+                  <div class="generated-password-row">
+                    <input type="text" name="manager_password" id="generatedCafePassword" class="form-control form-control-lg rounded-2" placeholder="اضغط توليد أو اكتب كلمة مرور" required minlength="8" autocomplete="off">
+                    <button type="button" class="btn btn-outline-dark rounded-2 px-4" id="generateCafePassword">توليد</button>
+                  </div>
+                  <div class="credential-note mt-2">السوبر أدمن يعطي هذه الكلمة لصاحب المقهى. في صفحة دخول المقاهي سيختار الكلية ويدخل هذه الكلمة فقط.</div>
+                </div>
+              </div>
+            </div>
+            <div class="col-12 d-flex justify-content-end gap-2 pt-2">
+              <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">إلغاء</button>
+              <button type="submit" class="btn btn-dark rounded-pill px-4">إنشاء الكلية وكلمة المرور</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="confirmCafeToggleModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 rounded-2 shadow-lg">
+        <div class="modal-header border-0 pb-0">
+          <div>
+            <h2 class="h4 fw-bold mb-1">تأكيد العملية</h2>
+            <div class="text-muted small" id="confirmCafeToggleText">هل تريد متابعة تغيير حالة المقهى؟</div>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-warning rounded-2 mb-0">
+            سيؤثر هذا التغيير على ظهور المقهى في تطبيق الطلاب وقائمة المقاهي المتاحة.
+          </div>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">إلغاء</button>
+          <button type="button" class="btn btn-dark rounded-pill px-4" id="confirmCafeToggleSubmit">تأكيد</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {{ sales_series|json_script:"sales-series-data" }}
+{% endblock %}
+
+{% block extra_scripts %}
+  <script src="{% static 'admin_v2/super_admin_dashboard.js' %}"></script>
+{% endblock %}
