@@ -42,3 +42,6 @@ Thumbs.db
 bitehub_backend_workspace/bitehub_backend_workspace/firebase-credentials.json
 bitehub_backend_workspace/bitehub_backend_workspace/bitehub_backend/firebase-credentials.json
 **/serviceAccountKey.json
+
+# Local Android release-signing backup
+BiteHub-Release-Signing-Backup.txt
