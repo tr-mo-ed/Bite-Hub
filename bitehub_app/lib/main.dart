@@ -1,4 +1,5 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 
 import 'package:bitehub_app/app/auth_widget_builder.dart';
@@ -7,6 +8,7 @@ import 'package:bitehub_app/app/data/providers/cart_provider.dart';
 import 'package:bitehub_app/app/data/providers/college_provider.dart';
 import 'package:bitehub_app/app/data/providers/favorites_provider.dart';
 import 'package:bitehub_app/app/data/providers/navigation_provider.dart';
+import 'package:bitehub_app/app/data/providers/locale_provider.dart';
 import 'package:bitehub_app/app/data/providers/notification_provider.dart';
 import 'package:bitehub_app/app/data/providers/product_provider.dart';
 import 'package:bitehub_app/app/data/providers/profile_image_provider.dart';
@@ -43,21 +45,24 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => CollegeProvider()),
         ChangeNotifierProvider(create: (_) => NotificationProvider()..load()),
         ChangeNotifierProvider(create: (_) => NavigationProvider()),
+        ChangeNotifierProvider(create: (_) => LocaleProvider()..load()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()..loadTheme()),
         ChangeNotifierProvider(create: (_) => ProfileImageProvider()..load()),
       ],
-      child: Consumer<ThemeProvider>(
-        builder: (context, themeProvider, _) {
+      child: Consumer2<ThemeProvider, LocaleProvider>(
+        builder: (context, themeProvider, localeProvider, _) {
           return MaterialApp(
             title: 'BYTE HUB',
             debugShowCheckedModeBanner: false,
+            locale: localeProvider.locale,
+            supportedLocales: const [Locale('ar'), Locale('en')],
+            localizationsDelegates: const [
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
             builder: (context, child) {
-              return NotificationBannerHost(
-                child: Directionality(
-                  textDirection: TextDirection.rtl,
-                  child: child!,
-                ),
-              );
+              return NotificationBannerHost(child: child!);
             },
             theme: AppTheme.light(context),
             darkTheme: ThemeData(
@@ -114,4 +119,3 @@ class MyApp extends StatelessWidget {
     );
   }
 }
-

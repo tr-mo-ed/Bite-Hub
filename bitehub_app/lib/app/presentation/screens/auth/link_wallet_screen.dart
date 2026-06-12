@@ -1,8 +1,10 @@
 // lib/app/presentation/screens/auth/link_wallet_screen.dart
 
 import 'package:flutter/material.dart';
-// import 'package:bitehub_app/app/data/services/api_service.dart'; // لا نحتاجه في التجاوز
+import 'package:provider/provider.dart';
+
 import 'package:bitehub_app/app/core/widgets/bh_back_button.dart';
+import 'package:bitehub_app/app/data/providers/wallet_provider.dart';
 import 'package:bitehub_app/app/presentation_v2/screens/main_shell_v2.dart';
 
 // ???? ???? LinkWalletScreen ???? ???? ????? ???? ?? ???? ????.
@@ -20,7 +22,6 @@ class _LinkWalletScreenState extends State<LinkWalletScreen> {
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
   String? _errorMessage;
-  // final ApiService _apiService = ApiService(); // تم التعطيل
 
   @override
   // ???? ???? dispose ???? ??????? ?? ????? ???? ?????? ?????.
@@ -39,21 +40,25 @@ class _LinkWalletScreenState extends State<LinkWalletScreen> {
       _errorMessage = null;
     });
 
-    // === منطقة التعديل (Bypass) ===
     try {
-      // محاكاة تأخير بسيط وكأنه يتصل بالسيرفر
-      await Future.delayed(const Duration(seconds: 1));
-
-      // بدلاً من الاتصال بالسيرفر، نعتبر العملية ناجحة فوراً
+      final walletProvider = context.read<WalletProvider>();
+      final success =
+          await walletProvider.linkWallet(_codeController.text.trim());
+      if (!success) {
+        setState(() {
+          _errorMessage =
+              walletProvider.errorMessage ?? 'تعذر ربط كود المحفظة.';
+        });
+        return;
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text("تم ربط المحفظة بنجاح!"),
+            content: Text("تم ربط كود المحفظة بنجاح."),
             backgroundColor: Color(0xFF3559C7),
           ),
         );
 
-        // الانتقال للشاشة الرئيسية مباشرة
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (context) => const MainShellV2()),
           (route) => false,
@@ -92,13 +97,13 @@ class _LinkWalletScreenState extends State<LinkWalletScreen> {
                     size: 80, color: Color(0xFF3559C7)),
                 const SizedBox(height: 20),
                 const Text(
-                  'ربط المحفظة',
+                  'كود المحفظة',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 16),
                 const Text(
-                  'الرجاء إدخال كود الربط لتفعيل المحفظة.',
+                  'أدخل كود المحفظة الخاص بك.',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Colors.grey),
                 ),
@@ -108,7 +113,7 @@ class _LinkWalletScreenState extends State<LinkWalletScreen> {
                   textAlign: TextAlign.center,
                   style: const TextStyle(fontSize: 20, letterSpacing: 2),
                   decoration: InputDecoration(
-                    hintText: 'XXX-XXX',
+                    hintText: '1234ABCD',
                     filled: true,
                     fillColor: Colors.grey[100],
                     border: OutlineInputBorder(
@@ -116,7 +121,8 @@ class _LinkWalletScreenState extends State<LinkWalletScreen> {
                       borderSide: BorderSide.none,
                     ),
                   ),
-                  validator: (v) => v!.isEmpty ? 'أدخل الكود' : null,
+                  validator: (v) =>
+                      v!.trim().isEmpty ? 'أدخل كود المحفظة' : null,
                 ),
                 if (_errorMessage != null)
                   Padding(
@@ -141,7 +147,7 @@ class _LinkWalletScreenState extends State<LinkWalletScreen> {
                     child: _isLoading
                         ? const CircularProgressIndicator(color: Colors.white)
                         : const Text(
-                            'تأكيد وربط',
+                            'حفظ كود المحفظة',
                             style: TextStyle(fontSize: 18, color: Colors.white),
                           ),
                   ),

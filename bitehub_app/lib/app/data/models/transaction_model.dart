@@ -29,18 +29,30 @@ class TransactionModel {
   });
 
   factory TransactionModel.fromJson(Map<String, dynamic> json) {
-    final rawType = (json['transaction_type'] ?? json['type'] ?? '').toString().toUpperCase();
+    final rawType = (json['transaction_type'] ?? json['type'] ?? '')
+        .toString()
+        .toUpperCase();
     // ??? ??????? rawType ??? ?????? ???? ????? ????.
-    final isDebitTransaction = rawType == 'WITHDRAWAL' || rawType == 'DEBIT' || rawType == 'PURCHASE';
+    final isDebitTransaction =
+        rawType == 'WITHDRAWAL' || rawType == 'DEBIT' || rawType == 'PURCHASE';
     final typeDisplay = (json['type_display'] ?? '').toString();
     final collegeName = (json['college_name'] ?? '').toString();
-    final description = (json['description'] ?? '').toString();
-    final title = typeDisplay.isNotEmpty
-        ? typeDisplay
-        : (description.isNotEmpty ? description : 'عملية مالية');
+    final description = _normalizeTransactionDescription(
+      (json['description'] ?? '').toString(),
+      rawType,
+    );
+    final title = description.isNotEmpty
+        ? description
+        : (typeDisplay.isNotEmpty ? typeDisplay : 'عملية مالية');
     // ??? ??????? description ??? ?????? ???? ????? ????.
-    final subtitle = collegeName.isNotEmpty ? collegeName : description;
-    final date = (json['created_at_formatted'] ?? json['created_at'] ?? json['date'] ?? '').toString();
+    final subtitle = typeDisplay.isNotEmpty
+        ? typeDisplay
+        : (collegeName.isNotEmpty ? collegeName : description);
+    final date = (json['created_at_formatted'] ??
+            json['created_at'] ??
+            json['date'] ??
+            '')
+        .toString();
     final amount = double.tryParse(json['amount']?.toString() ?? '') ?? 0.0;
     final source = (json['source'] ?? '').toString();
 
@@ -55,4 +67,31 @@ class TransactionModel {
       source: source,
     );
   }
+
+  bool get isRefund {
+    final normalizedTitle = title.toLowerCase();
+    return !isDebit &&
+        (title.contains('استرداد') || normalizedTitle.contains('refund'));
+  }
+}
+
+String _normalizeTransactionDescription(String value, String type) {
+  final description = value.trim();
+  if (description.isEmpty) {
+    return '';
+  }
+  final lower = description.toLowerCase();
+  if (lower == 'order payment') {
+    return 'دفع طلب';
+  }
+  if (lower.startsWith('refund for cancelled order')) {
+    final marker = description.contains('#')
+        ? '#${description.split('#').last.trim()}'
+        : '';
+    return 'استرداد مبلغ الطلب $marker'.trim();
+  }
+  if (type == 'DEPOSIT' && lower.contains('refund')) {
+    return 'استرداد مبلغ';
+  }
+  return description;
 }

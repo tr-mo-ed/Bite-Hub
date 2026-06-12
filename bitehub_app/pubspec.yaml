@@ -9,6 +9,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
 
   # --- مكتبات أساسية للتصميم ---
   cupertino_icons: ^1.0.2
@@ -42,6 +44,7 @@ dependencies:
   shared_preferences: ^2.5.4
   intl: ^0.20.2
   path_provider: ^2.1.4
+  nfc_manager: ^4.1.1
 
 dev_dependencies:
   flutter_test:

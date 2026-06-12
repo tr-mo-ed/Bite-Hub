@@ -1,6 +1,7 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'package:bitehub_app/app/core/localization/app_strings.dart';
 import 'package:bitehub_app/app/data/models/college_model.dart';
 import 'package:bitehub_app/app/data/providers/auth_provider.dart';
 import 'package:bitehub_app/app/data/providers/navigation_provider.dart';
@@ -49,36 +50,37 @@ class _MainShellV2State extends State<MainShellV2> {
   }
 
   List<BaseScreenTab> _buildTabs() {
+    final strings = AppStrings.of(context);
     return [
       BaseScreenTab(
-        title: 'BYTE HUB',
+        title: strings.home,
         icon: Icons.home_outlined,
         activeIcon: Icons.home_rounded,
         screen: HomeScreenV2(key: _homeKey),
       ),
-      const BaseScreenTab(
-        title: 'طلباتي',
+      BaseScreenTab(
+        title: strings.orders,
         icon: Icons.receipt_long_outlined,
         activeIcon: Icons.receipt_long_rounded,
-        screen: OrdersScreenV2(),
+        screen: const OrdersScreenV2(),
       ),
-      const BaseScreenTab(
-        title: 'السلة',
+      BaseScreenTab(
+        title: strings.cart,
         icon: Icons.shopping_cart_outlined,
         activeIcon: Icons.shopping_cart_rounded,
-        screen: CartScreenV2(),
+        screen: const CartScreenV2(),
       ),
-      const BaseScreenTab(
-        title: 'المحفظة',
+      BaseScreenTab(
+        title: strings.wallet,
         icon: Icons.account_balance_wallet_outlined,
         activeIcon: Icons.account_balance_wallet_rounded,
-        screen: WalletScreenV2(),
+        screen: const WalletScreenV2(),
       ),
-      const BaseScreenTab(
-        title: 'حسابي',
+      BaseScreenTab(
+        title: strings.profile,
         icon: Icons.person_outline,
         activeIcon: Icons.person_rounded,
-        screen: ProfileScreenV2(),
+        screen: const ProfileScreenV2(),
       ),
     ];
   }
@@ -104,7 +106,7 @@ class _MainShellV2State extends State<MainShellV2> {
               actions: [
                 if (currentIndex == 0)
                   IconButton(
-                    onPressed: _controller.refreshCafes,
+                    onPressed: () => _homeKey.currentState?.refresh(),
                     icon: const Icon(
                       Icons.refresh_rounded,
                       color: Color(0xFFE0B42C),
@@ -119,4 +121,3 @@ class _MainShellV2State extends State<MainShellV2> {
     );
   }
 }
-

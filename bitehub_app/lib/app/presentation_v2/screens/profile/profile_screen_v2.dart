@@ -1,12 +1,16 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:ionicons/ionicons.dart';
 import 'package:provider/provider.dart';
 
+import 'package:bitehub_app/app/core/localization/app_strings.dart';
+import 'package:bitehub_app/app/core/theme/app_colors.dart';
 import 'package:bitehub_app/app/data/models/user_model.dart';
 import 'package:bitehub_app/app/data/models/wallet_model.dart';
 import 'package:bitehub_app/app/data/providers/auth_provider.dart';
+import 'package:bitehub_app/app/data/providers/locale_provider.dart';
 import 'package:bitehub_app/app/presentation_v2/controllers/profile_v2_controller.dart';
 import 'package:bitehub_app/app/presentation_v2/widgets/network_state_panel.dart';
 
@@ -36,19 +40,60 @@ class _ProfileScreenV2State extends State<ProfileScreenV2> {
   }
 
   Future<void> _handlePickImage() async {
-    await _controller.pickLocalImage();
+    final success = await _controller.pickLocalImage();
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          success
+              ? 'تم رفع صورة الحساب إلى الخادم.'
+              : (_controller.errorMessage ?? 'لم يتم تغيير الصورة.'),
+        ),
+        backgroundColor: success ? const Color(0xFF0AA77F) : Colors.redAccent,
+      ),
+    );
   }
 
   Future<void> _showEditDialog() async {
-    final nameController =
-        TextEditingController(text: _controller.user?.fullName ?? '');
+    final user = _controller.user;
+    if (user == null) {
+      return;
+    }
+    final nameController = TextEditingController(text: user.fullName);
+    final emailController = TextEditingController(text: user.email);
+    final phoneController = TextEditingController(text: user.phoneNumber);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('تعديل الملف الشخصي'),
-        content: TextField(
-          controller: nameController,
-          decoration: const InputDecoration(labelText: 'الاسم الكامل'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(labelText: 'الاسم الكامل'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: emailController,
+                keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.next,
+                decoration:
+                    const InputDecoration(labelText: 'البريد الإلكتروني'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: phoneController,
+                keyboardType: TextInputType.phone,
+                textInputAction: TextInputAction.done,
+                decoration: const InputDecoration(labelText: 'رقم الهاتف'),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -64,11 +109,24 @@ class _ProfileScreenV2State extends State<ProfileScreenV2> {
     );
 
     if (confirmed != true) {
+      nameController.dispose();
+      emailController.dispose();
+      phoneController.dispose();
       return;
     }
 
-    final success =
-        await _controller.saveProfile(fullName: nameController.text.trim());
+    final fullName = nameController.text.trim();
+    final email = emailController.text.trim();
+    final phoneNumber = phoneController.text.trim();
+    nameController.dispose();
+    emailController.dispose();
+    phoneController.dispose();
+
+    final success = await _controller.saveProfile(
+      fullName: fullName,
+      email: email,
+      phoneNumber: phoneNumber,
+    );
     if (!mounted) {
       return;
     }
@@ -87,6 +145,23 @@ class _ProfileScreenV2State extends State<ProfileScreenV2> {
 
   Future<void> _handleLogout() async {
     await _controller.logout();
+  }
+
+  Future<void> _copyWalletCode() async {
+    final code = _controller.wallet?.linkCode.trim() ?? '';
+    if (code.isEmpty) {
+      return;
+    }
+    await Clipboard.setData(ClipboardData(text: code));
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('تم نسخ كود المحفظة.'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   Future<void> _handleDeleteAccount() async {
@@ -143,6 +218,7 @@ class _ProfileScreenV2State extends State<ProfileScreenV2> {
 
   @override
   Widget build(BuildContext context) {
+    final strings = AppStrings.of(context);
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, _) {
@@ -182,7 +258,7 @@ class _ProfileScreenV2State extends State<ProfileScreenV2> {
                   ProfileMenuItem(
                     icon: Ionicons.create_outline,
                     title: 'تعديل البيانات',
-                    subtitle: 'تحديث الاسم الظاهر في حسابك',
+                    subtitle: 'تحديث الاسم والبريد ورقم الهاتف',
                     onTap: _showEditDialog,
                   ),
                   ProfileMenuItem(
@@ -195,24 +271,43 @@ class _ProfileScreenV2State extends State<ProfileScreenV2> {
               ),
               const SizedBox(height: 16),
               ProfileMenu(
+                title: strings.language,
+                items: [
+                  ProfileMenuItem(
+                    icon: Ionicons.language_outline,
+                    title: context.watch<LocaleProvider>().isArabic
+                        ? strings.arabic
+                        : strings.english,
+                    subtitle: context.watch<LocaleProvider>().isArabic
+                        ? 'التطبيق مضبوط على العربية واتجاه RTL'
+                        : 'App language is English with LTR layout',
+                    onTap: () => context.read<LocaleProvider>().toggle(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              ProfileMenu(
                 title: 'المعلومات',
                 items: [
                   ProfileMenuItem(
                     icon: Ionicons.mail_outline,
                     title: user.email,
                     subtitle: 'البريد الإلكتروني',
+                    onTap: _showEditDialog,
                   ),
                   ProfileMenuItem(
                     icon: Ionicons.call_outline,
                     title: user.phoneNumber,
                     subtitle: 'رقم الهاتف',
+                    onTap: _showEditDialog,
                   ),
                   ProfileMenuItem(
                     icon: Ionicons.qr_code_outline,
                     title: _controller.wallet?.linkCode.isNotEmpty == true
                         ? _controller.wallet!.linkCode
                         : 'غير متوفر',
-                    subtitle: 'كود الربط',
+                    subtitle: 'كود المحفظة',
+                    onTap: _copyWalletCode,
                   ),
                 ],
               ),
@@ -294,12 +389,15 @@ class ProfileHeader extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF3559C7), Color(0xFF24A8E0)],
-          begin: Alignment.topRight,
-          end: Alignment.bottomLeft,
-        ),
-        borderRadius: BorderRadius.circular(30),
+        gradient: AppColors.walletGradient,
+        borderRadius: BorderRadius.circular(34),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.brandBlue.withValues(alpha: .24),
+            blurRadius: 34,
+            offset: const Offset(0, 18),
+          ),
+        ],
       ),
       child: Column(
         children: [
@@ -568,11 +666,12 @@ class _ProfileMenuTile extends StatelessWidget {
                   ],
                 ),
               ),
-              Icon(
-                Ionicons.chevron_back_outline,
-                size: 18,
-                color: item.textColor ?? const Color(0xFF64748B),
-              ),
+              if (item.onTap != null)
+                Icon(
+                  Ionicons.chevron_back_outline,
+                  size: 18,
+                  color: item.textColor ?? const Color(0xFF64748B),
+                ),
             ],
           ),
         ),

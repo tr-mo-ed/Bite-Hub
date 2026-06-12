@@ -31,6 +31,30 @@ class OrderModel {
     this.cafeLogo,
   });
 
+  OrderModel copyWith({
+    int? id,
+    String? orderNumber,
+    double? totalPrice,
+    String? status,
+    String? createdAt,
+    List<OrderItem>? items,
+    String? cafeId,
+    String? cafeName,
+    String? cafeLogo,
+  }) {
+    return OrderModel(
+      id: id ?? this.id,
+      orderNumber: orderNumber ?? this.orderNumber,
+      totalPrice: totalPrice ?? this.totalPrice,
+      status: status ?? this.status,
+      createdAt: createdAt ?? this.createdAt,
+      items: items ?? this.items,
+      cafeId: cafeId ?? this.cafeId,
+      cafeName: cafeName ?? this.cafeName,
+      cafeLogo: cafeLogo ?? this.cafeLogo,
+    );
+  }
+
   factory OrderModel.fromJson(Map<String, dynamic> json) {
     return OrderModel(
       id: json['id'] is int
@@ -60,6 +84,15 @@ class OrderModel {
 
   String get displayCafeName {
     return (cafeName ?? '').trim();
+  }
+
+  String get displayOrderCode {
+    final normalized = orderNumber.trim();
+    final digits = normalized.replaceAll(RegExp(r'\D'), '');
+    if (digits.length >= 4) {
+      return digits.substring(digits.length - 4);
+    }
+    return normalized;
   }
 
   String get statusText {

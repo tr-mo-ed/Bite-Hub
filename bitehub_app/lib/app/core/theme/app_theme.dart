@@ -12,17 +12,33 @@ class AppTheme {
       scaffoldBackgroundColor: AppColors.background,
       cardColor: AppColors.surface,
       fontFamily: 'Tajawal',
-      visualDensity: VisualDensity.standard,
+      visualDensity: VisualDensity.adaptivePlatformDensity,
+      splashFactory: InkSparkle.splashFactory,
       colorScheme: const ColorScheme.light(
         primary: AppColors.brandBlue,
         secondary: AppColors.success,
         surface: AppColors.surface,
         error: AppColors.brandRed,
       ),
-      textTheme: Theme.of(context).textTheme.apply(
+      textTheme: Theme.of(context)
+          .textTheme
+          .apply(
             fontFamily: 'Tajawal',
             bodyColor: AppColors.textPrimary,
             displayColor: AppColors.textPrimary,
+          )
+          .copyWith(
+            headlineSmall: const TextStyle(
+              fontFamily: 'Tajawal',
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -.35,
+            ),
+            titleLarge: const TextStyle(
+              fontFamily: 'Tajawal',
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.w900,
+            ),
           ),
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.transparent,
@@ -31,8 +47,8 @@ class AppTheme {
         iconTheme: IconThemeData(color: AppColors.textPrimary),
         titleTextStyle: TextStyle(
           color: AppColors.textPrimary,
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
+          fontSize: 19,
+          fontWeight: FontWeight.w900,
           fontFamily: 'Tajawal',
         ),
       ),
@@ -46,7 +62,7 @@ class AppTheme {
             fontWeight: FontWeight.w800,
           ),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(18),
           ),
         ),
       ),
@@ -60,7 +76,7 @@ class AppTheme {
             fontWeight: FontWeight.w800,
           ),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(18),
           ),
         ),
       ),
@@ -68,7 +84,7 @@ class AppTheme {
         color: AppColors.surface,
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(22),
           side: const BorderSide(color: AppColors.border),
         ),
       ),
@@ -80,7 +96,7 @@ class AppTheme {
           fontFamily: 'Tajawal',
           fontWeight: FontWeight.w700,
         ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
@@ -90,15 +106,15 @@ class AppTheme {
           vertical: 14,
         ),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(18),
           borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(18),
           borderSide: const BorderSide(color: AppColors.border),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(18),
           borderSide: const BorderSide(
             color: AppColors.brandBlue,
             width: 1.5,

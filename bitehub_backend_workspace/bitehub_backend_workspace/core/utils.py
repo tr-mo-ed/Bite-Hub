@@ -10,6 +10,15 @@ def send_real_notification(user, title, body, *, event_type="SYSTEM", order=None
     try:
         from .models import Notification
 
+        if order is not None and event_type:
+            existing = Notification.objects.filter(
+                user=user,
+                order=order,
+                event_type=event_type,
+            ).first()
+            if existing is not None:
+                return existing
+
         return Notification.objects.create(
             user=user,
             order=order,

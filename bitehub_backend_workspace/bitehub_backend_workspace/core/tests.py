@@ -1,5 +1,6 @@
 from decimal import Decimal
 from io import StringIO
+from tempfile import TemporaryDirectory
 
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
@@ -109,6 +110,32 @@ class AppAuthApiTests(TestCase):
 
         self.assertEqual(response.status_code, 403, response.content)
         self.assertEqual(response.json()["error"], "لا يمكن حذف هذا الحساب من التطبيق.")
+
+    def test_student_can_update_profile_email_and_phone_from_app(self):
+        User = get_user_model()
+        user = User.objects.create_user(
+            email="profile-old@example.com",
+            password="StrongPass123",
+            full_name="Profile Old",
+            phone_number="0912345684",
+        )
+        self.client.force_login(user)
+
+        response = self.client.patch(
+            reverse("v2_app_user_profile"),
+            data={
+                "full_name": "Profile New",
+                "email": "profile-new@example.com",
+                "phone_number": "0912345685",
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        user.refresh_from_db()
+        self.assertEqual(user.full_name, "Profile New")
+        self.assertEqual(user.email, "profile-new@example.com")
+        self.assertEqual(user.phone_number, "0912345685")
 
 
 # ???? ???? CafeProvisioningTests ???? ?????? ????????? ???? ???? ?????.
@@ -280,6 +307,162 @@ class CafeProvisioningTests(TestCase):
         )
         self.assertEqual(login_response.status_code, 200)
         self.assertContains(login_response, "confirmCafePanelActionModal")
+
+    def test_password_reset_creates_missing_cafe_operator(self):
+        User = get_user_model()
+        superuser = User.objects.create_superuser(
+            email="root-ownerless-reset@example.com",
+            password="StrongPass123",
+            full_name="Root Admin",
+            phone_number="0911000025",
+        )
+        cafe = provision_cafe(name="Ownerless Cafe", code="ownerless-cafe")
+        self.assertIsNone(cafe.owner)
+        self.client.force_login(superuser)
+
+        response = self.client.post(
+            reverse("core:reset_cafe_password_from_dashboard", args=[cafe.id]),
+            data={"manager_password": "OwnerlessPass2026"},
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        cafe.refresh_from_db()
+        self.assertIsNotNone(cafe.owner)
+        self.assertTrue(cafe.owner.is_staff)
+        self.assertTrue(cafe.owner.check_password("OwnerlessPass2026"))
+
+    def test_super_admin_can_suspend_and_reactivate_cafe(self):
+        User = get_user_model()
+        superuser = User.objects.create_superuser(
+            email="root-suspend@example.com",
+            password="StrongPass123",
+            full_name="Root Admin",
+            phone_number="0911000026",
+        )
+        manager = User.objects.create_user(
+            email="suspended-manager@example.com",
+            password="CafePass2026",
+            full_name="Suspended Manager",
+            phone_number="0911000027",
+            is_staff=True,
+        )
+        cafe = provision_cafe(
+            name="Subscription Cafe",
+            code="subscription-cafe",
+            owner_id=manager.id,
+        )
+        self.client.force_login(superuser)
+
+        response = self.client.post(
+            reverse("core:toggle_cafe_status_from_dashboard", args=[cafe.id]),
+            data={
+                "action": "suspend",
+                "suspension_reason": "تأخر سداد الاشتراك",
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        cafe.refresh_from_db()
+        self.assertFalse(cafe.is_active)
+        self.assertEqual(cafe.suspension_reason, "تأخر سداد الاشتراك")
+        self.assertIsNotNone(cafe.suspended_at)
+        self.assertContains(response, "موقوف مؤقتاً")
+
+        self.client.logout()
+        app_response = self.client.get(reverse("v2_app_cafes"))
+        self.assertNotIn(cafe.id, [item["id"] for item in app_response.json()])
+
+        self.client.force_login(manager)
+        blocked_response = self.client.get(reverse("core:cafe_panel"), follow=True)
+        self.assertContains(blocked_response, "موقوفة مؤقتاً")
+        self.assertNotIn("_auth_user_id", self.client.session)
+
+        self.client.force_login(superuser)
+        self.client.post(
+            reverse("core:toggle_cafe_status_from_dashboard", args=[cafe.id]),
+            data={"action": "activate"},
+            follow=True,
+        )
+        cafe.refresh_from_db()
+        self.assertTrue(cafe.is_active)
+        self.assertEqual(cafe.suspension_reason, "")
+        self.assertIsNone(cafe.suspended_at)
+
+    def test_super_admin_can_upload_cafe_image_and_app_api_returns_it(self):
+        User = get_user_model()
+        superuser = User.objects.create_superuser(
+            email="root-cafe-image@example.com",
+            password="StrongPass123",
+            full_name="Root Admin",
+            phone_number="0911000023",
+        )
+        cafe = provision_cafe(name="Image Cafe", code="image-cafe")
+        self.client.force_login(superuser)
+        image = SimpleUploadedFile(
+            "cafe.gif",
+            b"GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\xff\xff!\xf9\x04\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;",
+            content_type="image/gif",
+        )
+
+        with TemporaryDirectory() as media_root, override_settings(MEDIA_ROOT=media_root):
+            response = self.client.post(
+                reverse("core:update_cafe_image_from_dashboard", args=[cafe.id]),
+                data={"image": image},
+                follow=True,
+            )
+
+            self.assertEqual(response.status_code, 200)
+            cafe.refresh_from_db()
+            self.assertTrue(cafe.image.name.startswith("cafes/"))
+            self.assertContains(response, cafe.image.url)
+
+            api_response = self.client.get(
+                reverse("v2_app_cafes"),
+                data={"include_inactive": "0"},
+            )
+            self.assertEqual(api_response.status_code, 200, api_response.content)
+            payload = next(item for item in api_response.json() if item["id"] == cafe.id)
+            self.assertIn("http://testserver/media/cafes/", payload["image"])
+
+            self.client.logout()
+            login_response = self.client.get(
+                reverse("core:cafe_login_for_code", args=[cafe.code])
+            )
+            self.assertContains(login_response, "cafe-login-logo")
+            self.assertContains(login_response, cafe.image.url)
+
+    def test_super_admin_can_upload_cafe_image_during_creation(self):
+        User = get_user_model()
+        superuser = User.objects.create_superuser(
+            email="root-create-cafe-image@example.com",
+            password="StrongPass123",
+            full_name="Root Admin",
+            phone_number="0911000024",
+        )
+        self.client.force_login(superuser)
+        image = SimpleUploadedFile(
+            "new-cafe.gif",
+            b"GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\xff\xff!\xf9\x04\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;",
+            content_type="image/gif",
+        )
+
+        with TemporaryDirectory() as media_root, override_settings(MEDIA_ROOT=media_root):
+            response = self.client.post(
+                reverse("core:create_cafe_from_dashboard"),
+                data={
+                    "faculty_name": "Image Faculty",
+                    "manager_password": "CafePass@2026",
+                    "image": image,
+                },
+                follow=True,
+            )
+
+            self.assertEqual(response.status_code, 200)
+            cafe = Cafe.objects.get(faculty__name="Image Faculty")
+            self.assertTrue(cafe.image.name.startswith("cafes/"))
+            self.assertContains(response, cafe.image.url)
 
     def test_super_admin_cannot_assign_same_manager_to_two_cafes(self):
         User = get_user_model()
@@ -700,7 +883,14 @@ class OrderWorkflowTests(TestCase):
         )
         wallet.refresh_from_db()
         self.assertEqual(order.payment_method, "WALLET")
+        self.assertRegex(order.order_number, r"^\d{4}$")
         self.assertEqual(wallet.balance, Decimal("15.00"))
+        payment_transaction = wallet.transactions.get(
+            transaction_type="WITHDRAWAL",
+            amount=Decimal("5.00"),
+        )
+        self.assertIn(f"#{order.order_number}", payment_transaction.description)
+        self.assertIn(self.cafe.name, payment_transaction.description)
 
         cancelled_order = cancel_user_order(order.id, self.customer)
 
@@ -712,9 +902,76 @@ class OrderWorkflowTests(TestCase):
                 transaction_type="DEPOSIT",
                 source="SYSTEM",
                 amount=Decimal("5.00"),
-                description__contains="Refund for cancelled order",
+                description__contains="استرداد مبلغ الطلب",
             ).exists()
         )
+
+    def test_nfc_order_requires_students_linked_card_and_debits_wallet(self):
+        wallet = self.customer.wallet
+        wallet.nfc_card_uid = "NFC-00112233445566"
+        wallet.save(update_fields=["nfc_card_uid", "updated_at"])
+        Transaction.objects.create(
+            wallet=wallet,
+            amount=Decimal("20.00"),
+            transaction_type="DEPOSIT",
+            source="SYSTEM",
+            description="Test NFC funding",
+        )
+        self.client.force_login(self.customer)
+
+        response = self.client.post(
+            reverse("v2_app_orders"),
+            data={
+                "cafe_id": self.cafe.id,
+                "payment_method": "NFC",
+                "nfc_card_uid": "NFC-00112233445566",
+                "total_price": "5.00",
+                "items": [{"product_id": self.product.id, "quantity": 1}],
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 201, response.content)
+        wallet.refresh_from_db()
+        order = Order.objects.get()
+        self.assertEqual(order.payment_method, "NFC")
+        self.assertEqual(wallet.balance, Decimal("15.00"))
+        self.assertTrue(
+            wallet.transactions.filter(
+                transaction_type="WITHDRAWAL",
+                source="NFC",
+                amount=Decimal("5.00"),
+            ).exists()
+        )
+
+    def test_nfc_order_rejects_different_card_without_debit(self):
+        wallet = self.customer.wallet
+        wallet.nfc_card_uid = "NFC-00112233445566"
+        wallet.save(update_fields=["nfc_card_uid", "updated_at"])
+        Transaction.objects.create(
+            wallet=wallet,
+            amount=Decimal("20.00"),
+            transaction_type="DEPOSIT",
+            source="SYSTEM",
+        )
+        self.client.force_login(self.customer)
+
+        response = self.client.post(
+            reverse("v2_app_orders"),
+            data={
+                "cafe_id": self.cafe.id,
+                "payment_method": "NFC",
+                "nfc_card_uid": "NFC-FFFFFFFFFFFFFFFF",
+                "total_price": "5.00",
+                "items": [{"product_id": self.product.id, "quantity": 1}],
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400, response.content)
+        wallet.refresh_from_db()
+        self.assertEqual(wallet.balance, Decimal("20.00"))
+        self.assertFalse(Order.objects.exists())
 
     def test_cafe_cancel_wallet_order_refunds_student_balance(self):
         wallet = self.customer.wallet
@@ -998,7 +1255,12 @@ class DashboardRenderSmokeTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "confirmCafeToggleModal")
+        self.assertContains(response, "updateCafeImageModal")
         self.assertContains(response, "js-toggle-cafe-form")
+        self.assertContains(
+            response,
+            reverse("core:update_cafe_image_from_dashboard", args=[self.cafe.id]),
+        )
         self.assertContains(response, reverse("core:cafe_login_for_code", args=[self.cafe.code]))
         self.assertContains(response, "الأصناف المباعة")
         self.assertContains(response, "<td>5</td>", html=True)
@@ -1101,7 +1363,24 @@ class DashboardRenderSmokeTests(TestCase):
 
         self.assertEqual(response.status_code, 200, response.content)
         wallet = Wallet.objects.get(user=self.student)
-        self.assertEqual(wallet.link_code, "CARD-001")
+        self.assertEqual(wallet.nfc_card_uid, "CARD-001")
+
+        deposit_response = self.client.post(
+            reverse("core:cafe_wallet_operation_api"),
+            data={
+                "identifier": "CARD-001",
+                "operation": "DEPOSIT",
+                "amount": "15.00",
+                "note": "شحن عبر بطاقة NFC",
+            },
+        )
+        self.assertEqual(
+            deposit_response.status_code,
+            200,
+            deposit_response.content,
+        )
+        wallet.refresh_from_db()
+        self.assertEqual(wallet.balance, Decimal("15.00"))
 
     def test_cafe_panel_snapshot_returns_current_live_orders(self):
         category = Category.objects.create(cafe=self.cafe, name="Coffee")

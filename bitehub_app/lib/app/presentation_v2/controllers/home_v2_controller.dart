@@ -8,10 +8,16 @@ import 'package:bitehub_app/app/data/services/api_service.dart';
 
 // ???? ???? HomeV2Controller ???? ???? ????? ???? ?? ???? ????.
 class HomeV2Controller extends ChangeNotifier {
+  HomeV2Controller({
+    ApiService? apiService,
+    Connectivity? connectivity,
+  })  : _apiService = apiService ?? ApiService(),
+        _connectivity = connectivity ?? Connectivity();
+
   // ??? ??????? _apiService ??? ?????? ???? ????? ????.
-  final ApiService _apiService = ApiService();
+  final ApiService _apiService;
   // ??? ??????? _connectivity ??? ?????? ???? ????? ????.
-  final Connectivity _connectivity = Connectivity();
+  final Connectivity _connectivity;
 
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
 
@@ -62,6 +68,21 @@ class HomeV2Controller extends ChangeNotifier {
     return filtered.toList();
   }
 
+  @visibleForTesting
+  void seedPreview({
+    required List<CollegeModel> cafes,
+    required CollegeModel selectedCafe,
+    required List<ProductModel> products,
+  }) {
+    _cafes = cafes;
+    _selectedCafe = selectedCafe;
+    _products = products;
+    _isLoading = false;
+    _isOffline = false;
+    _errorMessage = null;
+    notifyListeners();
+  }
+
   // ???? ???? initialize ???? ??????? ?? ????? ???? ?????? ?????.
   Future<void> initialize() async {
     _connectivitySubscription ??=
@@ -83,7 +104,18 @@ class HomeV2Controller extends ChangeNotifier {
 
     try {
       final cafes = await _apiService.getCafes();
+      final selectedCafeId = _selectedCafe?.id;
       _cafes = cafes;
+      CollegeModel? refreshedSelection;
+      if (selectedCafeId != null) {
+        for (final cafe in cafes) {
+          if (cafe.id == selectedCafeId) {
+            refreshedSelection = cafe;
+            break;
+          }
+        }
+      }
+      _selectedCafe = refreshedSelection;
       _selectedCafe ??= cafes.isNotEmpty ? cafes.first : null;
       if (_selectedCafe != null) {
         _products = await _apiService.getProducts(cafeId: _selectedCafe!.id);

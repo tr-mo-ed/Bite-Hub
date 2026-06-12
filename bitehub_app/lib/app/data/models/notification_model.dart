@@ -14,6 +14,8 @@ class NotificationItem {
   final String createdAt;
   // ??? ??????? isRead ??? ?????? ???? ????? ????.
   final bool isRead;
+  final String? orderNumber;
+  final String? cafeName;
 
   NotificationItem({
     required this.id,
@@ -23,6 +25,8 @@ class NotificationItem {
     this.orderId,
     this.status = '',
     this.isRead = false,
+    this.orderNumber,
+    this.cafeName,
   });
 
   // ???? ???? copyWith ???? ??????? ?? ????? ???? ?????? ?????.
@@ -35,18 +39,26 @@ class NotificationItem {
       body: body,
       createdAt: createdAt,
       isRead: isRead ?? this.isRead,
+      orderNumber: orderNumber,
+      cafeName: cafeName,
     );
   }
 
   factory NotificationItem.fromJson(Map<String, dynamic> json) {
+    final eventType = json['event_type']?.toString() ?? '';
     return NotificationItem(
       id: json['id']?.toString() ?? '',
-      orderId: json['order_id'] is int ? json['order_id'] : int.tryParse(json['order_id']?.toString() ?? ''),
-      status: json['status']?.toString() ?? '',
+      orderId: json['order_id'] is int
+          ? json['order_id']
+          : int.tryParse(json['order_id']?.toString() ?? ''),
+      status: json['status']?.toString() ?? _statusFromEventType(eventType),
       title: json['title']?.toString() ?? '',
       body: json['body']?.toString() ?? '',
-      createdAt: json['created_at']?.toString() ?? DateTime.now().toIso8601String(),
+      createdAt:
+          json['created_at']?.toString() ?? DateTime.now().toIso8601String(),
       isRead: json['is_read'] == true,
+      orderNumber: json['order_number']?.toString(),
+      cafeName: json['cafe_name']?.toString(),
     );
   }
 
@@ -60,6 +72,17 @@ class NotificationItem {
       'body': body,
       'created_at': createdAt,
       'is_read': isRead,
+      'order_number': orderNumber,
+      'cafe_name': cafeName,
     };
   }
+}
+
+String _statusFromEventType(String eventType) {
+  final normalized = eventType.trim().toUpperCase();
+  const prefix = 'ORDER_';
+  if (normalized.startsWith(prefix)) {
+    return normalized.substring(prefix.length);
+  }
+  return normalized;
 }

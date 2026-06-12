@@ -8,6 +8,7 @@ urlpatterns = [
     
     # الرابط سيكون: /api/wallet/link/
     path('link/', api_views.link_wallet, name='link_wallet'),
+    path('nfc/link/', api_views.link_nfc_card, name='link_nfc_card'),
     
     # الرابط سيكون: /api/wallet/topup/
     path('topup/', api_views.topup_wallet, name='topup_wallet'),

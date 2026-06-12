@@ -188,7 +188,7 @@ class _OrderRow extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '#${order.orderNumber}',
+                      '#${order.displayOrderCode}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(

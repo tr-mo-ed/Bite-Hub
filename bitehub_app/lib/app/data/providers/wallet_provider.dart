@@ -98,6 +98,8 @@ class WalletProvider extends ChangeNotifier {
       college: _wallet!.college,
       linkCode: _wallet!.linkCode,
       userFullName: _wallet!.userFullName,
+      hasNfcCard: _wallet!.hasNfcCard,
+      nfcCardLast4: _wallet!.nfcCardLast4,
       transactions: _wallet!.transactions,
     );
     notifyListeners();
@@ -107,29 +109,17 @@ class WalletProvider extends ChangeNotifier {
   Future<bool> transferToWallet({
     required String walletCode,
     required double amount,
+    String? recipientName,
     String? note,
   }) async {
     return _runWalletAction(
       action: () => _apiService.transferWallet(
         walletCode: walletCode,
         amount: amount,
+        recipientName: recipientName,
         note: note,
       ),
       genericMessage: 'تعذر تنفيذ التحويل. حاول مرة أخرى.',
-    );
-  }
-
-  // ???? ???? withdrawFromWallet ???? ??????? ?? ????? ???? ?????? ?????.
-  Future<bool> withdrawFromWallet({
-    required double amount,
-    String? note,
-  }) async {
-    return _runWalletAction(
-      action: () => _apiService.withdrawWallet(
-        amount: amount,
-        note: note,
-      ),
-      genericMessage: 'تعذر تنفيذ الدفع. حاول مرة أخرى.',
     );
   }
 }

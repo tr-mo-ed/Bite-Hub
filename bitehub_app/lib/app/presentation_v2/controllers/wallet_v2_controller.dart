@@ -1,4 +1,4 @@
-﻿import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart';
 import 'package:bitehub_app/app/data/models/wallet_model.dart';
 import 'package:bitehub_app/app/data/services/api_service.dart';
 
@@ -41,34 +41,28 @@ class WalletV2Controller extends ChangeNotifier {
     }
   }
 
-  // ???? ???? withdraw ???? ??????? ?? ????? ???? ?????? ?????.
-  Future<bool> withdraw({required double amount, String? note}) async {
-    return _runAction(
-      () => _apiService.withdrawWallet(amount: amount, note: note),
-      successMessage: 'تم تنفيذ الدفع بنجاح.',
-    );
-  }
-
-  Future<bool> topUp({required double amount, String? note}) async {
-    return _runAction(
-      () => _apiService.topUpWallet(amount: amount, note: note),
-      successMessage: 'تم شحن الرصيد بنجاح.',
-    );
-  }
-
   // ???? ???? transfer ???? ??????? ?? ????? ???? ?????? ?????.
   Future<bool> transfer({
     required String walletCode,
     required double amount,
+    String? recipientName,
     String? note,
   }) async {
     return _runAction(
       () => _apiService.transferWallet(
         walletCode: walletCode,
         amount: amount,
+        recipientName: recipientName,
         note: note,
       ),
       successMessage: 'تم إرسال التحويل بنجاح.',
+    );
+  }
+
+  Future<bool> linkNfcCard(String cardUid) {
+    return _runAction(
+      () => _apiService.linkNfcCard(cardUid),
+      successMessage: 'تم ربط بطاقة NFC بمحفظتك بنجاح.',
     );
   }
 
@@ -107,5 +101,3 @@ class WalletV2Controller extends ChangeNotifier {
     }
   }
 }
-
-

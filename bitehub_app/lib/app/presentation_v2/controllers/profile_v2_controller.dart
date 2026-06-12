@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
@@ -68,10 +68,10 @@ class ProfileV2Controller extends ChangeNotifier {
   }
 
   // ???? ???? pickLocalImage ???? ??????? ?? ????? ???? ?????? ?????.
-  Future<void> pickLocalImage() async {
+  Future<bool> pickLocalImage() async {
     final image = await _imagePicker.pickImage(source: ImageSource.gallery);
     if (image == null) {
-      return;
+      return false;
     }
 
     final directory = await getApplicationDocumentsDirectory();
@@ -85,10 +85,24 @@ class ProfileV2Controller extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('profile_image_path', savedImage.path);
     notifyListeners();
+
+    final currentUser = _user;
+    if (currentUser == null) {
+      return false;
+    }
+    return saveProfile(
+      fullName: currentUser.fullName,
+      email: currentUser.email,
+      phoneNumber: currentUser.phoneNumber,
+    );
   }
 
   // ???? ???? saveProfile ???? ??????? ?? ????? ???? ?????? ?????.
-  Future<bool> saveProfile({required String fullName}) async {
+  Future<bool> saveProfile({
+    required String fullName,
+    required String email,
+    required String phoneNumber,
+  }) async {
     if (_isSaving) {
       return false;
     }
@@ -96,6 +110,18 @@ class ProfileV2Controller extends ChangeNotifier {
     final trimmedName = fullName.trim();
     if (trimmedName.isEmpty) {
       _errorMessage = 'الاسم مطلوب.';
+      notifyListeners();
+      return false;
+    }
+    final trimmedEmail = email.trim();
+    if (trimmedEmail.isEmpty) {
+      _errorMessage = 'البريد الإلكتروني مطلوب.';
+      notifyListeners();
+      return false;
+    }
+    final trimmedPhone = phoneNumber.trim();
+    if (trimmedPhone.isEmpty) {
+      _errorMessage = 'رقم الهاتف مطلوب.';
       notifyListeners();
       return false;
     }
@@ -107,6 +133,8 @@ class ProfileV2Controller extends ChangeNotifier {
     try {
       _user = await _apiService.updateUserProfileMultipart(
         fullName: trimmedName,
+        email: trimmedEmail,
+        phoneNumber: trimmedPhone,
         imagePath: _localImagePath,
       );
       final prefs = await SharedPreferences.getInstance();

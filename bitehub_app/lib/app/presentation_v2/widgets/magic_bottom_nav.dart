@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:persistent_bottom_nav_bar_v2/persistent_bottom_nav_bar_v2.dart';
 
@@ -13,118 +15,134 @@ class MagicBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Colors.white,
-            Color(0xFFF8FBFF),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: AppColors.border),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 28,
-            offset: const Offset(0, 12),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(30),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+        child: Container(
+          margin: const EdgeInsets.all(1),
+          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 8),
+          decoration: BoxDecoration(
+            color: AppColors.glass,
+            borderRadius: BorderRadius.circular(30),
+            border: Border.all(color: Colors.white.withValues(alpha: .9)),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.brandNavy.withValues(alpha: .14),
+                blurRadius: 30,
+                offset: const Offset(0, 14),
+              ),
+              BoxShadow(
+                color: Colors.white.withValues(alpha: .9),
+                blurRadius: 1,
+                offset: const Offset(0, -1),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Row(
-        children: List.generate(navBarConfig.items.length, (index) {
-          final item = navBarConfig.items[index];
-          final selected = navBarConfig.selectedIndex == index;
-          final activeColor = item.activeForegroundColor;
-          final inactiveColor = item.inactiveForegroundColor;
+          child: Row(
+            children: List.generate(navBarConfig.items.length, (index) {
+              final item = navBarConfig.items[index];
+              final selected = navBarConfig.selectedIndex == index;
 
-          return Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 2),
-              child: InkWell(
-                onTap: () => navBarConfig.onItemSelected(index),
-                borderRadius: BorderRadius.circular(20),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 240),
-                  curve: Curves.easeOutCubic,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(20),
-                    gradient: selected
-                        ? const LinearGradient(
-                            begin: Alignment.topRight,
-                            end: Alignment.bottomLeft,
-                            colors: [
-                              Color(0xFF1E40AF),
-                              Color(0xFF2563EB),
-                              Color(0xFF38BDF8),
-                            ],
-                          )
-                        : null,
-                    color: selected ? null : Colors.transparent,
-                    boxShadow: selected
-                        ? [
-                            BoxShadow(
-                              color: activeColor.withValues(alpha: 0.26),
-                              blurRadius: 20,
-                              offset: const Offset(0, 8),
+              return Expanded(
+                child: Semantics(
+                  selected: selected,
+                  button: true,
+                  label: item.title ?? '',
+                  child: InkWell(
+                    onTap: () => navBarConfig.onItemSelected(index),
+                    borderRadius: BorderRadius.circular(22),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 320),
+                      curve: Curves.easeOutCubic,
+                      padding: const EdgeInsets.symmetric(vertical: 7),
+                      transform: Matrix4.translationValues(
+                        0,
+                        selected ? -3 : 0,
+                        0,
+                      ),
+                      decoration: BoxDecoration(
+                        gradient: selected
+                            ? const LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  Color(0xFFFFFFFF),
+                                  Color(0xFFEAF1FF),
+                                ],
+                              )
+                            : null,
+                        borderRadius: BorderRadius.circular(22),
+                        border: selected
+                            ? Border.all(
+                                color:
+                                    AppColors.brandBlue.withValues(alpha: .16),
+                              )
+                            : null,
+                        boxShadow: selected
+                            ? [
+                                BoxShadow(
+                                  color: AppColors.brandBlue
+                                      .withValues(alpha: .18),
+                                  blurRadius: 16,
+                                  offset: const Offset(0, 7),
+                                ),
+                              ]
+                            : null,
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          AnimatedScale(
+                            duration: const Duration(milliseconds: 260),
+                            curve: Curves.easeOutBack,
+                            scale: selected ? 1.12 : 1,
+                            child: ShaderMask(
+                              blendMode: BlendMode.srcIn,
+                              shaderCallback: (bounds) => (selected
+                                      ? AppColors.accentGradient
+                                      : const LinearGradient(
+                                          colors: [
+                                            AppColors.textSecondary,
+                                            AppColors.textSecondary,
+                                          ],
+                                        ))
+                                  .createShader(bounds),
+                              child: IconTheme(
+                                data: const IconThemeData(
+                                  color: Colors.white,
+                                  size: 22,
+                                ),
+                                child: selected ? item.icon : item.inactiveIcon,
+                              ),
                             ),
-                          ]
-                        : const [],
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 240),
-                        curve: Curves.easeOutCubic,
-                        width: 42,
-                        height: 42,
-                        decoration: BoxDecoration(
-                          color: selected
-                              ? Colors.white.withValues(alpha: 0.18)
-                              : const Color(0xFFF1F5F9),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
-                            color: selected
-                                ? Colors.white.withValues(alpha: 0.18)
-                                : AppColors.border,
                           ),
-                        ),
-                        child: IconTheme(
-                          data: IconThemeData(
-                            color: selected ? Colors.white : inactiveColor,
-                            size: item.iconSize - 3,
+                          const SizedBox(height: 4),
+                          AnimatedDefaultTextStyle(
+                            duration: const Duration(milliseconds: 220),
+                            style: item.textStyle.copyWith(
+                              color: selected
+                                  ? AppColors.brandBlue
+                                  : AppColors.textSecondary,
+                              fontSize: 10.5,
+                              fontWeight:
+                                  selected ? FontWeight.w900 : FontWeight.w700,
+                            ),
+                            child: Text(
+                              item.title ?? '',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
-                          child: Center(
-                            child: selected ? item.icon : item.inactiveIcon,
-                          ),
-                        ),
+                        ],
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        item.title ?? '',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: item.textStyle.copyWith(
-                          fontSize: 11,
-                          fontWeight:
-                              selected ? FontWeight.w800 : FontWeight.w600,
-                          color: selected ? Colors.white : inactiveColor,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
-              ),
-            ),
-          );
-        }),
+              );
+            }),
+          ),
+        ),
       ),
     );
   }

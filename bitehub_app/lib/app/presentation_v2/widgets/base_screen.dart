@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:persistent_bottom_nav_bar_v2/persistent_bottom_nav_bar_v2.dart';
 import 'package:provider/provider.dart';
@@ -57,8 +59,10 @@ class _BaseScreenState extends State<BaseScreen> {
       (_) => GlobalKey<NavigatorState>(),
     );
     _canPopPerTab = List<bool>.filled(widget.tabs.length, false);
-    WidgetsBinding.instance
-        .addPostFrameCallback((_) => _refreshCurrentCanPop());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _refreshCurrentCanPop();
+      context.read<NotificationProvider>().startAutoRefresh();
+    });
   }
 
   @override
@@ -86,6 +90,10 @@ class _BaseScreenState extends State<BaseScreen> {
   }
 
   Future<void> _openNotificationCenter() async {
+    await context.read<NotificationProvider>().refreshFromServer();
+    if (!mounted) {
+      return;
+    }
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -152,6 +160,23 @@ class _BaseScreenState extends State<BaseScreen> {
       extendBody: true,
       drawer: widget.drawer,
       appBar: AppBar(
+        backgroundColor: Colors.white.withValues(alpha: .78),
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+        flexibleSpace: ClipRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(
+                    color: AppColors.border.withValues(alpha: .7),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
         automaticallyImplyLeading: false,
         leading: canPop
             ? BhBackButton(
@@ -187,6 +212,10 @@ class _BaseScreenState extends State<BaseScreen> {
         controller: _tabController,
         tabs: _buildTabs(),
         onTabChanged: _handleTabChanged,
+        screenTransitionAnimation: const ScreenTransitionAnimation(
+          duration: Duration(milliseconds: 360),
+          curve: Curves.easeOutCubic,
+        ),
         navBarBuilder: (navBarConfig) => SafeArea(
           minimum: const EdgeInsets.fromLTRB(12, 0, 12, 8),
           child: MagicBottomNav(

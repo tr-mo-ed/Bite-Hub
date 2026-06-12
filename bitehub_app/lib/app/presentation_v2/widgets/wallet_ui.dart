@@ -3,6 +3,9 @@ import 'package:bitehub_app/app/data/models/transaction_model.dart';
 String transactionTypeLabel(TransactionModel transaction) {
   switch (transaction.type.toUpperCase()) {
     case 'DEPOSIT':
+      if (transaction.isRefund) {
+        return 'استرداد مبلغ';
+      }
       return 'شحن';
     case 'WITHDRAWAL':
     case 'PURCHASE':

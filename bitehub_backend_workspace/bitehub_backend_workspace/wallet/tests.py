@@ -4,6 +4,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
+from core.models import Notification
 from wallet.models import Transaction
 
 
@@ -50,14 +51,14 @@ class WalletTopupPermissionTests(TestCase):
         self.assertFalse(hasattr(self.admin, "wallet"))
 
     @override_settings(WALLET_APP_TOPUP_ENABLED=True)
-    def test_regular_user_can_topup_wallet_when_app_topup_is_enabled(self):
+    def test_app_topup_stays_disabled_even_if_legacy_flag_is_enabled(self):
         self.client.force_login(self.student)
 
         response = self.client.post(self.url, data={"amount": "10.00"})
 
-        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.status_code, 403, response.content)
         self.student.wallet.refresh_from_db()
-        self.assertEqual(self.student.wallet.balance, Decimal("10.00"))
+        self.assertEqual(self.student.wallet.balance, Decimal("0.00"))
 
     def test_user_save_does_not_overwrite_existing_wallet_balance(self):
         Transaction.objects.create(
@@ -82,7 +83,7 @@ class WalletTopupPermissionTests(TestCase):
             data={"amount": "10.00"},
         )
 
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 403)
         self.student.wallet.refresh_from_db()
         self.assertEqual(self.student.wallet.balance, Decimal("0.00"))
 
@@ -101,6 +102,7 @@ class WalletTopupPermissionTests(TestCase):
             data={
                 "wallet_code": self.receiver.wallet.link_code,
                 "amount": "5.00",
+                "recipient_name": "زميل الدراسة",
             },
         )
 
@@ -109,6 +111,26 @@ class WalletTopupPermissionTests(TestCase):
         self.receiver.wallet.refresh_from_db()
         self.assertEqual(self.student.wallet.balance, Decimal("7.00"))
         self.assertEqual(self.receiver.wallet.balance, Decimal("5.00"))
+        self.assertTrue(
+            self.student.wallet.transactions.filter(
+                transaction_type="WITHDRAWAL",
+                description__contains="تحويل إلى زميل الدراسة",
+            ).exists()
+        )
+        self.assertTrue(
+            Notification.objects.filter(
+                user=self.student,
+                event_type="WALLET_TRANSFER_SENT",
+                title="تم إرسال التحويل",
+            ).exists()
+        )
+        self.assertTrue(
+            Notification.objects.filter(
+                user=self.receiver,
+                event_type="WALLET_TRANSFER_RECEIVED",
+                title="وصل تحويل إلى محفظتك",
+            ).exists()
+        )
 
     def test_transfer_rejects_insufficient_balance_without_receiver_deposit(self):
         self.client.force_login(self.student)
@@ -141,3 +163,34 @@ class WalletTopupPermissionTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.student.wallet.refresh_from_db()
         self.assertEqual(self.student.wallet.balance, Decimal("0.00"))
+
+    def test_student_can_link_unique_nfc_card_without_changing_wallet_code(self):
+        original_wallet_code = self.student.wallet.link_code
+        self.client.force_login(self.student)
+
+        response = self.client.post(
+            reverse("link_nfc_card"),
+            data={"card_uid": "NFC-00112233445566"},
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.student.wallet.refresh_from_db()
+        self.assertEqual(
+            self.student.wallet.nfc_card_uid,
+            "NFC-00112233445566",
+        )
+        self.assertEqual(self.student.wallet.link_code, original_wallet_code)
+
+    def test_nfc_card_cannot_be_linked_to_two_students(self):
+        self.student.wallet.nfc_card_uid = "NFC-00112233445566"
+        self.student.wallet.save(update_fields=["nfc_card_uid", "updated_at"])
+        self.client.force_login(self.receiver)
+
+        response = self.client.post(
+            reverse("link_nfc_card"),
+            data={"card_uid": "NFC-00112233445566"},
+        )
+
+        self.assertEqual(response.status_code, 400, response.content)
+        self.receiver.wallet.refresh_from_db()
+        self.assertIsNone(self.receiver.wallet.nfc_card_uid)

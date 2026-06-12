@@ -8,17 +8,21 @@ import 'package:bitehub_app/app/presentation_v2/widgets/bh_design.dart';
 import 'package:bitehub_app/app/presentation_v2/widgets/custom_floating_snack_bar.dart';
 import 'package:bitehub_app/app/presentation_v2/widgets/network_state_panel.dart';
 import 'package:bitehub_app/app/presentation_v2/widgets/order_status_ui.dart';
-import 'package:bitehub_app/app/presentation_v2/widgets/pressable_scale.dart';
+import 'package:bitehub_app/app/presentation_v2/widgets/product_image_view.dart';
 
 class LiveOrderTrackingScreenV2 extends StatefulWidget {
   const LiveOrderTrackingScreenV2({
     super.key,
     this.initialOrder,
     this.initialOrderId,
+    this.controller,
+    this.initializeController = true,
   });
 
   final OrderModel? initialOrder;
   final int? initialOrderId;
+  final LiveOrderController? controller;
+  final bool initializeController;
 
   @override
   State<LiveOrderTrackingScreenV2> createState() =>
@@ -30,21 +34,27 @@ class _LiveOrderTrackingScreenV2State extends State<LiveOrderTrackingScreenV2> {
   final ApiService _apiService = ApiService();
   bool _isCancelling = false;
   String? _lastAnnouncedStatus;
+  late final bool _ownsController;
 
   @override
   void initState() {
     super.initState();
-    _controller = LiveOrderController();
-    _controller.initialize(
-      initialOrder: widget.initialOrder,
-      initialOrderId: widget.initialOrderId,
-    );
+    _ownsController = widget.controller == null;
+    _controller = widget.controller ?? LiveOrderController();
+    if (widget.initializeController) {
+      _controller.initialize(
+        initialOrder: widget.initialOrder,
+        initialOrderId: widget.initialOrderId,
+      );
+    }
     _lastAnnouncedStatus = widget.initialOrder?.status.toUpperCase();
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    if (_ownsController) {
+      _controller.dispose();
+    }
     super.dispose();
   }
 
@@ -57,10 +67,11 @@ class _LiveOrderTrackingScreenV2State extends State<LiveOrderTrackingScreenV2> {
 
         if (_controller.isOffline && order == null) {
           return Scaffold(
+            appBar: AppBar(title: const Text('تتبع الطلب')),
             body: NetworkStatePanel(
-              title: 'المتتبع الحي غير متاح الآن',
+              title: 'تعذر تحميل الطلب',
               message: _controller.errorMessage ??
-                  'انقطع الاتصال وسنحاول إعادة الربط تلقائياً.',
+                  'لا يوجد اتصال بالشبكة حالياً. حاول مرة أخرى عند عودة الإنترنت.',
               actionLabel: 'إعادة المحاولة',
               onRetry: _controller.refresh,
             ),
@@ -75,130 +86,71 @@ class _LiveOrderTrackingScreenV2State extends State<LiveOrderTrackingScreenV2> {
 
         if (order == null) {
           return Scaffold(
-            appBar: AppBar(title: const Text('التتبع الحي')),
-            body: const Center(
-              child: Text('لا يوجد طلب نشط حالياً للتتبع.'),
-            ),
+            appBar: AppBar(title: const Text('تتبع الطلب')),
+            body: const _MissingOrderState(),
           );
         }
 
         final status = BhOrderStatusSpec.fromStatus(order.status);
-        final progress = status.progress;
-        final canCancel = _canCancel(order.status);
         _announceStatusIfNeeded(order);
 
         return Scaffold(
+          backgroundColor: AppColors.background,
           appBar: AppBar(
-            title: Text('تتبع الطلب #${order.orderNumber}'),
-          ),
-          body: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
-            children: [
-              _buildHeroCard(order, progress),
-              const SizedBox(height: 20),
-              _FloatingCard(
-                child: _buildTimeline(status),
+            title: Text('الطلب #${order.displayOrderCode}'),
+            actions: [
+              IconButton(
+                onPressed: _controller.isRefreshing
+                    ? null
+                    : () => _controller.refresh(
+                          orderId: order.id,
+                          silent: true,
+                        ),
+                tooltip: 'تحديث الحالة',
+                icon: _controller.isRefreshing
+                    ? const SizedBox.square(
+                        dimension: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.refresh_rounded),
               ),
-              if (canCancel) ...[
-                const SizedBox(height: 18),
-                PressableScale(
-                  onTap: _isCancelling ? null : () => _handleCancelOrder(order),
-                  borderRadius: BorderRadius.circular(20),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    height: 58,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFF1F2),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: const Color(0xFFFDA4AF)),
-                    ),
-                    child: Center(
-                      child: _isCancelling
-                          ? const SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.2,
-                                color: Color(0xFFDC2626),
-                              ),
-                            )
-                          : const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.cancel_outlined,
-                                  color: Color(0xFFDC2626),
-                                ),
-                                SizedBox(width: 8),
-                                Text(
-                                  'إلغاء الطلب',
-                                  style: TextStyle(
-                                    color: Color(0xFFDC2626),
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                              ],
-                            ),
-                    ),
-                  ),
-                ),
-              ],
-              const SizedBox(height: 20),
-              _FloatingCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'تفاصيل الطلب',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    ...order.items.map(
-                      (item) => Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                item.productName,
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w700),
-                              ),
-                            ),
-                            Text(
-                              '${item.quantity}x',
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.w800),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const Divider(height: 26),
-                    Row(
-                      children: [
-                        const Expanded(
-                          child: Text(
-                            'الإجمالي',
-                            style: TextStyle(fontWeight: FontWeight.w800),
-                          ),
-                        ),
-                        Text(
-                          '${order.totalPrice.toStringAsFixed(2)} د.ل',
-                          style: const TextStyle(
-                            color: Color(0xFF3559C7),
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
+              const SizedBox(width: 6),
             ],
+          ),
+          body: RefreshIndicator(
+            color: AppColors.brandBlue,
+            onRefresh: () => _controller.refresh(
+              orderId: order.id,
+              silent: true,
+            ),
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 36),
+              children: [
+                _OrderIdentityCard(order: order, status: status),
+                const SizedBox(height: BhSpacing.md),
+                _SyncStatusStrip(
+                  state: _controller.syncState,
+                  lastUpdatedAt: _controller.lastUpdatedAt,
+                ),
+                const SizedBox(height: BhSpacing.md),
+                _CurrentStatusCard(status: status),
+                const SizedBox(height: BhSpacing.md),
+                if (status.isCancelled)
+                  const _CancelledOrderPanel()
+                else
+                  _OrderTimeline(status: status),
+                const SizedBox(height: BhSpacing.md),
+                _OrderDetailsCard(order: order),
+                if (_canCancel(order.status)) ...[
+                  const SizedBox(height: BhSpacing.md),
+                  _CancelOrderButton(
+                    isLoading: _isCancelling,
+                    onPressed: () => _confirmCancelOrder(order),
+                  ),
+                ],
+              ],
+            ),
           ),
         );
       },
@@ -219,7 +171,7 @@ class _LiveOrderTrackingScreenV2State extends State<LiveOrderTrackingScreenV2> {
       if (!mounted) {
         return;
       }
-      final style = _bannerStyleForStatus(currentStatus);
+      final style = BhOrderStatusSpec.fromStatus(currentStatus);
       CustomFloatingSnackBar.show(
         context,
         title: style.title,
@@ -230,198 +182,40 @@ class _LiveOrderTrackingScreenV2State extends State<LiveOrderTrackingScreenV2> {
     });
   }
 
-  Widget _buildHeroCard(OrderModel order, double progress) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(30),
-        gradient: const LinearGradient(
-          colors: [Color(0xFF3559C7), Color(0xFF24A8E0)],
-          begin: Alignment.topRight,
-          end: Alignment.bottomLeft,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF3559C7).withValues(alpha: 0.18),
-            blurRadius: 26,
-            offset: const Offset(0, 14),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      order.displayCafeName,
-                      style: const TextStyle(color: Colors.white70),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      order.statusText,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 26,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: .12),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      _controller.isSocketConnected
-                          ? Icons.wifi_tethering_rounded
-                          : Icons.cloud_off_rounded,
-                      color: Colors.white,
-                      size: 18,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      _controller.isSocketConnected ? 'Live' : 'Reconnecting',
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(99),
-            child: LinearProgressIndicator(
-              value: progress,
-              minHeight: 12,
-              backgroundColor: Colors.white.withValues(alpha: .18),
-              valueColor:
-                  const AlwaysStoppedAnimation<Color>(Color(0xFFFDE68A)),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            '${(progress * 100).round()}% من الرحلة اكتملت',
-            style: const TextStyle(color: Colors.white70),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTimeline(BhOrderStatusSpec status) {
-    final currentIndex = status.trackingIndex;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            const Expanded(
-              child: Text(
-                'رحلة الطلب',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
-              ),
-            ),
-            BhStatusPill(
-              label: status.label,
-              foreground: status.foregroundColor,
-              background: status.backgroundColor,
-              icon: status.icon,
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        ...List.generate(bhTrackingSteps.length, (index) {
-          final step = bhTrackingSteps[index];
-          final reached = currentIndex >= index;
-          final current = currentIndex == index;
-          return Padding(
-            padding: EdgeInsets.only(
-              bottom: index == bhTrackingSteps.length - 1 ? 0 : BhSpacing.sm,
-            ),
-            child: Container(
-              padding: const EdgeInsets.all(BhSpacing.md),
-              decoration: BoxDecoration(
-                color: current ? status.backgroundColor : AppColors.neutral50,
-                borderRadius: BorderRadius.circular(BhRadius.sm),
-                border: Border.all(
-                  color: current ? status.backgroundColor : AppColors.border,
-                ),
-              ),
-              child: Row(
-                children: [
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 220),
-                    width: 32,
-                    height: 32,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: reached ? status.foregroundColor : Colors.white,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color:
-                            reached ? status.foregroundColor : AppColors.border,
-                      ),
-                    ),
-                    child: Icon(
-                      reached ? step.icon : Icons.circle_outlined,
-                      size: 16,
-                      color: reached ? Colors.white : AppColors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(width: BhSpacing.sm),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          step.label,
-                          style: TextStyle(
-                            color: AppColors.textPrimary,
-                            fontWeight:
-                                reached ? FontWeight.w900 : FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          step.caption,
-                          style: const TextStyle(
-                            color: AppColors.textSecondary,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }),
-      ],
-    );
-  }
-
   bool _canCancel(String status) {
     final normalized = status.trim().toUpperCase();
     return normalized == 'PENDING' || normalized == 'NEW';
   }
 
-  BhOrderStatusSpec _bannerStyleForStatus(String status) {
-    return BhOrderStatusSpec.fromStatus(status);
+  Future<void> _confirmCancelOrder(OrderModel order) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('إلغاء الطلب؟'),
+          content: Text(
+            'سيتم إلغاء الطلب #${order.displayOrderCode}. لا يمكن التراجع عن هذه العملية.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('رجوع'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.danger,
+              ),
+              child: const Text('تأكيد الإلغاء'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true) {
+      await _handleCancelOrder(order);
+    }
   }
 
   Future<void> _handleCancelOrder(OrderModel order) async {
@@ -434,10 +228,10 @@ class _LiveOrderTrackingScreenV2State extends State<LiveOrderTrackingScreenV2> {
       }
       await CustomFloatingSnackBar.show(
         context,
-        title: 'تم استلام طلب الإلغاء',
-        message: 'أرسلنا طلب إلغاء الطلب بنجاح.',
-        icon: Icons.cancel_schedule_send_rounded,
-        accentColor: const Color(0xFFDC2626),
+        title: 'تم إلغاء الطلب',
+        message: 'تم تحديث حالة الطلب بنجاح.',
+        icon: Icons.cancel_outlined,
+        accentColor: AppColors.danger,
       );
     } catch (error) {
       if (!mounted) {
@@ -448,7 +242,7 @@ class _LiveOrderTrackingScreenV2State extends State<LiveOrderTrackingScreenV2> {
         title: 'تعذر إلغاء الطلب',
         message: error.toString(),
         icon: Icons.error_outline_rounded,
-        accentColor: const Color(0xFFDC2626),
+        accentColor: AppColors.danger,
       );
     } finally {
       if (mounted) {
@@ -458,27 +252,669 @@ class _LiveOrderTrackingScreenV2State extends State<LiveOrderTrackingScreenV2> {
   }
 }
 
-class _FloatingCard extends StatelessWidget {
-  const _FloatingCard({required this.child});
+class _OrderIdentityCard extends StatelessWidget {
+  const _OrderIdentityCard({
+    required this.order,
+    required this.status,
+  });
 
-  final Widget child;
+  final OrderModel order;
+  final BhOrderStatusSpec status;
+
+  @override
+  Widget build(BuildContext context) {
+    final cafeName =
+        order.displayCafeName.isEmpty ? 'Bite Hub' : order.displayCafeName;
+
+    return BhSurface(
+      padding: const EdgeInsets.all(BhSpacing.md),
+      child: Row(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(BhRadius.md),
+            child: SizedBox.square(
+              dimension: 64,
+              child: ProductImageView(
+                imagePath: order.cafeLogo ?? 'assets/images/logo.png',
+                fit: BoxFit.cover,
+              ),
+            ),
+          ),
+          const SizedBox(width: BhSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  cafeName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  'رقم الاستلام: ${order.displayOrderCode}',
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: BhSpacing.sm),
+          BhStatusPill(
+            label: status.label,
+            foreground: status.foregroundColor,
+            background: status.backgroundColor,
+            icon: status.icon,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SyncStatusStrip extends StatelessWidget {
+  const _SyncStatusStrip({
+    required this.state,
+    required this.lastUpdatedAt,
+  });
+
+  final LiveOrderSyncState state;
+  final DateTime? lastUpdatedAt;
+
+  @override
+  Widget build(BuildContext context) {
+    final spec = _syncSpec(state);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: spec.background,
+        borderRadius: BorderRadius.circular(BhRadius.sm),
+        border: Border.all(color: spec.border),
+      ),
+      child: Row(
+        children: [
+          Icon(spec.icon, size: 18, color: spec.foreground),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              spec.label,
+              style: TextStyle(
+                color: spec.foreground,
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          if (lastUpdatedAt != null)
+            Text(
+              'آخر تحديث ${_formatTime(lastUpdatedAt!)}',
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CurrentStatusCard extends StatelessWidget {
+  const _CurrentStatusCard({required this.status});
+
+  final BhOrderStatusSpec status;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(BhSpacing.lg),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(26),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
+        color: status.backgroundColor,
+        borderRadius: BorderRadius.circular(BhRadius.lg),
+        border: Border.all(
+          color: status.foregroundColor.withValues(alpha: .18),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: .82),
+                  borderRadius: BorderRadius.circular(BhRadius.md),
+                ),
+                child: Icon(
+                  status.icon,
+                  color: status.foregroundColor,
+                  size: 25,
+                ),
+              ),
+              const SizedBox(width: BhSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      status.title,
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      status.description,
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w700,
+                        height: 1.45,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (!status.isCancelled) ...[
+            const SizedBox(height: BhSpacing.lg),
+            Row(
+              children: List.generate(bhTrackingSteps.length, (index) {
+                final active = index <= status.trackingIndex;
+                return Expanded(
+                  child: Container(
+                    height: 5,
+                    margin: EdgeInsetsDirectional.only(
+                      end: index == bhTrackingSteps.length - 1 ? 0 : 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: active ? status.foregroundColor : AppColors.border,
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _OrderTimeline extends StatelessWidget {
+  const _OrderTimeline({required this.status});
+
+  final BhOrderStatusSpec status;
+
+  @override
+  Widget build(BuildContext context) {
+    return BhSurface(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'مراحل الطلب',
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: BhSpacing.lg),
+          ...List.generate(bhTrackingSteps.length, (index) {
+            final step = bhTrackingSteps[index];
+            final reached = index <= status.trackingIndex;
+            final current = index == status.trackingIndex;
+            final isLast = index == bhTrackingSteps.length - 1;
+
+            return IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SizedBox(
+                    width: 42,
+                    child: Column(
+                      children: [
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 220),
+                          width: 34,
+                          height: 34,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: reached
+                                ? status.foregroundColor
+                                : AppColors.neutral100,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: reached
+                                  ? status.foregroundColor
+                                  : AppColors.border,
+                            ),
+                          ),
+                          child: Icon(
+                            reached ? Icons.check_rounded : step.icon,
+                            size: 17,
+                            color: reached
+                                ? Colors.white
+                                : AppColors.textSecondary,
+                          ),
+                        ),
+                        if (!isLast)
+                          Expanded(
+                            child: Container(
+                              width: 2,
+                              margin: const EdgeInsets.symmetric(vertical: 5),
+                              color: index < status.trackingIndex
+                                  ? status.foregroundColor
+                                  : AppColors.border,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: BhSpacing.sm),
+                  Expanded(
+                    child: Container(
+                      margin: EdgeInsets.only(
+                        bottom: isLast ? 0 : BhSpacing.md,
+                      ),
+                      padding: const EdgeInsets.all(BhSpacing.md),
+                      decoration: BoxDecoration(
+                        color: current
+                            ? status.backgroundColor
+                            : AppColors.neutral50,
+                        borderRadius: BorderRadius.circular(BhRadius.sm),
+                        border: Border.all(
+                          color: current
+                              ? status.foregroundColor.withValues(alpha: .24)
+                              : AppColors.border,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            step.label,
+                            style: TextStyle(
+                              color: reached
+                                  ? AppColors.textPrimary
+                                  : AppColors.textSecondary,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            current ? 'المرحلة الحالية' : step.caption,
+                            style: TextStyle(
+                              color: current
+                                  ? status.foregroundColor
+                                  : AppColors.textSecondary,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+}
+
+class _CancelledOrderPanel extends StatelessWidget {
+  const _CancelledOrderPanel();
+
+  @override
+  Widget build(BuildContext context) {
+    return const BhSurface(
+      color: Color(0xFFFFF7F7),
+      borderColor: Color(0xFFFECACA),
+      child: Row(
+        children: [
+          Icon(Icons.block_rounded, color: AppColors.danger, size: 28),
+          SizedBox(width: BhSpacing.md),
+          Expanded(
+            child: Text(
+              'تم إيقاف رحلة هذا الطلب. لن تظهر مراحل تجهيز أو استلام لاحقة.',
+              style: TextStyle(
+                color: AppColors.danger,
+                fontWeight: FontWeight.w800,
+                height: 1.45,
+              ),
+            ),
           ),
         ],
       ),
-      child: child,
     );
   }
+}
+
+class _OrderDetailsCard extends StatelessWidget {
+  const _OrderDetailsCard({required this.order});
+
+  final OrderModel order;
+
+  @override
+  Widget build(BuildContext context) {
+    final itemCount =
+        order.items.fold<int>(0, (total, item) => total + item.quantity);
+
+    return BhSurface(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'تفاصيل الطلب',
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: BhSpacing.md),
+          Row(
+            children: [
+              _OrderMetric(
+                label: 'وقت الطلب',
+                value: _formatTime(order.dateObject),
+                icon: Icons.schedule_outlined,
+              ),
+              const SizedBox(width: BhSpacing.sm),
+              _OrderMetric(
+                label: 'عدد الأصناف',
+                value: '$itemCount',
+                icon: Icons.shopping_bag_outlined,
+              ),
+              const SizedBox(width: BhSpacing.sm),
+              _OrderMetric(
+                label: 'الإجمالي',
+                value: '${order.totalPrice.toStringAsFixed(2)} د.ل',
+                icon: Icons.payments_outlined,
+              ),
+            ],
+          ),
+          if (order.items.isNotEmpty) ...[
+            const SizedBox(height: BhSpacing.lg),
+            const Divider(height: 1, color: AppColors.border),
+            const SizedBox(height: BhSpacing.sm),
+            ...order.items.map(
+              (item) => Padding(
+                padding: const EdgeInsets.only(top: BhSpacing.sm),
+                child: Row(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(BhRadius.sm),
+                      child: SizedBox.square(
+                        dimension: 48,
+                        child: ProductImageView(
+                          imagePath:
+                              item.productImage ?? 'assets/images/logo.png',
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: BhSpacing.sm),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item.productName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          if (item.options.trim().isNotEmpty)
+                            Text(
+                              item.options,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    Text(
+                      '${item.quantity} ×',
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _OrderMetric extends StatelessWidget {
+  const _OrderMetric({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(BhSpacing.sm),
+        decoration: BoxDecoration(
+          color: AppColors.neutral50,
+          borderRadius: BorderRadius.circular(BhRadius.sm),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, size: 18, color: AppColors.brandBlue),
+            const SizedBox(height: 6),
+            Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 12,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CancelOrderButton extends StatelessWidget {
+  const _CancelOrderButton({
+    required this.isLoading,
+    required this.onPressed,
+  });
+
+  final bool isLoading;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 52,
+      child: OutlinedButton.icon(
+        onPressed: isLoading ? null : onPressed,
+        icon: isLoading
+            ? const SizedBox.square(
+                dimension: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppColors.danger,
+                ),
+              )
+            : const Icon(Icons.cancel_outlined),
+        label: Text(isLoading ? 'جاري الإلغاء...' : 'إلغاء الطلب'),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.danger,
+          side: const BorderSide(color: Color(0xFFFCA5A5)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(BhRadius.md),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MissingOrderState extends StatelessWidget {
+  const _MissingOrderState();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: Padding(
+        padding: EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.receipt_long_outlined,
+              size: 48,
+              color: AppColors.textSecondary,
+            ),
+            SizedBox(height: BhSpacing.md),
+            Text(
+              'لم يتم العثور على الطلب',
+              style: TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            SizedBox(height: 6),
+            Text(
+              'ارجع إلى قائمة طلباتك واختر الطلب الذي تريد تتبعه.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+_SyncVisualSpec _syncSpec(LiveOrderSyncState state) {
+  switch (state) {
+    case LiveOrderSyncState.realtime:
+      return const _SyncVisualSpec(
+        label: 'تحديث مباشر للحالة',
+        icon: Icons.wifi_tethering_rounded,
+        foreground: AppColors.success,
+        background: Color(0xFFE6F4F1),
+        border: Color(0xFFB7DED8),
+      );
+    case LiveOrderSyncState.connecting:
+      return const _SyncVisualSpec(
+        label: 'جاري ربط التحديث المباشر',
+        icon: Icons.sync_rounded,
+        foreground: AppColors.brandBlue,
+        background: Color(0xFFEFF6FF),
+        border: Color(0xFFBFDBFE),
+      );
+    case LiveOrderSyncState.offline:
+      return const _SyncVisualSpec(
+        label: 'الاتصال متوقف، اسحب الشاشة للتحديث',
+        icon: Icons.cloud_off_outlined,
+        foreground: AppColors.danger,
+        background: Color(0xFFFEE2E2),
+        border: Color(0xFFFECACA),
+      );
+    case LiveOrderSyncState.stopped:
+      return const _SyncVisualSpec(
+        label: 'اكتمل تتبع هذا الطلب',
+        icon: Icons.check_circle_outline_rounded,
+        foreground: AppColors.textSecondary,
+        background: AppColors.neutral100,
+        border: AppColors.border,
+      );
+    case LiveOrderSyncState.polling:
+      return const _SyncVisualSpec(
+        label: 'تحديث تلقائي كل عدة ثوانٍ',
+        icon: Icons.autorenew_rounded,
+        foreground: AppColors.warning,
+        background: Color(0xFFFFF7E6),
+        border: Color(0xFFF6D7A5),
+      );
+  }
+}
+
+class _SyncVisualSpec {
+  const _SyncVisualSpec({
+    required this.label,
+    required this.icon,
+    required this.foreground,
+    required this.background,
+    required this.border,
+  });
+
+  final String label;
+  final IconData icon;
+  final Color foreground;
+  final Color background;
+  final Color border;
+}
+
+String _formatTime(DateTime value) {
+  final local = value.toLocal();
+  final hour = local.hour.toString().padLeft(2, '0');
+  final minute = local.minute.toString().padLeft(2, '0');
+  return '$hour:$minute';
 }

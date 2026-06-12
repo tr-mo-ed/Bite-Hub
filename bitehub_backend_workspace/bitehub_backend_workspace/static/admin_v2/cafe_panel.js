@@ -368,7 +368,7 @@
         const wallet = payload.wallet || {};
         writeResult(
           cardBindResult,
-          `تم ربط البطاقة ${wallet.link_code || "-"} بمحفظة ${wallet.user || ""}.`,
+          `تم ربط البطاقة ${wallet.nfc_card_uid || "-"} بمحفظة ${wallet.user || ""}.`,
           "success",
         );
         showToast("تم تعريف بطاقة الطالب.", "success");

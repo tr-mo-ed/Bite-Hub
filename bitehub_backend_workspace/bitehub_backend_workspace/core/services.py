@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 import logging
-import uuid
+import secrets
 
 from asgiref.sync import async_to_sync
 try:
@@ -63,11 +63,11 @@ ORDER_STATUS_NOTIFICATIONS = {
 
 # ???? ???? _generate_order_number ?????? ????? ?????? ?? ????? ????.
 def _generate_order_number() -> str:
-    while True:
-        # ??? ??????? candidate ??? ????? ??? ???? ???? ???? ????? ????.
-        candidate = f"BH{uuid.uuid4().hex[:8].upper()}"
+    for _ in range(1000):
+        candidate = f"{secrets.randbelow(10000):04d}"
         if not Order.objects.filter(order_number=candidate).exists():
             return candidate
+    raise ValidationServiceError("تعذر توليد رقم طلب جديد حالياً.")
 
 
 # ???? ???? _broadcast_order_event ?????? ????? ?????? ?? ????? ????.
@@ -118,7 +118,11 @@ def _broadcast_order_event(order: Order, event_name: str) -> None:
 
 def _normalize_payment_method(payment_method: str | None) -> str:
     normalized_payment_method = (payment_method or PaymentMethod.WALLET).strip().upper()
-    if normalized_payment_method not in {PaymentMethod.WALLET, PaymentMethod.CASH}:
+    if normalized_payment_method not in {
+        PaymentMethod.WALLET,
+        PaymentMethod.CASH,
+        PaymentMethod.NFC,
+    }:
         raise ValidationServiceError("Invalid payment method.")
     return normalized_payment_method
 
@@ -163,6 +167,7 @@ def create_order(
     *,
     total_price: Decimal | None = None,
     payment_method: str = PaymentMethod.WALLET,
+    nfc_card_uid: str = "",
 ) -> Order:
     if not items_data:
         raise ValidationServiceError("Order items are required.")
@@ -185,6 +190,7 @@ def create_order(
                 Product.objects.select_for_update()
                 .for_cafe(normalized_cafe_id)
                 .select_related("cafe")
+                .filter(cafe__is_active=True)
                 .filter(id__in=product_ids)
             )
         else:
@@ -192,6 +198,7 @@ def create_order(
             source_queryset = (
                 Product.objects.select_for_update()
                 .select_related("cafe")
+                .filter(cafe__is_active=True)
                 .filter(id__in=product_ids)
             )
 
@@ -260,7 +267,10 @@ def create_order(
             if normalized_total != computed_total:
                 raise ValidationServiceError("Submitted total_price does not match server calculation.")
 
-        if payment_method == PaymentMethod.WALLET:
+        order_number = _generate_order_number()
+        cafe_name = next(iter(products.values())).cafe.name if products else "المقهى"
+
+        if payment_method in {PaymentMethod.WALLET, PaymentMethod.NFC}:
             try:
                 # ??? ??????? wallet ??? ????? ??? ???? ???? ???? ????? ????.
                 wallet = Wallet.objects.select_for_update().get(user=user)
@@ -269,6 +279,12 @@ def create_order(
 
             if wallet.balance < computed_total:
                 raise ValidationServiceError("Insufficient wallet balance.")
+            if payment_method == PaymentMethod.NFC:
+                normalized_card_uid = (nfc_card_uid or "").strip().upper()
+                if not normalized_card_uid or wallet.nfc_card_uid != normalized_card_uid:
+                    raise ValidationServiceError(
+                        "بطاقة NFC غير مرتبطة بهذه المحفظة."
+                    )
 
             Transaction.objects.create(
                 # ??? ??????? wallet ??? ????? ??? ???? ???? ???? ????? ????.
@@ -278,9 +294,13 @@ def create_order(
                 # ??? ??????? transaction_type ??? ????? ??? ???? ???? ???? ????? ????.
                 transaction_type="WITHDRAWAL",
                 # ??? ??????? source ??? ????? ??? ???? ???? ???? ????? ????.
-                source="APP",
+                source="NFC" if payment_method == PaymentMethod.NFC else "APP",
                 # ??? ??????? description ??? ????? ??? ???? ???? ???? ????? ????.
-                description="Order payment",
+                description=(
+                    f"دفع NFC لطلب #{order_number} - {cafe_name}"
+                    if payment_method == PaymentMethod.NFC
+                    else f"دفع طلب #{order_number} - {cafe_name}"
+                ),
             )
 
         for product_id, quantity in requested_quantities.items():
@@ -305,7 +325,7 @@ def create_order(
             # ??? ??????? payment_method ??? ????? ??? ???? ???? ???? ????? ????.
             payment_method=payment_method,
             # ??? ??????? order_number ??? ????? ??? ???? ???? ???? ????? ????.
-            order_number=_generate_order_number(),
+            order_number=order_number,
         )
 
         for order_item in order_items:
@@ -336,12 +356,13 @@ def _refund_wallet_for_cancelled_order(order: Order) -> None:
     except Wallet.DoesNotExist as exc:
         raise NotFoundServiceError("Wallet not found.") from exc
 
+    cafe_name = order.cafe.name if getattr(order, "cafe", None) else "المقهى"
     Transaction.objects.create(
         wallet=wallet,
         amount=order.total_price,
         transaction_type="DEPOSIT",
         source="SYSTEM",
-        description=f"Refund for cancelled order #{order.order_number or order.pk}",
+        description=f"استرداد مبلغ الطلب #{order.order_number or order.pk} - {cafe_name}",
     )
 
 
@@ -366,7 +387,10 @@ def cancel_user_order(order_id: int, user) -> Order:
         order.status = "CANCELLED"
         order.save(update_fields=["status", "updated_at"])
 
-        if _normalize_payment_method(order.payment_method) == PaymentMethod.WALLET:
+        if _normalize_payment_method(order.payment_method) in {
+            PaymentMethod.WALLET,
+            PaymentMethod.NFC,
+        }:
             _refund_wallet_for_cancelled_order(order)
 
     send_real_notification(
@@ -419,7 +443,9 @@ def update_order_status(order_id, cafe_id, new_status, user) -> Order:
 
         order.status = normalized_status
         order.save(update_fields=["status", "updated_at"])
-        if normalized_status == "CANCELLED" and _normalize_payment_method(order.payment_method) == PaymentMethod.WALLET:
+        if normalized_status == "CANCELLED" and _normalize_payment_method(
+            order.payment_method
+        ) in {PaymentMethod.WALLET, PaymentMethod.NFC}:
             _refund_wallet_for_cancelled_order(order)
 
     title, body = ORDER_STATUS_NOTIFICATIONS.get(

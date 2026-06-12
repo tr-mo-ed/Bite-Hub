@@ -1,4 +1,4 @@
-﻿import 'package:bitehub_app/app/data/models/transaction_model.dart';
+import 'package:bitehub_app/app/data/models/transaction_model.dart';
 
 // ???? ???? WalletModel ???? ???? ????? ???? ?? ???? ????.
 class WalletModel {
@@ -14,6 +14,8 @@ class WalletModel {
   final String linkCode;
   // ??? ??????? userFullName ??? ?????? ???? ????? ????.
   final String userFullName;
+  final bool hasNfcCard;
+  final String nfcCardLast4;
   // ??? ??????? transactions ??? ?????? ???? ????? ????.
   final List<TransactionModel> transactions;
 
@@ -24,6 +26,8 @@ class WalletModel {
     required this.college,
     required this.linkCode,
     required this.userFullName,
+    required this.hasNfcCard,
+    required this.nfcCardLast4,
     required this.transactions,
   });
 
@@ -40,7 +44,8 @@ class WalletModel {
         if (item is Map<String, dynamic>) {
           transactions.add(TransactionModel.fromJson(item));
         } else if (item is Map) {
-          transactions.add(TransactionModel.fromJson(Map<String, dynamic>.from(item)));
+          transactions
+              .add(TransactionModel.fromJson(Map<String, dynamic>.from(item)));
         }
       }
     }
@@ -53,10 +58,11 @@ class WalletModel {
       currency: (json['currency'] ?? '').toString(),
       college: (json['college'] ?? '').toString(),
       linkCode: (json['link_code'] ?? '').toString(),
-      userFullName: (json['user_full_name'] ?? json['full_name'] ?? '').toString(),
+      userFullName:
+          (json['user_full_name'] ?? json['full_name'] ?? '').toString(),
+      hasNfcCard: json['has_nfc_card'] == true,
+      nfcCardLast4: (json['nfc_card_last4'] ?? '').toString(),
       transactions: transactions,
     );
   }
 }
-
-

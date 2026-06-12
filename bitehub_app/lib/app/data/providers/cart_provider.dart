@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:bitehub_app/app/data/models/cart_item_model.dart';
 import 'package:bitehub_app/app/data/models/order_model.dart';
 import 'package:bitehub_app/app/data/models/product_model.dart';
@@ -44,7 +44,12 @@ class CartProvider extends ChangeNotifier {
   void addItem(ProductModel product, {int quantity = 1, String? options}) {
     // ??? ??????? currentCollegeId ??? ?????? ???? ????? ????.
     final String currentCollegeId =
-        product.collegeId.isNotEmpty ? product.collegeId : "1";
+        product.cafeId.isNotEmpty ? product.cafeId : product.collegeId;
+    if (currentCollegeId.isEmpty) {
+      throw MismatchedCollegeException(
+        'تعذر تحديد المقهى لهذا المنتج. حدّث القائمة وحاول مجددًا.',
+      );
+    }
     // ??? ??????? sanitizedOptions ??? ?????? ???? ????? ????.
     final String sanitizedOptions = (options ?? '').trim();
     // ??? ??????? itemKey ??? ?????? ???? ????? ????.
@@ -211,5 +216,3 @@ class CartProvider extends ChangeNotifier {
     }
   }
 }
-
-

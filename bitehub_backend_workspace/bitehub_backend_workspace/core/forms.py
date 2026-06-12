@@ -1,7 +1,23 @@
 from django import forms
 from django.core.exceptions import ValidationError
 
-from .models import Product
+from .models import Cafe, Product
+
+
+class CafeImageForm(forms.ModelForm):
+    class Meta:
+        model = Cafe
+        fields = ['image']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['image'].required = True
+
+    def clean_image(self):
+        image = self.cleaned_data['image']
+        if image.size > 5 * 1024 * 1024:
+            raise ValidationError("Cafe image must not exceed 5 MB.")
+        return image
 
 
 class ProductForm(forms.ModelForm):

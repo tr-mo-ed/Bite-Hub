@@ -1016,7 +1016,8 @@
                 <th>صاحب المحفظة</th>
                 <th>الهاتف</th>
                 <th>البريد</th>
-                <th>الكود / البطاقة</th>
+                <th>كود التحويل</th>
+                <th>بطاقة NFC</th>
                 <th>الرصيد</th>
                 <th>آخر تحديث</th>
               </tr>
@@ -1031,12 +1032,17 @@
                   <td><div class="wallet-muted-value">{{ wallet.user.phone_number|default:"-" }}</div></td>
                   <td><div class="wallet-muted-value">{{ wallet.user.email|default:"-" }}</div></td>
                   <td><span class="wallet-code-chip">{{ wallet.link_code|default:"بدون كود" }}</span></td>
+                  <td>
+                    <span class="wallet-code-chip">
+                      {{ wallet.nfc_card_uid|default:"غير مرتبطة" }}
+                    </span>
+                  </td>
                   <td><strong>{{ wallet.balance|floatformat:2 }} د.ل</strong></td>
                   <td><div class="wallet-muted-value">{{ wallet.updated_at|date:"Y-m-d H:i" }}</div></td>
                 </tr>
               {% empty %}
                 <tr>
-                  <td colspan="6">
+                  <td colspan="7">
                     <div class="wallet-empty-ledger">
                       <div>
                         <div class="fw-bold mb-1">لا توجد محافظ مسجلة</div>
@@ -1266,7 +1272,7 @@
               {% empty %}
                 <div class="kanban-empty-state">
                   <div>
-                    <div class="fw-bold mb-2 text-uppercase">New</div>
+                    <div class="fw-bold mb-2">جديد</div>
                     <div class="fw-bold mb-1">لا توجد طلبات جديدة الآن</div>
                     <div class="small">أي طلب جديد سيظهر هنا عبر التحديث الدوري.</div>
                   </div>
@@ -1288,7 +1294,7 @@
               {% empty %}
                 <div class="kanban-empty-state">
                   <div>
-                    <div class="fw-bold mb-2 text-uppercase">Prep</div>
+                    <div class="fw-bold mb-2">قيد التحضير</div>
                     <div class="fw-bold mb-1">لا توجد طلبات قيد التجهيز</div>
                     <div class="small">بمجرد اعتماد أي طلب سينتقل إلى هذا العمود تلقائياً.</div>
                   </div>
@@ -1310,7 +1316,7 @@
               {% empty %}
                 <div class="kanban-empty-state">
                   <div>
-                    <div class="fw-bold mb-2 text-uppercase">Ready</div>
+                    <div class="fw-bold mb-2">جاهز</div>
                     <div class="fw-bold mb-1">لا توجد طلبات جاهزة الآن</div>
                     <div class="small">عند اكتمال التحضير ستظهر الطلبات هنا بانتظار التسليم.</div>
                   </div>

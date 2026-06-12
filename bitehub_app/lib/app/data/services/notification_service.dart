@@ -14,8 +14,11 @@ class NotificationService {
 
   static const String _notificationsKey = 'local_notifications';
   static const String _statusCacheKey = 'order_status_cache';
+  static const String _shownExternalNotificationsKey =
+      'shown_external_notifications';
   static const String _channelKey = 'order_updates';
   static const int _maxNotifications = 50;
+  static const int _maxShownExternalNotifications = 200;
 
   Future<void> initialize() async {
     await AwesomeNotifications().initialize(
@@ -106,7 +109,7 @@ class NotificationService {
           final notification = _buildNotification(order, status);
           if (notification != null) {
             items.insert(0, notification);
-            await _showSystemNotification(notification);
+            await showExternalNotificationOnce(notification);
           }
         }
         continue;
@@ -119,7 +122,7 @@ class NotificationService {
       final notification = _buildNotification(order, status);
       if (notification != null) {
         items.insert(0, notification);
-        await _showSystemNotification(notification);
+        await showExternalNotificationOnce(notification);
       }
       statusCache[key] = status;
     }
@@ -130,8 +133,9 @@ class NotificationService {
   }
 
   NotificationItem? _buildNotification(OrderModel order, String status) {
-    final orderNumber =
-        order.orderNumber.isNotEmpty ? order.orderNumber : order.id.toString();
+    final orderNumber = order.displayOrderCode.isNotEmpty
+        ? order.displayOrderCode
+        : order.id.toString();
 
     switch (status) {
       case 'ACCEPTED':
@@ -175,6 +179,19 @@ class NotificationService {
     }
   }
 
+  Future<void> showExternalNotificationOnce(NotificationItem item) async {
+    if (item.id.trim().isEmpty) {
+      return;
+    }
+    final shownIds = await _loadShownExternalNotificationIds();
+    if (shownIds.contains(item.id)) {
+      return;
+    }
+    await _showSystemNotification(item);
+    shownIds.insert(0, item.id);
+    await _saveShownExternalNotificationIds(shownIds);
+  }
+
   Future<void> _showSystemNotification(NotificationItem item) async {
     await requestPermissionIfNeeded();
 
@@ -184,7 +201,7 @@ class NotificationService {
         channelKey: _channelKey,
         title: item.title,
         body: item.body,
-        summary: 'تحديث حالة الطلب',
+        summary: item.orderId == null ? 'إشعار محفظة' : 'تحديث حالة الطلب',
         icon: 'resource://drawable/ic_launcher_foreground',
         largeIcon: 'asset://assets/images/logo.png',
         notificationLayout: NotificationLayout.BigText,
@@ -214,5 +231,28 @@ class NotificationService {
   Future<void> _saveStatusCache(Map<String, String> cache) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_statusCacheKey, json.encode(cache));
+  }
+
+  Future<List<String>> _loadShownExternalNotificationIds() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_shownExternalNotificationsKey);
+    if (raw == null || raw.isEmpty) {
+      return [];
+    }
+    try {
+      final decoded = json.decode(raw) as List<dynamic>;
+      return decoded.map((item) => item.toString()).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<void> _saveShownExternalNotificationIds(List<String> ids) async {
+    final prefs = await SharedPreferences.getInstance();
+    final trimmed = ids.take(_maxShownExternalNotifications).toList();
+    await prefs.setString(
+      _shownExternalNotificationsKey,
+      json.encode(trimmed),
+    );
   }
 }

@@ -19,10 +19,10 @@ class TransactionInline(admin.TabularInline):
 # ???? ???? WalletAdmin ???? ?????? ????????? ???? ???? ?????.
 @admin.register(Wallet)
 class WalletAdmin(admin.ModelAdmin):
-    # عرض الكلية كود الربط والرصيد وتاريخ التحديث
+    # عرض الكلية كود المحفظة والرصيد وتاريخ التحديث
     list_display = ('user', 'balance', 'college', 'link_code', 'updated_at')
     
-    # البحث برقم الهاتف الاسم أو كود الربط
+    # البحث برقم الهاتف الاسم أو كود المحفظة
     search_fields = ('user__phone_number', 'user__full_name', 'link_code')
     
     # فلترة حسب الكلية

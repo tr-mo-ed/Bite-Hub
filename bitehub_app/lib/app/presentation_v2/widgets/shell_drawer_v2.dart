@@ -1,7 +1,8 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
 import 'package:bitehub_app/app/data/models/college_model.dart';
 import 'package:bitehub_app/app/presentation_v2/controllers/shell_v2_controller.dart';
+import 'package:bitehub_app/app/presentation_v2/widgets/product_image_view.dart';
 
 class ShellDrawerV2 extends StatelessWidget {
   const ShellDrawerV2({
@@ -55,8 +56,8 @@ class ShellDrawerV2 extends StatelessWidget {
                       borderRadius: BorderRadius.circular(28),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF3559C7)
-                              .withValues(alpha: 0.18),
+                          color:
+                              const Color(0xFF3559C7).withValues(alpha: 0.18),
                           blurRadius: 24,
                           offset: const Offset(0, 12),
                         ),
@@ -114,8 +115,8 @@ class ShellDrawerV2 extends StatelessWidget {
                             vertical: 10,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFFFD54F)
-                                .withValues(alpha: .16),
+                            color:
+                                const Color(0xFFFFD54F).withValues(alpha: .16),
                             borderRadius: BorderRadius.circular(18),
                             border: Border.all(
                               color: const Color(0xFFFFE082)
@@ -177,7 +178,8 @@ class ShellDrawerV2 extends StatelessWidget {
                     _DrawerTile(
                       icon: Icons.dashboard_rounded,
                       title: 'لوحة تحكم المقهى',
-                      subtitle: controller.authProvider.currentUser?.managedCafeName ??
+                      subtitle: controller
+                              .authProvider.currentUser?.managedCafeName ??
                           'الدخول إلى المنظومة الصغيرة',
                       iconColor: const Color(0xFF123C7A),
                       textColor: const Color(0xFF123C7A),
@@ -275,21 +277,15 @@ class ShellDrawerV2 extends StatelessWidget {
                             ),
                             child: Row(
                               children: [
-                                Container(
-                                  width: 36,
-                                  height: 36,
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFFFF8E1),
-                                    borderRadius: BorderRadius.circular(14),
-                                  ),
-                                  child: Center(
-                                    child: Text(
-                                      _initials(cafe.name),
-                                      style: const TextStyle(
-                                        color: Color(0xFF3559C7),
-                                        fontWeight: FontWeight.w900,
-                                        fontSize: 12,
-                                      ),
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(14),
+                                  child: SizedBox(
+                                    width: 36,
+                                    height: 36,
+                                    child: ProductImageView(
+                                      imagePath: cafe.image ??
+                                          'assets/images/logo.png',
+                                      fit: BoxFit.cover,
                                     ),
                                   ),
                                 ),
@@ -460,4 +456,3 @@ class _DrawerTile extends StatelessWidget {
     );
   }
 }
-

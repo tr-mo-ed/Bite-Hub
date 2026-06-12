@@ -15,9 +15,9 @@ class BhSpacing {
 class BhRadius {
   const BhRadius._();
 
-  static const double sm = 8;
-  static const double md = 12;
-  static const double lg = 16;
+  static const double sm = 14;
+  static const double md = 20;
+  static const double lg = 28;
 }
 
 class BhSurface extends StatelessWidget {
@@ -46,7 +46,19 @@ class BhSurface extends StatelessWidget {
       decoration: BoxDecoration(
         color: color,
         borderRadius: BorderRadius.circular(radius),
-        border: Border.all(color: borderColor),
+        border: Border.all(color: borderColor.withValues(alpha: .9)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.brandNavy.withValues(alpha: .055),
+            blurRadius: 22,
+            offset: const Offset(0, 10),
+          ),
+          BoxShadow(
+            color: Colors.white.withValues(alpha: .9),
+            blurRadius: 1,
+            offset: const Offset(0, -1),
+          ),
+        ],
       ),
       child: child,
     );

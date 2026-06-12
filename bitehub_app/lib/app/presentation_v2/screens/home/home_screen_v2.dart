@@ -12,7 +12,14 @@ import 'package:bitehub_app/app/presentation_v2/widgets/product_image_view.dart'
 import 'package:bitehub_app/app/presentation_v2/widgets/product_skeleton_grid.dart';
 
 class HomeScreenV2 extends StatefulWidget {
-  const HomeScreenV2({super.key});
+  const HomeScreenV2({
+    super.key,
+    this.controller,
+    this.initializeController = true,
+  });
+
+  final HomeV2Controller? controller;
+  final bool initializeController;
 
   @override
   State<HomeScreenV2> createState() => HomeScreenV2State();
@@ -21,19 +28,25 @@ class HomeScreenV2 extends StatefulWidget {
 class HomeScreenV2State extends State<HomeScreenV2> {
   late final HomeV2Controller _controller;
   late final TextEditingController _searchController;
+  late final bool _ownsController;
 
   @override
   void initState() {
     super.initState();
-    _controller = HomeV2Controller();
+    _ownsController = widget.controller == null;
+    _controller = widget.controller ?? HomeV2Controller();
     _searchController = TextEditingController();
-    _controller.initialize();
+    if (widget.initializeController) {
+      _controller.initialize();
+    }
   }
 
   @override
   void dispose() {
     _searchController.dispose();
-    _controller.dispose();
+    if (_ownsController) {
+      _controller.dispose();
+    }
     super.dispose();
   }
 
@@ -43,19 +56,27 @@ class HomeScreenV2State extends State<HomeScreenV2> {
       return;
     }
 
-    final selectedMatches =
-        _controller.colleges.where((cafe) => cafe.id == normalizedCafeId);
-    if (selectedMatches.isNotEmpty) {
-      await _controller.selectCafe(selectedMatches.first);
-      return;
+    for (final cafe in _controller.colleges) {
+      if (cafe.id == normalizedCafeId) {
+        await _controller.selectCafe(cafe);
+        return;
+      }
     }
 
     await _controller.refresh();
-    final refreshedMatches =
-        _controller.colleges.where((cafe) => cafe.id == normalizedCafeId);
-    if (refreshedMatches.isNotEmpty) {
-      await _controller.selectCafe(refreshedMatches.first);
+    for (final cafe in _controller.colleges) {
+      if (cafe.id == normalizedCafeId) {
+        await _controller.selectCafe(cafe);
+        return;
+      }
     }
+  }
+
+  Future<void> refresh() => _controller.refresh();
+
+  void _clearSearch() {
+    _searchController.clear();
+    _controller.searchProducts('');
   }
 
   void _addToCart(ProductModel product) {
@@ -81,31 +102,32 @@ class HomeScreenV2State extends State<HomeScreenV2> {
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.sizeOf(context).width;
-    final crossAxisCount = screenWidth >= 1120
+    final crossAxisCount = screenWidth >= 1080
         ? 4
-        : screenWidth >= 760
+        : screenWidth >= 720
             ? 3
             : 2;
-    final childAspectRatio = screenWidth >= 760 ? .76 : .62;
+    final productCardExtent = screenWidth < 390 ? 300.0 : 310.0;
+    final cartCount = context.watch<CartProvider>().itemCount;
 
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, _) {
         if (_controller.isOffline && _controller.products.isEmpty) {
           return NetworkStatePanel(
-            title: 'تعذر تحميل الواجهة الآن',
+            title: 'تعذر تحميل القائمة',
             message: _controller.errorMessage ??
-                'تم فقدان الاتصال. سنحاول إعادة المزامنة عند عودة الإنترنت.',
+                'تأكد من اتصال الإنترنت ثم حاول مرة أخرى.',
             actionLabel: 'إعادة المحاولة',
             onRetry: _controller.refresh,
           );
         }
 
-        final selectedCafeName =
-            _controller.selectedCafe?.name ?? 'اختر المقهى';
+        final selectedCafe = _controller.selectedCafe;
+        final visibleProducts = _controller.filteredProducts;
 
-        return DecoratedBox(
-          decoration: const BoxDecoration(color: AppColors.background),
+        return ColoredBox(
+          color: AppColors.background,
           child: RefreshIndicator(
             color: AppColors.brandBlue,
             onRefresh: _controller.refresh,
@@ -114,50 +136,54 @@ class HomeScreenV2State extends State<HomeScreenV2> {
               slivers: [
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _HomeOverview(
-                          selectedCafe: _controller.selectedCafe,
-                          cafeCount: _controller.colleges.length,
+                        _SelectedCafeHeader(
+                          cafe: selectedCafe,
                           productCount: _controller.products.length,
+                          cartCount: cartCount,
                         ),
-                        const SizedBox(height: BhSpacing.lg),
-                        TextField(
-                          controller: _searchController,
-                          onChanged: _controller.searchProducts,
-                          textInputAction: TextInputAction.search,
-                          decoration: const InputDecoration(
-                            hintText: 'ابحث عن منتج',
-                            prefixIcon: Icon(Icons.search_rounded),
-                          ),
-                        ),
-                        const SizedBox(height: BhSpacing.lg),
+                        if (_controller.isOffline) ...[
+                          const SizedBox(height: BhSpacing.sm),
+                          const _OfflineNotice(),
+                        ],
+                        const SizedBox(height: BhSpacing.xl),
                         BhSectionHeader(
-                          title: 'المقاهي',
-                          subtitle: 'اختر المقهى ثم استعرض القائمة المتاحة',
+                          title: 'اختر المقهى',
+                          subtitle: 'حدد المقهى لعرض قائمته وأسعاره',
                           trailing: BhStatusPill(
                             label: '${_controller.colleges.length}',
                             foreground: AppColors.brandBlue,
                             background: const Color(0xFFEFF6FF),
+                            icon: Icons.storefront_outlined,
                           ),
                         ),
                         const SizedBox(height: BhSpacing.md),
                         _CafeSelector(
                           cafes: _controller.colleges,
-                          selectedCafe: _controller.selectedCafe,
+                          selectedCafe: selectedCafe,
                           onSelect: _controller.selectCafe,
                         ),
                         const SizedBox(height: BhSpacing.xl),
+                        _SearchField(
+                          controller: _searchController,
+                          hasText: _searchController.text.trim().isNotEmpty,
+                          onChanged: _controller.searchProducts,
+                          onClear: _clearSearch,
+                        ),
+                        const SizedBox(height: BhSpacing.xl),
                         BhSectionHeader(
-                          title: selectedCafeName,
-                          subtitle: 'القائمة الحالية',
+                          title: selectedCafe?.name ?? 'قائمة المنتجات',
+                          subtitle: _controller.searchQuery.trim().isEmpty
+                              ? 'اختر الصنف وأضفه مباشرة إلى السلة'
+                              : 'نتائج البحث في قائمة المقهى',
                           trailing: BhStatusPill(
-                            label:
-                                '${_controller.filteredProducts.length} منتج',
+                            label: '${visibleProducts.length} منتج',
                             foreground: AppColors.success,
                             background: const Color(0xFFE6F4F1),
+                            icon: Icons.restaurant_menu_outlined,
                           ),
                         ),
                         const SizedBox(height: BhSpacing.md),
@@ -176,27 +202,28 @@ class HomeScreenV2State extends State<HomeScreenV2> {
                     padding: EdgeInsets.fromLTRB(16, 0, 16, 120),
                     sliver: SliverToBoxAdapter(child: ProductSkeletonGrid()),
                   )
-                else if (_controller.filteredProducts.isEmpty)
+                else if (visibleProducts.isEmpty)
                   SliverFillRemaining(
                     hasScrollBody: false,
                     child: _EmptyProductsState(
                       hasCafes: _controller.colleges.isNotEmpty,
-                      selectedCafeName: _controller.selectedCafe?.name,
+                      selectedCafeName: selectedCafe?.name,
+                      isSearching: _controller.searchQuery.trim().isNotEmpty,
                     ),
                   )
                 else
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
                     sliver: SliverGrid.builder(
-                      itemCount: _controller.filteredProducts.length,
+                      itemCount: visibleProducts.length,
                       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: crossAxisCount,
                         mainAxisSpacing: BhSpacing.md,
                         crossAxisSpacing: BhSpacing.md,
-                        childAspectRatio: childAspectRatio,
+                        mainAxisExtent: productCardExtent,
                       ),
                       itemBuilder: (context, index) {
-                        final product = _controller.filteredProducts[index];
+                        final product = visibleProducts[index];
                         return _ProductCard(
                           product: product,
                           onAddToCart: () => _addToCart(product),
@@ -213,87 +240,129 @@ class HomeScreenV2State extends State<HomeScreenV2> {
   }
 }
 
-class _HomeOverview extends StatelessWidget {
-  const _HomeOverview({
-    required this.selectedCafe,
-    required this.cafeCount,
+class _SelectedCafeHeader extends StatelessWidget {
+  const _SelectedCafeHeader({
+    required this.cafe,
     required this.productCount,
+    required this.cartCount,
   });
 
-  final CollegeModel? selectedCafe;
-  final int cafeCount;
+  final CollegeModel? cafe;
   final int productCount;
+  final int cartCount;
 
   @override
   Widget build(BuildContext context) {
-    return BhSurface(
-      padding: const EdgeInsets.all(BhSpacing.lg),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                padding: const EdgeInsets.all(7),
-                decoration: BoxDecoration(
-                  color: AppColors.neutral50,
-                  borderRadius: BorderRadius.circular(BhRadius.md),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Image.asset('assets/images/logo.png'),
-              ),
-              const SizedBox(width: BhSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Bite Hub',
-                      style: TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w900,
-                        height: 1,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      selectedCafe?.name ?? 'اختر المقهى المناسب للطلب',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppColors.textSecondary,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+    return Container(
+      padding: const EdgeInsets.all(BhSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(BhRadius.lg),
+        border: Border.all(color: const Color(0xFFD8E4F7)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.brandNavy.withValues(alpha: .05),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
           ),
-          const SizedBox(height: BhSpacing.lg),
-          Row(
-            children: [
-              BhMetric(
-                label: 'مقهى',
-                value: '$cafeCount',
-                icon: Icons.storefront_outlined,
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 80,
+            height: 80,
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              shape: BoxShape.circle,
+              border: Border.all(color: const Color(0xFFD8E4F7)),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.brandBlue.withValues(alpha: .12),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: ClipOval(
+              child: ProductImageView(
+                imagePath: cafe?.image ?? 'assets/images/logo.png',
+                fit: BoxFit.cover,
               ),
-              const SizedBox(width: BhSpacing.sm),
-              BhMetric(
-                label: 'منتج',
-                value: '$productCount',
-                icon: Icons.restaurant_menu_outlined,
-              ),
-              const SizedBox(width: BhSpacing.sm),
-              BhMetric(
-                label: 'نشط',
-                value: selectedCafe == null ? '0' : '1',
-                icon: Icons.check_circle_outline_rounded,
-              ),
-            ],
+            ),
+          ),
+          const SizedBox(width: BhSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'تطلب الآن من',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  cafe?.name ?? 'اختر المقهى',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  cafe == null
+                      ? 'حدد المقهى لعرض المنتجات'
+                      : '$productCount منتج في القائمة',
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: BhSpacing.sm),
+          Container(
+            constraints: const BoxConstraints(minWidth: 48),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+            decoration: BoxDecoration(
+              color: cartCount > 0
+                  ? const Color(0xFFEFF6FF)
+                  : AppColors.neutral100,
+              borderRadius: BorderRadius.circular(BhRadius.md),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.shopping_bag_outlined,
+                  size: 20,
+                  color: cartCount > 0
+                      ? AppColors.brandBlue
+                      : AppColors.textSecondary,
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  '$cartCount',
+                  style: TextStyle(
+                    color: cartCount > 0
+                        ? AppColors.brandBlue
+                        : AppColors.textSecondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -328,17 +397,16 @@ class _CafeSelector extends StatelessWidget {
     }
 
     return SizedBox(
-      height: 74,
+      height: 154,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: cafes.length,
         separatorBuilder: (_, __) => const SizedBox(width: BhSpacing.sm),
         itemBuilder: (context, index) {
           final cafe = cafes[index];
-          final selected = selectedCafe?.id == cafe.id;
-          return _CafeChip(
+          return _CafeCard(
             cafe: cafe,
-            selected: selected,
+            selected: selectedCafe?.id == cafe.id,
             onTap: () => onSelect(cafe),
           );
         },
@@ -347,8 +415,8 @@ class _CafeSelector extends StatelessWidget {
   }
 }
 
-class _CafeChip extends StatelessWidget {
-  const _CafeChip({
+class _CafeCard extends StatelessWidget {
+  const _CafeCard({
     required this.cafe,
     required this.selected,
     required this.onTap,
@@ -361,43 +429,141 @@ class _CafeChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 188,
-      child: BhSurface(
-        onTap: onTap,
-        padding: const EdgeInsets.all(BhSpacing.md),
-        borderColor: selected ? AppColors.brandBlue : AppColors.border,
-        color: selected ? const Color(0xFFF8FBFF) : AppColors.surface,
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: selected ? const Color(0xFFEFF6FF) : AppColors.neutral50,
-                borderRadius: BorderRadius.circular(BhRadius.sm),
-              ),
-              child: Icon(
-                selected ? Icons.storefront_rounded : Icons.storefront_outlined,
-                color: selected ? AppColors.brandBlue : AppColors.textSecondary,
-                size: 20,
+      width: 132,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(BhRadius.md),
+          child: Ink(
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(BhRadius.md),
+              border: Border.all(
+                color: selected ? AppColors.brandBlue : AppColors.border,
+                width: selected ? 1.5 : 1,
               ),
             ),
-            const SizedBox(width: BhSpacing.sm),
-            Expanded(
-              child: Text(
-                cafe.name,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: selected ? AppColors.brandBlue : AppColors.textPrimary,
-                  fontWeight: FontWeight.w900,
-                  height: 1.2,
-                ),
+            child: Padding(
+              padding: const EdgeInsets.all(10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: Center(
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Container(
+                            width: 84,
+                            height: 84,
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: AppColors.surface,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: selected
+                                    ? AppColors.brandBlue
+                                    : const Color(0xFFD8E4F7),
+                                width: selected ? 2 : 1,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppColors.brandNavy.withValues(
+                                    alpha: selected ? .14 : .07,
+                                  ),
+                                  blurRadius: 14,
+                                  offset: const Offset(0, 6),
+                                ),
+                              ],
+                            ),
+                            child: ClipOval(
+                              child: ProductImageView(
+                                imagePath:
+                                    cafe.image ?? 'assets/images/logo.png',
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                          ),
+                          if (selected)
+                            const PositionedDirectional(
+                              top: -2,
+                              end: -2,
+                              child: CircleAvatar(
+                                radius: 13,
+                                backgroundColor: AppColors.brandBlue,
+                                child: Icon(
+                                  Icons.check_rounded,
+                                  size: 16,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    cafe.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: selected
+                          ? AppColors.brandBlue
+                          : AppColors.textPrimary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w900,
+                      height: 1.25,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
+          ),
         ),
+      ),
+    );
+  }
+}
+
+class _SearchField extends StatelessWidget {
+  const _SearchField({
+    required this.controller,
+    required this.hasText,
+    required this.onChanged,
+    required this.onClear,
+  });
+
+  final TextEditingController controller;
+  final bool hasText;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      onChanged: onChanged,
+      textInputAction: TextInputAction.search,
+      decoration: InputDecoration(
+        hintText: 'ابحث عن وجبة أو مشروب',
+        prefixIcon: const Icon(
+          Icons.search_rounded,
+          color: AppColors.brandBlue,
+        ),
+        suffixIcon: hasText
+            ? IconButton(
+                onPressed: onClear,
+                icon: const Icon(Icons.close_rounded),
+                tooltip: 'مسح البحث',
+              )
+            : null,
+      ),
+      style: const TextStyle(
+        color: AppColors.textPrimary,
+        fontWeight: FontWeight.w800,
       ),
     );
   }
@@ -441,10 +607,11 @@ class _CategoryStrip extends StatelessWidget {
             ),
             labelStyle: TextStyle(
               color: selected ? AppColors.brandBlue : AppColors.textSecondary,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w900,
+              fontSize: 12,
             ),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(999),
+              borderRadius: BorderRadius.circular(BhRadius.sm),
             ),
           );
         },
@@ -464,49 +631,73 @@ class _ProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final imagePath = product.getImageUrl();
+    final hasDiscount = product.hasDiscount && product.originalPrice != null;
 
     return BhSurface(
       padding: EdgeInsets.zero,
       radius: BhRadius.md,
+      borderColor: const Color(0xFFDDE5EF),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            flex: 5,
+          SizedBox(
+            height: 142,
             child: Stack(
               children: [
                 Positioned.fill(
                   child: ClipRRect(
                     borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(BhRadius.md),
+                      top: Radius.circular(BhRadius.md - 1),
                     ),
                     child: ColoredBox(
                       color: AppColors.neutral100,
                       child: ProductImageView(
-                        imagePath: imagePath,
+                        imagePath: product.getImageUrl(),
                         fit: BoxFit.cover,
                       ),
                     ),
                   ),
                 ),
+                PositionedDirectional(
+                  top: 8,
+                  start: 8,
+                  child: _SmallBadge(
+                    label: product.isAvailable ? 'متاح' : 'غير متاح',
+                    foreground: product.isAvailable
+                        ? AppColors.success
+                        : AppColors.danger,
+                    background: product.isAvailable
+                        ? const Color(0xFFE6F4F1)
+                        : const Color(0xFFFEE2E2),
+                  ),
+                ),
+                if (hasDiscount)
+                  PositionedDirectional(
+                    top: 8,
+                    end: 8,
+                    child: _SmallBadge(
+                      label: '-${product.discountPercentage}%',
+                      foreground: AppColors.warning,
+                      background: const Color(0xFFFFF7E6),
+                    ),
+                  ),
                 if (!product.isAvailable)
-                  const Positioned(
-                    top: 10,
-                    right: 10,
-                    child: BhStatusPill(
-                      label: 'غير متاح',
-                      foreground: AppColors.danger,
-                      background: Color(0xFFFEE2E2),
+                  Positioned.fill(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: .52),
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(BhRadius.md - 1),
+                        ),
+                      ),
                     ),
                   ),
               ],
             ),
           ),
           Expanded(
-            flex: 4,
             child: Padding(
-              padding: const EdgeInsets.all(BhSpacing.md),
+              padding: const EdgeInsets.all(12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -516,7 +707,7 @@ class _ProductCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: AppColors.textSecondary,
-                      fontSize: 12,
+                      fontSize: 11,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -529,30 +720,40 @@ class _ProductCard extends StatelessWidget {
                       color: AppColors.textPrimary,
                       fontSize: 15,
                       fontWeight: FontWeight.w900,
-                      height: 1.2,
+                      height: 1.25,
                     ),
                   ),
+                  if (product.description.trim().isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      product.description,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                   const Spacer(),
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Expanded(
-                        child: Text(
-                          '${product.price.toStringAsFixed(2)} د.ل',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: AppColors.brandBlue,
-                            fontWeight: FontWeight.w900,
-                            fontSize: 15,
-                          ),
+                        child: _PriceBlock(
+                          price: product.price,
+                          originalPrice:
+                              hasDiscount ? product.originalPrice : null,
                         ),
                       ),
                       SizedBox.square(
-                        dimension: 36,
+                        dimension: 38,
                         child: IconButton.filled(
                           onPressed: product.isAvailable ? onAddToCart : null,
-                          icon: const Icon(Icons.add_rounded, size: 19),
+                          icon: const Icon(Icons.add_rounded, size: 21),
                           padding: EdgeInsets.zero,
+                          tooltip: 'إضافة إلى السلة',
                           style: IconButton.styleFrom(
                             backgroundColor: AppColors.brandBlue,
                             disabledBackgroundColor: AppColors.neutral100,
@@ -576,17 +777,135 @@ class _ProductCard extends StatelessWidget {
   }
 }
 
+class _SmallBadge extends StatelessWidget {
+  const _SmallBadge({
+    required this.label,
+    required this.foreground,
+    required this.background,
+  });
+
+  final String label;
+  final Color foreground;
+  final Color background;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(99),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: foreground,
+          fontSize: 10,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+}
+
+class _PriceBlock extends StatelessWidget {
+  const _PriceBlock({
+    required this.price,
+    required this.originalPrice,
+  });
+
+  final double price;
+  final double? originalPrice;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          '${price.toStringAsFixed(2)} د.ل',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: AppColors.brandBlue,
+            fontWeight: FontWeight.w900,
+            fontSize: 15,
+          ),
+        ),
+        if (originalPrice != null)
+          Text(
+            '${originalPrice!.toStringAsFixed(2)} د.ل',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              decoration: TextDecoration.lineThrough,
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _OfflineNotice extends StatelessWidget {
+  const _OfflineNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF7E6),
+        borderRadius: BorderRadius.circular(BhRadius.sm),
+        border: Border.all(color: const Color(0xFFF6D7A5)),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.cloud_off_outlined, size: 17, color: AppColors.warning),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'تعذر تحديث البيانات. يتم عرض آخر قائمة متاحة.',
+              style: TextStyle(
+                color: AppColors.warning,
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _EmptyProductsState extends StatelessWidget {
   const _EmptyProductsState({
     required this.hasCafes,
     required this.selectedCafeName,
+    required this.isSearching,
   });
 
   final bool hasCafes;
   final String? selectedCafeName;
+  final bool isSearching;
 
   @override
   Widget build(BuildContext context) {
+    final title = !hasCafes
+        ? 'لا توجد مقاهٍ متاحة'
+        : isSearching
+            ? 'لا توجد نتائج مطابقة'
+            : 'لا توجد منتجات حالياً';
+    final message = !hasCafes
+        ? 'ستظهر المقاهي هنا عند تفعيلها.'
+        : isSearching
+            ? 'جرب كلمة بحث أخرى أو اختر تصنيفاً مختلفاً.'
+            : 'لم يضف ${selectedCafeName ?? 'المقهى'} منتجات متاحة بعد.';
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
       child: Center(
@@ -594,14 +913,23 @@ class _EmptyProductsState extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
-                Icons.restaurant_menu_outlined,
-                size: 42,
-                color: AppColors.textSecondary,
+              Container(
+                width: 54,
+                height: 54,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(BhRadius.md),
+                ),
+                child: const Icon(
+                  Icons.restaurant_menu_outlined,
+                  size: 28,
+                  color: AppColors.brandBlue,
+                ),
               ),
               const SizedBox(height: BhSpacing.md),
               Text(
-                hasCafes ? 'لا توجد منتجات حالياً' : 'لا توجد مقاهٍ متاحة',
+                title,
                 style: const TextStyle(
                   color: AppColors.textPrimary,
                   fontSize: 18,
@@ -610,13 +938,11 @@ class _EmptyProductsState extends StatelessWidget {
               ),
               const SizedBox(height: 6),
               Text(
-                selectedCafeName == null
-                    ? 'عند توفر المقاهي ستظهر القوائم هنا.'
-                    : 'لا توجد عناصر مطابقة في $selectedCafeName.',
+                message,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: AppColors.textSecondary,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                   height: 1.5,
                 ),
               ),

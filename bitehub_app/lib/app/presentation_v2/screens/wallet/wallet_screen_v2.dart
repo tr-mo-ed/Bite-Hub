@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import 'package:bitehub_app/app/core/theme/app_colors.dart';
+import 'package:bitehub_app/app/data/providers/notification_provider.dart';
 import 'package:bitehub_app/app/data/models/transaction_model.dart';
 import 'package:bitehub_app/app/data/models/wallet_model.dart';
+import 'package:bitehub_app/app/data/services/nfc_card_service.dart';
 import 'package:bitehub_app/app/presentation_v2/controllers/wallet_v2_controller.dart';
 import 'package:bitehub_app/app/presentation_v2/widgets/bh_design.dart';
 import 'package:bitehub_app/app/presentation_v2/widgets/network_state_panel.dart';
@@ -64,12 +67,18 @@ class _WalletScreenV2State extends State<WalletScreenV2> {
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 120),
               children: [
                 _BalancePanel(wallet: wallet),
+                const SizedBox(height: BhSpacing.md),
+                _NfcWalletPanel(
+                  wallet: wallet,
+                  isBusy: _controller.isPerformingAction,
+                  onLink: _linkNfcCard,
+                ),
                 const SizedBox(height: BhSpacing.lg),
                 _WalletActions(
                   isBusy: _controller.isPerformingAction,
-                  onTopUp: _showTopUpDialog,
-                  onWithdraw: _showWithdrawDialog,
                   onTransfer: _showTransferDialog,
+                  onNfc: _linkNfcCard,
+                  hasNfcCard: wallet.hasNfcCard,
                   onRefresh: _controller.refresh,
                 ),
                 const SizedBox(height: BhSpacing.lg),
@@ -82,41 +91,38 @@ class _WalletScreenV2State extends State<WalletScreenV2> {
     );
   }
 
-  Future<void> _showTopUpDialog() async {
-    final data = await _showAmountDialog(
-      title: 'شحن الرصيد',
-      primaryLabel: 'شحن',
-      showWalletCode: false,
-    );
-    if (data == null) {
+  Future<void> _linkNfcCard() async {
+    if (_controller.isPerformingAction) {
       return;
     }
 
-    final success = await _controller.topUp(
-      amount: data.amount,
-      note: data.note,
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const _NfcScanningDialog(),
     );
-    if (mounted) {
-      _showResult(success);
-    }
-  }
 
-  Future<void> _showWithdrawDialog() async {
-    final data = await _showAmountDialog(
-      title: 'الدفع من المحفظة',
-      primaryLabel: 'تأكيد',
-      showWalletCode: false,
-    );
-    if (data == null) {
-      return;
-    }
-
-    final success = await _controller.withdraw(
-      amount: data.amount,
-      note: data.note,
-    );
-    if (mounted) {
-      _showResult(success);
+    try {
+      final cardUid = await NfcCardService.instance.scanCard();
+      if (!mounted) {
+        return;
+      }
+      Navigator.of(context, rootNavigator: true).pop();
+      final success = await _controller.linkNfcCard(cardUid);
+      if (mounted) {
+        _showResult(success);
+      }
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      Navigator.of(context, rootNavigator: true).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error.toString()),
+          backgroundColor: AppColors.danger,
+        ),
+      );
     }
   }
 
@@ -125,6 +131,7 @@ class _WalletScreenV2State extends State<WalletScreenV2> {
       title: 'تحويل إلى محفظة',
       primaryLabel: 'تحويل',
       showWalletCode: true,
+      showRecipientName: true,
     );
     if (data == null) {
       return;
@@ -133,8 +140,14 @@ class _WalletScreenV2State extends State<WalletScreenV2> {
     final success = await _controller.transfer(
       walletCode: data.walletCode,
       amount: data.amount,
+      recipientName: data.recipientName,
       note: data.note,
     );
+    if (success && mounted) {
+      await context.read<NotificationProvider>().refreshFromServer(
+            silent: true,
+          );
+    }
     if (mounted) {
       _showResult(success);
     }
@@ -144,8 +157,10 @@ class _WalletScreenV2State extends State<WalletScreenV2> {
     required String title,
     required String primaryLabel,
     required bool showWalletCode,
+    bool showRecipientName = false,
   }) {
     final codeController = TextEditingController();
+    final recipientNameController = TextEditingController();
     final amountController = TextEditingController();
     final noteController = TextEditingController();
 
@@ -161,6 +176,14 @@ class _WalletScreenV2State extends State<WalletScreenV2> {
                 controller: codeController,
                 textInputAction: TextInputAction.next,
                 decoration: const InputDecoration(labelText: 'كود المحفظة'),
+              ),
+              const SizedBox(height: BhSpacing.md),
+            ],
+            if (showRecipientName) ...[
+              TextField(
+                controller: recipientNameController,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(labelText: 'اسم المستلم'),
               ),
               const SizedBox(height: BhSpacing.md),
             ],
@@ -190,6 +213,7 @@ class _WalletScreenV2State extends State<WalletScreenV2> {
                 _WalletActionInput(
                   amount: amount,
                   note: noteController.text.trim(),
+                  recipientName: recipientNameController.text.trim(),
                   walletCode: codeController.text.trim(),
                 ),
               );
@@ -315,7 +339,7 @@ class _BalancePanel extends StatelessWidget {
                 ),
                 const SizedBox(width: BhSpacing.sm),
                 const Text(
-                  'كود الربط',
+                  'كود المحفظة',
                   style: TextStyle(
                     color: AppColors.textSecondary,
                     fontWeight: FontWeight.w700,
@@ -339,27 +363,240 @@ class _BalancePanel extends StatelessWidget {
   }
 }
 
+class _NfcWalletPanel extends StatelessWidget {
+  const _NfcWalletPanel({
+    required this.wallet,
+    required this.isBusy,
+    required this.onLink,
+  });
+
+  final WalletModel wallet;
+  final bool isBusy;
+  final VoidCallback onLink;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        gradient: AppColors.walletGradient,
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.brandBlue.withValues(alpha: .25),
+            blurRadius: 30,
+            offset: const Offset(0, 16),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          PositionedDirectional(
+            top: -46,
+            end: -28,
+            child: Container(
+              width: 150,
+              height: 150,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withValues(alpha: .10),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: .16),
+                  width: 18,
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(22),
+            child: Row(
+              children: [
+                TweenAnimationBuilder<double>(
+                  tween: Tween(begin: .86, end: 1),
+                  duration: const Duration(milliseconds: 700),
+                  curve: Curves.easeOutBack,
+                  builder: (context, value, child) => Transform.scale(
+                    scale: value,
+                    child: child,
+                  ),
+                  child: Container(
+                    width: 66,
+                    height: 66,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: .16),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: .3),
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.nfc_rounded,
+                      size: 36,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        wallet.hasNfcCard
+                            ? 'بطاقة NFC مرتبطة'
+                            : 'فعّل الدفع ببطاقتك',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        wallet.hasNfcCard
+                            ? 'تنتهي بالرمز •••• ${wallet.nfcCardLast4}'
+                            : 'قرّب البطاقة من خلف الهاتف لربطها بمحفظتك.',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: .78),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          height: 1.45,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      FilledButton.icon(
+                        onPressed: isBusy ? null : onLink,
+                        icon: const Icon(Icons.contactless_rounded, size: 18),
+                        label: Text(
+                          wallet.hasNfcCard
+                              ? 'استبدال البطاقة'
+                              : 'مسح وربط البطاقة',
+                        ),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: AppColors.brandNavy,
+                          minimumSize: const Size(0, 42),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NfcScanningDialog extends StatelessWidget {
+  const _NfcScanningDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: false,
+      child: Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.all(26),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(30),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.brandNavy.withValues(alpha: .18),
+                blurRadius: 40,
+                offset: const Offset(0, 18),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TweenAnimationBuilder<double>(
+                tween: Tween(begin: .82, end: 1.08),
+                duration: const Duration(milliseconds: 900),
+                curve: Curves.easeInOut,
+                builder: (context, value, child) =>
+                    Transform.scale(scale: value, child: child),
+                child: Container(
+                  width: 94,
+                  height: 94,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: AppColors.accentGradient,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.brandBlue.withValues(alpha: .3),
+                        blurRadius: 28,
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.nfc_rounded,
+                    color: Colors.white,
+                    size: 48,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 22),
+              const Text(
+                'بانتظار بطاقة NFC',
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'قرّب البطاقة من الجزء الخلفي للهاتف وثبّتها لثانية.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w700,
+                  height: 1.55,
+                ),
+              ),
+              const SizedBox(height: 20),
+              const LinearProgressIndicator(
+                minHeight: 5,
+                borderRadius: BorderRadius.all(Radius.circular(99)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _WalletActions extends StatelessWidget {
   const _WalletActions({
     required this.isBusy,
-    required this.onTopUp,
-    required this.onWithdraw,
     required this.onTransfer,
+    required this.onNfc,
+    required this.hasNfcCard,
     required this.onRefresh,
   });
 
   final bool isBusy;
-  final VoidCallback onTopUp;
-  final VoidCallback onWithdraw;
   final VoidCallback onTransfer;
+  final VoidCallback onNfc;
+  final bool hasNfcCard;
   final VoidCallback onRefresh;
 
   @override
   Widget build(BuildContext context) {
     final actions = [
-      _ActionSpec(Icons.add_card_outlined, 'شحن', onTopUp),
-      _ActionSpec(Icons.payments_outlined, 'دفع', onWithdraw),
       _ActionSpec(Icons.swap_horiz_rounded, 'تحويل', onTransfer),
+      _ActionSpec(
+        Icons.nfc_rounded,
+        hasNfcCard ? 'تغيير البطاقة' : 'ربط بطاقة',
+        onNfc,
+      ),
       _ActionSpec(Icons.refresh_rounded, 'تحديث', onRefresh),
     ];
 
@@ -640,11 +877,13 @@ class _WalletActionInput {
   const _WalletActionInput({
     required this.amount,
     required this.note,
+    required this.recipientName,
     required this.walletCode,
   });
 
   final double amount;
   final String note;
+  final String recipientName;
   final String walletCode;
 }
 

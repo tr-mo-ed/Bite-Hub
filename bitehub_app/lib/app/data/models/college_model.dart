@@ -3,6 +3,11 @@ String _normalizeCollegeName(String name) {
   return name.trim();
 }
 
+String? _normalizeCafeImage(dynamic value) {
+  final image = value?.toString().trim() ?? '';
+  return image.isEmpty ? null : image;
+}
+
 // ???? ???? CollegeModel ???? ???? ????? ???? ?? ???? ????.
 class CollegeModel {
   // ??? ??????? id ??? ?????? ???? ????? ????.
@@ -12,30 +17,31 @@ class CollegeModel {
   // ??? ??????? image ??? ?????? ???? ????? ????.
   final String? image; // يقبل null في حال عدم وجود شعار
 
-  CollegeModel({
-    required this.id, 
-    required this.name, 
-    this.image
-  });
+  CollegeModel({required this.id, required this.name, this.image});
 
   factory CollegeModel.fromJson(Map<String, dynamic> json) {
     return CollegeModel(
       // تحويل آمن للـ ID ليكون نصاً دائماً
       id: json['id']?.toString() ?? '0',
-      
+
       // حماية الاسم من أن يكون null، والبحث عن مفاتيح بديلة
-      name: _normalizeCollegeName((json['name'] ?? json['college_name'] ?? 'كلية غير معروفة').toString()),
-      
+      name: _normalizeCollegeName(
+          (json['name'] ?? json['college_name'] ?? 'كلية غير معروفة')
+              .toString()),
+
       // البحث عن الصورة بعدة مسميات محتملة
-      image: json['image'] ?? json['logo'] ?? json['icon_url'],
+      image: _normalizeCafeImage(
+        json['image'] ?? json['logo'] ?? json['icon_url'],
+      ),
     );
   }
 
   factory CollegeModel.fromFirestore(String id, Map<String, dynamic> data) {
     return CollegeModel(
       id: id,
-      name: _normalizeCollegeName((data['name'] ?? data['college_name'] ?? '').toString()),
-      image: data['image'] ?? data['logo'],
+      name: _normalizeCollegeName(
+          (data['name'] ?? data['college_name'] ?? '').toString()),
+      image: _normalizeCafeImage(data['image'] ?? data['logo']),
     );
   }
 
@@ -49,7 +55,7 @@ class CollegeModel {
 
   @override
   int get hashCode => id.hashCode;
-  
+
   // دالة مفيدة للطباعة والتجربة
   @override
   // ???? ???? toString ???? ??????? ?? ????? ???? ?????? ?????.
