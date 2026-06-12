@@ -28,9 +28,12 @@ from .backoffice_selectors import (
 from .backoffice_services import (
     provision_cafe,
     provision_cafe_with_credentials,
+    reset_cafe_operator_password,
     save_cafe_product,
+    set_cafe_active_status,
     toggle_cafe_active_status,
     toggle_product_stock,
+    update_cafe_image,
 )
 from .models import Cafe, Category
 from .serializers import OrderSerializer, ProductSerializer
@@ -57,7 +60,14 @@ def _is_staff_or_superuser(user) -> bool:
 
 
 def _is_cafe_operator(user) -> bool:
-    return bool(user.is_authenticated and not user.is_superuser and (user.is_staff or getattr(user, "my_cafe", None)))
+    cafe = getattr(user, "my_cafe", None)
+    return bool(
+        user.is_authenticated
+        and not user.is_superuser
+        and cafe is not None
+        and cafe.is_active
+        and (user.is_staff or cafe.owner_id == user.id)
+    )
 
 
 def _login_action_url(*, portal: str, cafe: Cafe | None = None) -> str:
@@ -106,7 +116,11 @@ def _authenticated_login_destination(user: User, *, portal: str, cafe: Cafe | No
         return None
 
     user_cafe = getattr(user, "my_cafe", None)
-    if user_cafe is not None and (cafe is None or user_cafe.id == cafe.id):
+    if (
+        user_cafe is not None
+        and user_cafe.is_active
+        and (cafe is None or user_cafe.id == cafe.id)
+    ):
         return "core:cafe_panel"
     return None
 
@@ -248,7 +262,11 @@ def custom_logout(request: HttpRequest) -> HttpResponse:
 def switch_cafe(request: HttpRequest, cafe_id: int) -> HttpResponse:
     logout(request)
     # ??? ??????? cafe ??? ????? ??? ???? ???? ???? ????? ????.
-    cafe = Cafe.objects.filter(id=cafe_id, owner__isnull=False).select_related("owner").first()
+    cafe = Cafe.objects.filter(
+        id=cafe_id,
+        is_active=True,
+        owner__isnull=False,
+    ).select_related("owner").first()
     if cafe and cafe.owner:
         return redirect("core:cafe_login_for_code", cafe_code=cafe.code)
     return redirect("core:cafe_login")
@@ -268,6 +286,16 @@ def _resolve_web_home_for_user(user) -> str | None:
 # ???? ???? route_after_login ?????? ????? ?????? ?? ????? ????.
 @login_required(login_url="core:login")
 def route_after_login(request: HttpRequest) -> HttpResponse:
+    user_cafe = getattr(request.user, "my_cafe", None)
+    if user_cafe is not None and not user_cafe.is_active:
+        reason = user_cafe.suspension_reason or "\u0631\u0627\u062c\u0639 \u0625\u062f\u0627\u0631\u0629 Bite Hub."
+        logout(request)
+        messages.error(
+            request,
+            f"\u0645\u0646\u0638\u0648\u0645\u0629 {user_cafe.name} \u0645\u0648\u0642\u0648\u0641\u0629 \u0645\u0624\u0642\u062a\u0627\u064b. \u0627\u0644\u0633\u0628\u0628: {reason}",
+        )
+        return redirect("core:cafe_login")
+
     # ??? ??????? destination ??? ????? ??? ???? ???? ???? ????? ????.
     destination = _resolve_web_home_for_user(request.user)
     if destination is None:
@@ -392,6 +420,7 @@ def create_cafe_from_dashboard(request: HttpRequest) -> HttpResponse:
                 password=manager_password,
                 name=form_data["name"],
                 code=form_data["code"],
+                image=request.FILES.get("image"),
             )
         else:
             # ??? ??????? cafe ??? ????? ??? ???? ???? ???? ????? ????.
@@ -403,6 +432,7 @@ def create_cafe_from_dashboard(request: HttpRequest) -> HttpResponse:
                 # ??? ??????? faculty_id ??? ????? ??? ???? ???? ???? ????? ????.
                 faculty_id=_parse_optional_faculty_id(form_data["faculty_id"]),
                 owner_id=_parse_optional_faculty_id(form_data["owner_id"]),
+                image=request.FILES.get("image"),
             )
         if manager_password:
             messages.success(request, f"تم إنشاء {cafe.name}. كلمة مرور الدخول: {manager_password}")
@@ -419,17 +449,49 @@ def create_cafe_from_dashboard(request: HttpRequest) -> HttpResponse:
     return redirect("core:super_admin_dashboard")
 
 
+@login_required(login_url="core:admin_login")
+@user_passes_test(lambda user: user.is_superuser, login_url="core:route_after_login")
+@require_POST
+def update_cafe_image_from_dashboard(request: HttpRequest, cafe_id: int) -> HttpResponse:
+    try:
+        cafe = update_cafe_image(
+            cafe_id=cafe_id,
+            image=request.FILES.get("image"),
+        )
+        messages.success(
+            request,
+            f"\u062a\u0645 \u062a\u062d\u062f\u064a\u062b \u0635\u0648\u0631\u0629 {cafe.name} \u0628\u0646\u062c\u0627\u062d.",
+        )
+    except ValidationServiceError as exc:
+        messages.error(request, str(exc))
+    return redirect("core:super_admin_dashboard")
+
+
 # ???? ???? toggle_cafe_status_from_dashboard ?????? ????? ?????? ?? ????? ????.
 @login_required(login_url="core:admin_login")
 @user_passes_test(lambda user: user.is_superuser, login_url="core:route_after_login")
 @require_POST
 def toggle_cafe_status_from_dashboard(request: HttpRequest, cafe_id: int) -> HttpResponse:
     try:
-        # ??? ??????? cafe ??? ????? ??? ???? ???? ???? ????? ????.
-        cafe = toggle_cafe_active_status(cafe_id=cafe_id)
-        # ??? ??????? state_label ??? ????? ??? ???? ???? ???? ????? ????.
-        state_label = "activated" if cafe.is_active else "paused"
-        messages.success(request, f"Cafe '{cafe.name}' was {state_label}.")
+        action = (request.POST.get("action") or "").strip().lower()
+        if action not in {"suspend", "activate"}:
+            cafe = toggle_cafe_active_status(
+                cafe_id=cafe_id,
+                suspension_reason=request.POST.get("suspension_reason", ""),
+            )
+        else:
+            cafe = set_cafe_active_status(
+                cafe_id=cafe_id,
+                is_active=action == "activate",
+                suspension_reason=request.POST.get("suspension_reason", ""),
+            )
+        if cafe.is_active:
+            messages.success(request, f"\u062a\u0645 \u062a\u0641\u0639\u064a\u0644 \u0645\u0646\u0638\u0648\u0645\u0629 {cafe.name} \u0628\u0646\u062c\u0627\u062d.")
+        else:
+            messages.success(
+                request,
+                f"\u062a\u0645 \u0625\u064a\u0642\u0627\u0641 \u0645\u0646\u0638\u0648\u0645\u0629 {cafe.name} \u0645\u0624\u0642\u062a\u0627\u064b: {cafe.suspension_reason}",
+            )
     except ValidationServiceError as exc:
         messages.error(request, str(exc))
     return redirect("core:super_admin_dashboard")
@@ -439,25 +501,15 @@ def toggle_cafe_status_from_dashboard(request: HttpRequest, cafe_id: int) -> Htt
 @user_passes_test(lambda user: user.is_superuser, login_url="core:route_after_login")
 @require_POST
 def reset_cafe_password_from_dashboard(request: HttpRequest, cafe_id: int) -> HttpResponse:
-    cafe = Cafe.objects.select_related("owner").filter(pk=cafe_id).first()
     new_password = (request.POST.get("manager_password") or "").strip()
-    if cafe is None:
-        messages.error(request, "المقهى غير موجود.")
-        return redirect("core:super_admin_dashboard")
-    if cafe.owner is None:
-        messages.error(request, "لا يوجد حساب تشغيل مرتبط بهذا المقهى.")
-        return redirect("core:super_admin_dashboard")
-    if len(new_password) < 8:
-        messages.error(request, "كلمة مرور المقهى يجب ألا تقل عن 8 أحرف.")
-        return redirect("core:super_admin_dashboard")
-
-    cafe.owner.set_password(new_password)
-    if not cafe.owner.is_staff:
-        cafe.owner.is_staff = True
-        cafe.owner.save(update_fields=["password", "is_staff"])
-    else:
-        cafe.owner.save(update_fields=["password"])
-    messages.success(request, f"تم تغيير كلمة مرور {cafe.name}: {new_password}")
+    try:
+        cafe = reset_cafe_operator_password(
+            cafe_id=cafe_id,
+            password=new_password,
+        )
+        messages.success(request, f"\u062a\u0645 \u0636\u0628\u0637 \u0643\u0644\u0645\u0629 \u0645\u0631\u0648\u0631 {cafe.name}: {new_password}")
+    except ValidationServiceError as exc:
+        messages.error(request, str(exc))
     return redirect("core:super_admin_dashboard")
 
 

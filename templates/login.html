@@ -139,6 +139,40 @@
     .auth-form {
       width: min(100%, 430px);
     }
+    .cafe-login-identity {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 18px;
+      padding: 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(67, 87, 184, .14);
+      background: linear-gradient(135deg, rgba(74, 166, 220, .09), rgba(255, 241, 0, .10), #fff);
+    }
+    .cafe-login-logo {
+      width: 82px;
+      height: 82px;
+      flex: 0 0 82px;
+      object-fit: cover;
+      border-radius: 50%;
+      border: 4px solid #fff;
+      outline: 1px solid rgba(67, 87, 184, .16);
+      background: #fff;
+      box-shadow: 0 12px 28px rgba(67, 87, 184, .18);
+    }
+    .cafe-login-caption {
+      color: var(--muted);
+      font-size: .78rem;
+      font-weight: 700;
+    }
+    .cafe-login-name {
+      display: block;
+      margin-top: 3px;
+      color: var(--ink);
+      font-size: 1.05rem;
+      font-weight: 900;
+      line-height: 1.45;
+    }
     .portal-badge {
       display: inline-flex;
       align-items: center;
@@ -243,6 +277,12 @@
         <h1 class="login-title">{{ page_title|default:"تسجيل الدخول" }}</h1>
         <p class="login-subtitle">{{ page_subtitle }}</p>
 
+        {% for message in messages %}
+          <div class="alert {% if message.tags == 'error' %}alert-danger{% else %}alert-{{ message.tags|default:'info' }}{% endif %} py-2 mb-3" role="alert">
+            {{ message }}
+          </div>
+        {% endfor %}
+
         {% if error %}
           <div class="alert alert-danger py-2 mb-3" role="alert">
             {{ error }}
@@ -253,12 +293,31 @@
           {% csrf_token %}
 
           {% if portal == "cafe" %}
+            <div class="cafe-login-identity" id="selectedCafeIdentity">
+              <img
+                class="cafe-login-logo"
+                id="selectedCafeLogo"
+                src="{% if target_cafe and target_cafe.image %}{{ target_cafe.image.url }}{% else %}{% static 'brand/bitehub-logo.png' %}{% endif %}"
+                alt="صورة المقهى المحدد"
+              >
+              <div>
+                <div class="cafe-login-caption">المقهى المحدد</div>
+                <strong class="cafe-login-name" id="selectedCafeName">
+                  {% if target_cafe %}{{ target_cafe.name }}{% else %}اختر المقهى للمتابعة{% endif %}
+                </strong>
+              </div>
+            </div>
             <div class="mb-3">
-              <label for="cafe_id" class="form-label">اسم الكلية</label>
+              <label for="cafe_id" class="form-label">اسم الكلية أو المقهى</label>
               <select class="form-select" id="cafe_id" name="cafe_id" required>
-                <option value="">اختر الكلية</option>
+                <option value="" data-name="اختر المقهى للمتابعة" data-image="{% static 'brand/bitehub-logo.png' %}">اختر المقهى</option>
                 {% for cafe in cafe_options %}
-                  <option value="{{ cafe.id }}" {% if selected_cafe_id == cafe.id|stringformat:"s" %}selected{% endif %}>
+                  <option
+                    value="{{ cafe.id }}"
+                    data-name="{{ cafe.name }}"
+                    data-image="{% if cafe.image %}{{ cafe.image.url }}{% else %}{% static 'brand/bitehub-logo.png' %}{% endif %}"
+                    {% if selected_cafe_id == cafe.id|stringformat:"s" %}selected{% endif %}
+                  >
                     {{ cafe.faculty.name|default:cafe.name }}
                   </option>
                 {% endfor %}
@@ -274,9 +333,28 @@
           <button type="submit" class="btn btn-primary primary-action w-100">{{ submit_label }}</button>
         </form>
 
-        <div class="secure-note">دخول حقيقي بدون وضع تجريبي.</div>
+        <div class="secure-note">دخول آمن إلى منظومة Bite Hub.</div>
       </div>
     </section>
   </main>
+  <script>
+    (() => {
+      const cafeSelect = document.getElementById("cafe_id");
+      const cafeLogo = document.getElementById("selectedCafeLogo");
+      const cafeName = document.getElementById("selectedCafeName");
+      if (!cafeSelect || !cafeLogo || !cafeName) {
+        return;
+      }
+
+      const updateCafeIdentity = () => {
+        const option = cafeSelect.options[cafeSelect.selectedIndex];
+        cafeLogo.src = option?.dataset.image || "{% static 'brand/bitehub-logo.png' %}";
+        cafeName.textContent = option?.dataset.name || "اختر المقهى للمتابعة";
+      };
+
+      cafeSelect.addEventListener("change", updateCafeIdentity);
+      updateCafeIdentity();
+    })();
+  </script>
 </body>
 </html>

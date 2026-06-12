@@ -6,9 +6,10 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.core.cache import cache
 from django.db import transaction
+from django.utils import timezone
 from django.utils.text import slugify
 
-from .forms import ProductForm
+from .forms import CafeImageForm, ProductForm
 from .models import Cafe, Category, Faculty, Product
 from .services import ValidationServiceError, ensure_default_categories_for_cafe
 from wallet.models import Wallet
@@ -17,6 +18,17 @@ from wallet.models import Wallet
 # ??? ??????? User ??? ????? ??? ???? ???? ???? ????? ????.
 User = get_user_model()
 CAFE_OWNER_GROUP_NAME = "cafe_owners"
+
+
+def _validate_cafe_image(image):
+    if image is None:
+        return None
+
+    form = CafeImageForm(files={"image": image})
+    if not form.is_valid():
+        first_error = next(iter(form.errors.values()))[0]
+        raise ValidationServiceError(str(first_error))
+    return form.cleaned_data["image"]
 
 
 # ???? ???? _build_unique_cafe_code ?????? ????? ?????? ?? ????? ????.
@@ -150,6 +162,7 @@ def provision_cafe(
     normalized_name = (name or "").strip()
     if not normalized_name:
         raise ValidationServiceError("Cafe name is required.")
+    image = _validate_cafe_image(image)
 
     # ??? ??????? normalized_code ??? ????? ??? ???? ???? ???? ????? ????.
     normalized_code = slugify(code or "")
@@ -203,6 +216,7 @@ def provision_cafe_with_credentials(
     password: str,
     name: str = "",
     code: str | None = None,
+    image=None,
 ) -> Cafe:
     normalized_faculty_name = (faculty_name or "").strip()
     if not normalized_faculty_name:
@@ -211,6 +225,7 @@ def provision_cafe_with_credentials(
     normalized_password = (password or "").strip()
     if len(normalized_password) < 8:
         raise ValidationServiceError("Cafe password must be at least 8 characters.")
+    image = _validate_cafe_image(image)
 
     faculty = Faculty.objects.filter(name__iexact=normalized_faculty_name).first()
     if faculty is None:
@@ -241,9 +256,24 @@ def provision_cafe_with_credentials(
         code=normalized_code,
         faculty=faculty,
         owner=owner,
+        image=image,
         is_active=True,
     )
     return initialize_cafe_runtime(cafe)
+
+
+@transaction.atomic
+def update_cafe_image(*, cafe_id: int, image) -> Cafe:
+    cafe = Cafe.objects.filter(pk=cafe_id).first()
+    if cafe is None:
+        raise ValidationServiceError("Cafe not found.")
+    if image is None:
+        raise ValidationServiceError("Cafe image is required.")
+
+    cafe.image = _validate_cafe_image(image)
+    cafe.save(update_fields=["image", "updated_at"])
+    cache.clear()
+    return cafe
 
 
 # ???? ???? toggle_product_stock ?????? ????? ?????? ?? ????? ????.
@@ -312,14 +342,75 @@ def save_cafe_product(*, cafe_id: int, user, data, files=None, product_id: int |
     return saved_product
 
 
-# ???? ???? toggle_cafe_active_status ?????? ????? ?????? ?? ????? ????.
 @transaction.atomic
-def toggle_cafe_active_status(*, cafe_id: int) -> Cafe:
-    # ??? ??????? cafe ??? ????? ??? ???? ???? ???? ????? ????.
+def set_cafe_active_status(
+    *,
+    cafe_id: int,
+    is_active: bool,
+    suspension_reason: str = "",
+) -> Cafe:
     cafe = Cafe.objects.select_related("faculty", "owner").filter(pk=cafe_id).first()
     if cafe is None:
         raise ValidationServiceError("Cafe not found.")
 
-    cafe.is_active = not cafe.is_active
-    cafe.save(update_fields=["is_active", "updated_at"])
+    cafe.is_active = is_active
+    if is_active:
+        cafe.suspension_reason = ""
+        cafe.suspended_at = None
+    else:
+        cafe.suspension_reason = (
+            suspension_reason or "\u062a\u0623\u062e\u0631 \u0633\u062f\u0627\u062f \u0627\u0644\u0627\u0634\u062a\u0631\u0627\u0643"
+        ).strip()[:255]
+        cafe.suspended_at = timezone.now()
+    cafe.save(
+        update_fields=[
+            "is_active",
+            "suspension_reason",
+            "suspended_at",
+            "updated_at",
+        ]
+    )
+    cache.clear()
+    return cafe
+
+
+def toggle_cafe_active_status(*, cafe_id: int, suspension_reason: str = "") -> Cafe:
+    cafe = Cafe.objects.filter(pk=cafe_id).only("id", "is_active").first()
+    if cafe is None:
+        raise ValidationServiceError("Cafe not found.")
+    return set_cafe_active_status(
+        cafe_id=cafe.id,
+        is_active=not cafe.is_active,
+        suspension_reason=suspension_reason,
+    )
+
+
+@transaction.atomic
+def reset_cafe_operator_password(*, cafe_id: int, password: str) -> Cafe:
+    cafe = Cafe.objects.select_related("owner").filter(pk=cafe_id).first()
+    if cafe is None:
+        raise ValidationServiceError("Cafe not found.")
+
+    normalized_password = (password or "").strip()
+    if len(normalized_password) < 8:
+        raise ValidationServiceError("Cafe password must be at least 8 characters.")
+
+    owner = cafe.owner
+    if owner is None:
+        owner = User.objects.create_user(
+            email=_build_unique_manager_email(cafe.code),
+            password=normalized_password,
+            full_name=f"Cafe operator - {cafe.name}",
+            phone_number=_build_unique_manager_phone(),
+            is_staff=True,
+            is_active=True,
+        )
+        cafe.owner = owner
+        cafe.save(update_fields=["owner", "updated_at"])
+        initialize_cafe_runtime(cafe)
+    else:
+        owner.set_password(normalized_password)
+        owner.is_staff = True
+        owner.is_active = True
+        owner.save(update_fields=["password", "is_staff", "is_active"])
     return cafe

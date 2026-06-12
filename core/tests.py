@@ -1,5 +1,6 @@
 from decimal import Decimal
 from io import StringIO
+from tempfile import TemporaryDirectory
 
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
@@ -20,6 +21,142 @@ TEST_CHANNEL_LAYERS = {
         "BACKEND": "channels.layers.InMemoryChannelLayer",
     },
 }
+
+
+class AppLoginApiTests(TestCase):
+    def test_student_can_login_with_email_identifier(self):
+        user = get_user_model().objects.create_user(
+            email="student-login@example.com",
+            password="StrongPass123",
+            full_name="Student Login",
+            phone_number="0912345601",
+        )
+
+        response = self.client.post(
+            reverse("v2_app_login"),
+            data={
+                "identifier": "STUDENT-LOGIN@example.com",
+                "password": "StrongPass123",
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.json()["user"]["id"], user.id)
+        self.assertTrue(response.json()["access"])
+
+    def test_signup_rejects_duplicate_email_cleanly(self):
+        get_user_model().objects.create_user(
+            email="duplicate@example.com",
+            password="StrongPass123",
+            full_name="Existing Student",
+            phone_number="0912345602",
+        )
+
+        response = self.client.post(
+            reverse("v2_app_signup"),
+            data={
+                "full_name": "New Student",
+                "email": "DUPLICATE@example.com",
+                "phone_number": "0912345603",
+                "password": "StrongPass123",
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400, response.content)
+        self.assertEqual(response.json()["error"], "Email is already registered.")
+
+
+class SuperAdminCafeIdentityTests(TestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.superuser = User.objects.create_superuser(
+            email="root-cafe-identity@example.com",
+            password="StrongPass123",
+            full_name="Root Admin",
+            phone_number="0912345604",
+        )
+        self.manager = User.objects.create_user(
+            email="manager-cafe-identity@example.com",
+            password="CafePass2026",
+            full_name="Cafe Manager",
+            phone_number="0912345605",
+            is_staff=True,
+        )
+        self.cafe = provision_cafe(
+            name="Identity Cafe",
+            code="identity-cafe",
+            owner_id=self.manager.id,
+        )
+
+    def test_super_admin_uploads_image_and_app_api_returns_absolute_url(self):
+        self.client.force_login(self.superuser)
+        image = SimpleUploadedFile(
+            "cafe.gif",
+            b"GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\xff\xff!"
+            b"\xf9\x04\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01"
+            b"\x00\x00\x02\x02D\x01\x00;",
+            content_type="image/gif",
+        )
+
+        with TemporaryDirectory() as media_root, override_settings(MEDIA_ROOT=media_root):
+            response = self.client.post(
+                reverse("core:update_cafe_image_from_dashboard", args=[self.cafe.id]),
+                data={"image": image},
+                follow=True,
+            )
+
+            self.assertEqual(response.status_code, 200)
+            self.cafe.refresh_from_db()
+            self.assertTrue(self.cafe.image.name.startswith("cafes/"))
+            self.assertContains(response, self.cafe.image.url)
+
+            api_response = self.client.get(reverse("v2_app_cafes"))
+            payload = next(item for item in api_response.json() if item["id"] == self.cafe.id)
+            self.assertIn("http://testserver/media/cafes/", payload["image"])
+
+    def test_super_admin_suspends_cafe_and_hides_it_from_app(self):
+        self.client.force_login(self.superuser)
+        response = self.client.post(
+            reverse("core:toggle_cafe_status_from_dashboard", args=[self.cafe.id]),
+            data={
+                "action": "suspend",
+                "suspension_reason": "Subscription overdue",
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.cafe.refresh_from_db()
+        self.assertFalse(self.cafe.is_active)
+        self.assertEqual(self.cafe.suspension_reason, "Subscription overdue")
+        self.assertIsNotNone(self.cafe.suspended_at)
+
+        self.client.logout()
+        api_response = self.client.get(reverse("v2_app_cafes"))
+        self.assertNotIn(self.cafe.id, [item["id"] for item in api_response.json()])
+
+        self.client.force_login(self.manager)
+        blocked_response = self.client.get(reverse("core:route_after_login"), follow=True)
+        self.assertEqual(blocked_response.status_code, 200)
+        self.assertNotIn("_auth_user_id", self.client.session)
+
+    def test_password_reset_recreates_missing_operator(self):
+        self.cafe.owner = None
+        self.cafe.save(update_fields=["owner", "updated_at"])
+        self.client.force_login(self.superuser)
+
+        response = self.client.post(
+            reverse("core:reset_cafe_password_from_dashboard", args=[self.cafe.id]),
+            data={"manager_password": "NewCafePass2026"},
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.cafe.refresh_from_db()
+        self.assertIsNotNone(self.cafe.owner)
+        self.assertTrue(self.cafe.owner.check_password("NewCafePass2026"))
 
 
 # ???? ???? CafeProvisioningTests ???? ?????? ????????? ???? ???? ?????.

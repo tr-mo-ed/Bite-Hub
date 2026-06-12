@@ -18,6 +18,7 @@ urlpatterns = [
     # Backoffice V2
     path('super-admin/', backoffice_views.super_admin_dashboard, name='super_admin_dashboard'),
     path('super-admin/cafes/create/', backoffice_views.create_cafe_from_dashboard, name='create_cafe_from_dashboard'),
+    path('super-admin/cafes/<int:cafe_id>/image/', backoffice_views.update_cafe_image_from_dashboard, name='update_cafe_image_from_dashboard'),
     path('super-admin/cafes/<int:cafe_id>/toggle/', backoffice_views.toggle_cafe_status_from_dashboard, name='toggle_cafe_status_from_dashboard'),
     path('super-admin/cafes/<int:cafe_id>/password/', backoffice_views.reset_cafe_password_from_dashboard, name='reset_cafe_password_from_dashboard'),
     path('cafe-panel/', backoffice_views.cafe_panel, name='cafe_panel'),

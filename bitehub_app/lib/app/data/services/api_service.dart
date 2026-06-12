@@ -348,10 +348,14 @@ class ApiService {
 
   // ???? ???? login ???? ??????? ?? ????? ???? ?????? ?????.
   Future<Map<String, dynamic>> login(
-      String phoneNumber, String password) async {
+      String identifier, String password) async {
     final url = Uri.parse('$baseUrl/api/v2/app/auth/login/');
+    final normalizedIdentifier = identifier.trim();
     final payload = <String, dynamic>{
-      'phone_number': phoneNumber.trim(),
+      'identifier': normalizedIdentifier,
+      if (normalizedIdentifier.contains('@')) 'email': normalizedIdentifier,
+      if (!normalizedIdentifier.contains('@'))
+        'phone_number': normalizedIdentifier,
       'password': password,
     };
 

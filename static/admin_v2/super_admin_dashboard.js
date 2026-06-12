@@ -2,7 +2,10 @@
   let pendingCafeToggleForm = null;
   const confirmCafeToggleModalNode = document.getElementById("confirmCafeToggleModal");
   const confirmCafeToggleText = document.getElementById("confirmCafeToggleText");
+  const confirmCafeToggleNotice = document.getElementById("confirmCafeToggleNotice");
   const confirmCafeToggleSubmit = document.getElementById("confirmCafeToggleSubmit");
+  const cafeSuspensionFields = document.getElementById("cafeSuspensionFields");
+  const cafeSuspensionReason = document.getElementById("cafeSuspensionReason");
   const confirmCafeToggleModal = confirmCafeToggleModalNode
     ? bootstrap.Modal.getOrCreateInstance(confirmCafeToggleModalNode)
     : null;
@@ -35,10 +38,24 @@
         return;
       }
 
-      const cafeName = pendingCafeToggleForm.dataset.cafeName || "هذا المقهى";
-      const nextAction = pendingCafeToggleForm.dataset.nextAction || "تغيير حالة";
+      const cafeName = pendingCafeToggleForm.dataset.cafeName || "\u0647\u0630\u0627 \u0627\u0644\u0645\u0642\u0647\u0649";
+      const nextAction = pendingCafeToggleForm.dataset.nextAction || "\u062a\u063a\u064a\u064a\u0631 \u062d\u0627\u0644\u0629";
+      const isActive = pendingCafeToggleForm.dataset.isActive === "true";
       if (confirmCafeToggleText) {
-        confirmCafeToggleText.textContent = `هل تريد ${nextAction} ${cafeName}؟`;
+        confirmCafeToggleText.textContent = `\u0647\u0644 \u062a\u0631\u064a\u062f ${nextAction} ${cafeName}\u061f`;
+      }
+      if (cafeSuspensionFields) {
+        cafeSuspensionFields.hidden = !isActive;
+      }
+      if (confirmCafeToggleNotice) {
+        confirmCafeToggleNotice.textContent = isActive
+          ? "الإيقاف المؤقت يخفي المقهى من التطبيق ويمنع دخوله إلى لوحة التشغيل، لكنه لا يحذف أي بيانات."
+          : "إعادة التفعيل ستعيد المقهى إلى تطبيق الزبائن وتسمح لحسابه بدخول لوحة التشغيل.";
+        confirmCafeToggleNotice.classList.toggle("alert-warning", isActive);
+        confirmCafeToggleNotice.classList.toggle("alert-success", !isActive);
+      }
+      if (isActive && cafeSuspensionReason) {
+        cafeSuspensionReason.value = "تأخر سداد الاشتراك";
       }
       confirmCafeToggleModal.show();
     });
@@ -46,6 +63,16 @@
 
   confirmCafeToggleSubmit?.addEventListener("click", () => {
     if (pendingCafeToggleForm) {
+      const isActive = pendingCafeToggleForm.dataset.isActive === "true";
+      const reasonInput = pendingCafeToggleForm.querySelector("input[name='suspension_reason']");
+      const reason = cafeSuspensionReason?.value.trim() || "";
+      if (isActive && !reason) {
+        cafeSuspensionReason?.focus();
+        return;
+      }
+      if (reasonInput) {
+        reasonInput.value = isActive ? reason : "";
+      }
       submitWithFreshCsrf(pendingCafeToggleForm);
     }
   });
@@ -105,6 +132,52 @@
     resetCafePasswordInput.value = randomPassword();
     resetCafePasswordInput.focus();
     resetCafePasswordInput.select();
+  });
+
+  const updateCafeImageForm = document.getElementById("updateCafeImageForm");
+  const updateCafeImageInput = document.getElementById("updateCafeImageInput");
+  const updateCafeImagePreview = document.getElementById("updateCafeImagePreview");
+  const updateCafeImageSubtitle = document.getElementById("updateCafeImageSubtitle");
+  let pendingCafeImagePreviewUrl = "";
+
+  function setCafeImagePreview(url) {
+    if (pendingCafeImagePreviewUrl) {
+      URL.revokeObjectURL(pendingCafeImagePreviewUrl);
+      pendingCafeImagePreviewUrl = "";
+    }
+    if (updateCafeImagePreview && url) {
+      updateCafeImagePreview.src = url;
+    }
+  }
+
+  document.querySelectorAll(".js-open-cafe-image-modal").forEach((button) => {
+    button.addEventListener("click", () => {
+      if (updateCafeImageForm) {
+        updateCafeImageForm.action = button.dataset.action || "";
+      }
+      if (updateCafeImageSubtitle) {
+        updateCafeImageSubtitle.textContent =
+          `\u0627\u062e\u062a\u0631 \u0635\u0648\u0631\u0629 \u062c\u062f\u064a\u062f\u0629 \u0644\u0640 ${button.dataset.cafeName || "\u0627\u0644\u0645\u0642\u0647\u0649"}.`;
+      }
+      if (updateCafeImageInput) {
+        updateCafeImageInput.value = "";
+      }
+      setCafeImagePreview(button.dataset.currentImage || "");
+    });
+  });
+
+  updateCafeImageInput?.addEventListener("change", () => {
+    const [file] = updateCafeImageInput.files || [];
+    if (!file) {
+      return;
+    }
+    if (pendingCafeImagePreviewUrl) {
+      URL.revokeObjectURL(pendingCafeImagePreviewUrl);
+    }
+    pendingCafeImagePreviewUrl = URL.createObjectURL(file);
+    if (updateCafeImagePreview) {
+      updateCafeImagePreview.src = pendingCafeImagePreviewUrl;
+    }
   });
 
   const node = document.getElementById("sales-series-data");
