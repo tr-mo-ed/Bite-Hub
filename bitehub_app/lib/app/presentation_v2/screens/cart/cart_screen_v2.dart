@@ -519,8 +519,17 @@ class _CartScreenV2State extends State<CartScreenV2> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'ملاحظات إضافية',
+            'ملاحظات للمقهى',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 5),
+          const Text(
+            'اكتب طريقة التحضير المطلوبة، مثال: بدون لحم أو بدون صوص.',
+            style: TextStyle(
+              color: Colors.grey,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
           ),
           const SizedBox(height: 12),
           TextField(
@@ -528,7 +537,7 @@ class _CartScreenV2State extends State<CartScreenV2> {
             maxLines: 3,
             textInputAction: TextInputAction.newline,
             decoration: InputDecoration(
-              hintText: 'أضف أي تفاصيل تريد إرسالها مع الطلب...',
+              hintText: 'مثال: البرغر بدون لحم، وبدون صوص حار',
               filled: true,
               fillColor: const Color(0xFFF8FAFC),
               contentPadding: const EdgeInsets.symmetric(

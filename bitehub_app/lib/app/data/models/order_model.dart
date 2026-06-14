@@ -18,6 +18,7 @@ class OrderModel {
   final String? cafeName;
   // ??? ??????? cafeLogo ??? ?????? ???? ????? ????.
   final String? cafeLogo;
+  final String notes;
 
   OrderModel({
     required this.id,
@@ -29,6 +30,7 @@ class OrderModel {
     this.cafeId,
     this.cafeName,
     this.cafeLogo,
+    this.notes = '',
   });
 
   OrderModel copyWith({
@@ -41,6 +43,7 @@ class OrderModel {
     String? cafeId,
     String? cafeName,
     String? cafeLogo,
+    String? notes,
   }) {
     return OrderModel(
       id: id ?? this.id,
@@ -52,6 +55,7 @@ class OrderModel {
       cafeId: cafeId ?? this.cafeId,
       cafeName: cafeName ?? this.cafeName,
       cafeLogo: cafeLogo ?? this.cafeLogo,
+      notes: notes ?? this.notes,
     );
   }
 
@@ -71,6 +75,7 @@ class OrderModel {
       cafeId: json['cafe_id']?.toString() ?? json['college_id']?.toString(),
       cafeName: json['cafe_name'] ?? json['college_name'] ?? 'مقهى غير معروف',
       cafeLogo: json['cafe_logo'] ?? json['image_url'],
+      notes: json['notes']?.toString() ?? '',
     );
   }
 

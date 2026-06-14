@@ -1,7 +1,9 @@
 from decimal import Decimal
 from io import StringIO
+from pathlib import Path
 from tempfile import TemporaryDirectory
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -157,6 +159,26 @@ class SuperAdminCafeIdentityTests(TestCase):
         self.cafe.refresh_from_db()
         self.assertIsNotNone(self.cafe.owner)
         self.assertTrue(self.cafe.owner.check_password("NewCafePass2026"))
+
+    def test_password_reset_form_contains_csrf_and_refreshes_token_before_submit(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(reverse("core:super_admin_dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="resetCafePasswordForm"')
+        self.assertContains(response, 'name="csrfmiddlewaretoken"')
+        javascript = (
+            Path(settings.BASE_DIR)
+            / "static"
+            / "admin_v2"
+            / "super_admin_dashboard.js"
+        ).read_text(encoding="utf-8")
+        self.assertIn(
+            'resetCafePasswordForm?.addEventListener("submit"',
+            javascript,
+        )
+        self.assertIn("submitWithFreshCsrf(resetCafePasswordForm)", javascript)
 
 
 # ???? ???? CafeProvisioningTests ???? ?????? ????????? ???? ???? ?????.
@@ -422,6 +444,7 @@ class OrderWorkflowTests(TestCase):
                 "cafe_id": self.cafe.id,
                 "payment_method": "CASH",
                 "total_price": "10.00",
+                "order_note": "البرغر بدون لحم",
                 "items": [
                     {
                         "product_id": self.product.id,
@@ -440,7 +463,18 @@ class OrderWorkflowTests(TestCase):
         self.assertEqual(order.user, self.customer)
         self.assertEqual(order.status, OrderStatus.PENDING)
         self.assertEqual(order.total_price, Decimal("10.00"))
+        self.assertEqual(order.notes, "البرغر بدون لحم")
+        self.assertRegex(order.order_number, r"^BH-\d{6}$")
+        self.assertEqual(
+            response.json()["order"]["notes"],
+            "البرغر بدون لحم",
+        )
         self.assertEqual(OrderItem.objects.filter(order=order).count(), 1)
+
+        self.client.force_login(self.cashier)
+        panel_response = self.client.get(reverse("core:cafe_panel"))
+        self.assertContains(panel_response, "البرغر بدون لحم")
+        self.assertContains(panel_response, order.display_order_number)
 
     def test_legacy_create_order_endpoint_marks_deprecation(self):
         self.client.force_login(self.customer)

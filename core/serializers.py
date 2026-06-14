@@ -286,6 +286,7 @@ class OrderSerializer(CleanTextSerializerMixin, serializers.ModelSerializer):
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     # ??? ??????? payment_method_display ??? ????? ??? ???? ???? ???? ????? ????.
     payment_method_display = serializers.CharField(source='get_payment_method_display', read_only=True)
+    order_number = serializers.ReadOnlyField(source='display_order_number')
 
     # ???? ???? Meta ???? ?????? ????????? ???? ???? ?????.
     class Meta:
@@ -295,7 +296,7 @@ class OrderSerializer(CleanTextSerializerMixin, serializers.ModelSerializer):
         fields = [
             'id', 'order_number', 'total_price', 'status', 'status_display',
             'payment_method', 'payment_method_display', 'created_at',
-            'user_name', 'cafe_name', 'cafe_id', 'items',
+            'user_name', 'cafe_name', 'cafe_id', 'notes', 'items',
         ]
 
     def get_user_name(self, obj):
@@ -303,7 +304,7 @@ class OrderSerializer(CleanTextSerializerMixin, serializers.ModelSerializer):
 
 
 class NotificationSerializer(CleanTextSerializerMixin, serializers.ModelSerializer):
-    order_number = serializers.ReadOnlyField(source="order.order_number")
+    order_number = serializers.ReadOnlyField(source="order.display_order_number")
     cafe_name = serializers.ReadOnlyField(source="order.cafe.name")
 
     class Meta:

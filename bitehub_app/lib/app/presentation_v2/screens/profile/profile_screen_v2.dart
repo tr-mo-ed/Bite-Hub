@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:ionicons/ionicons.dart';
 import 'package:provider/provider.dart';
 
@@ -147,23 +146,6 @@ class _ProfileScreenV2State extends State<ProfileScreenV2> {
     await _controller.logout();
   }
 
-  Future<void> _copyWalletCode() async {
-    final code = _controller.wallet?.linkCode.trim() ?? '';
-    if (code.isEmpty) {
-      return;
-    }
-    await Clipboard.setData(ClipboardData(text: code));
-    if (!mounted) {
-      return;
-    }
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('تم نسخ كود المحفظة.'),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
   Future<void> _handleDeleteAccount() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -261,12 +243,6 @@ class _ProfileScreenV2State extends State<ProfileScreenV2> {
                     subtitle: 'تحديث الاسم والبريد ورقم الهاتف',
                     onTap: _showEditDialog,
                   ),
-                  ProfileMenuItem(
-                    icon: Ionicons.refresh_outline,
-                    title: 'تحديث البيانات',
-                    subtitle: 'إعادة جلب آخر بياناتك من الخادم',
-                    onTap: _controller.refresh,
-                  ),
                 ],
               ),
               const SizedBox(height: 16),
@@ -300,14 +276,6 @@ class _ProfileScreenV2State extends State<ProfileScreenV2> {
                     title: user.phoneNumber,
                     subtitle: 'رقم الهاتف',
                     onTap: _showEditDialog,
-                  ),
-                  ProfileMenuItem(
-                    icon: Ionicons.qr_code_outline,
-                    title: _controller.wallet?.linkCode.isNotEmpty == true
-                        ? _controller.wallet!.linkCode
-                        : 'غير متوفر',
-                    subtitle: 'كود المحفظة',
-                    onTap: _copyWalletCode,
                   ),
                 ],
               ),

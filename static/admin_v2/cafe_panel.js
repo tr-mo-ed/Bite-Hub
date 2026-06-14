@@ -215,6 +215,7 @@
       ? new Date(order.created_at).toLocaleTimeString("ar-LY", { hour: "2-digit", minute: "2-digit" })
       : "";
     const customer = escapeHtml(order.user_name || order.user || "طالب");
+    const orderNote = String(order.notes || "").trim();
 
     return `
       <article class="kanban-card order-ticket" data-order-id="${order.id}">
@@ -226,6 +227,7 @@
           <span class="order-price">${escapeHtml(order.total_price || "0.00")} د.ل</span>
         </div>
         <div class="order-ticket-items">${items || '<div class="line-item text-muted">بدون عناصر مسجلة</div>'}</div>
+        ${orderNote ? `<div class="order-note"><strong>ملاحظة الطالب</strong><span>${escapeHtml(orderNote)}</span></div>` : ""}
         <div class="order-ticket-footer">
           ${nextStatus ? `<button type="button" class="btn btn-sm rounded-2 px-3 js-order-action order-primary-action" data-order-id="${order.id}" data-status="${nextStatus}">${escapeHtml(nextLabel)}</button>` : ""}
           ${cancelButton}

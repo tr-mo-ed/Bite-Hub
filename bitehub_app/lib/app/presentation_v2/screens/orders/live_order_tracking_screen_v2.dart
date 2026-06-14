@@ -654,6 +654,40 @@ class _OrderDetailsCard extends StatelessWidget {
               ),
             ],
           ),
+          if (order.notes.trim().isNotEmpty) ...[
+            const SizedBox(height: BhSpacing.md),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(BhSpacing.md),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFFBEB),
+                borderRadius: BorderRadius.circular(BhRadius.sm),
+                border: Border.all(color: const Color(0xFFFDE68A)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'ملاحظتك للمقهى',
+                    style: TextStyle(
+                      color: Color(0xFF92400E),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    order.notes,
+                    style: const TextStyle(
+                      color: Color(0xFF713F12),
+                      fontWeight: FontWeight.w700,
+                      height: 1.45,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           if (order.items.isNotEmpty) ...[
             const SizedBox(height: BhSpacing.lg),
             const Divider(height: 1, color: AppColors.border),

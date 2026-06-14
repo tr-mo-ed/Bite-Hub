@@ -16,12 +16,12 @@ def order_status_notification(sender, instance, created, **kwargs):
         send_real_notification(
             instance.user, 
             "تم الاستلام ✅", 
-            f"تم تسليم الطلب #{instance.order_number}. شكراً لاستخدامك تطبيقنا."
+            f"تم تسليم الطلب #{instance.display_order_number}. شكراً لاستخدامك تطبيقنا."
         )
 
     elif instance.status == 'CANCELLED':
         send_real_notification(
             instance.user, 
             "تم إلغاء الطلب ❌", 
-            f"عذراً، تم إلغاء الطلب #{instance.order_number}. يرجى مراجعة الإدارة."
+            f"عذراً، تم إلغاء الطلب #{instance.display_order_number}. يرجى مراجعة الإدارة."
         )

@@ -253,44 +253,14 @@ class _SelectedCafeHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(BhSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(BhRadius.lg),
-        border: Border.all(color: const Color(0xFFD8E4F7)),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.brandNavy.withValues(alpha: .05),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
       child: Row(
         children: [
-          Container(
-            width: 80,
-            height: 80,
-            padding: const EdgeInsets.all(4),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              shape: BoxShape.circle,
-              border: Border.all(color: const Color(0xFFD8E4F7)),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.brandBlue.withValues(alpha: .12),
-                  blurRadius: 16,
-                  offset: const Offset(0, 6),
-                ),
-              ],
-            ),
-            child: ClipOval(
-              child: ProductImageView(
-                imagePath: cafe?.image ?? 'assets/images/logo.png',
-                fit: BoxFit.cover,
-              ),
-            ),
+          _CafeAvatar(
+            cafe: cafe,
+            size: 72,
+            selected: cafe != null,
           ),
           const SizedBox(width: BhSpacing.md),
           Expanded(
@@ -397,7 +367,7 @@ class _CafeSelector extends StatelessWidget {
     }
 
     return SizedBox(
-      height: 154,
+      height: 126,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: cafes.length,
@@ -429,103 +399,132 @@ class _CafeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 132,
+      width: 104,
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(BhRadius.md),
-          child: Ink(
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(BhRadius.md),
-              border: Border.all(
-                color: selected ? AppColors.brandBlue : AppColors.border,
-                width: selected ? 1.5 : 1,
-              ),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(
-                    child: Center(
-                      child: Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          Container(
-                            width: 84,
-                            height: 84,
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              color: AppColors.surface,
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: selected
-                                    ? AppColors.brandBlue
-                                    : const Color(0xFFD8E4F7),
-                                width: selected ? 2 : 1,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppColors.brandNavy.withValues(
-                                    alpha: selected ? .14 : .07,
-                                  ),
-                                  blurRadius: 14,
-                                  offset: const Offset(0, 6),
-                                ),
-                              ],
-                            ),
-                            child: ClipOval(
-                              child: ProductImageView(
-                                imagePath:
-                                    cafe.image ?? 'assets/images/logo.png',
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                          ),
-                          if (selected)
-                            const PositionedDirectional(
-                              top: -2,
-                              end: -2,
-                              child: CircleAvatar(
-                                radius: 13,
-                                backgroundColor: AppColors.brandBlue,
-                                child: Icon(
-                                  Icons.check_rounded,
-                                  size: 16,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
+          borderRadius: BorderRadius.circular(52),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+            child: Column(
+              children: [
+                _CafeAvatar(
+                  cafe: cafe,
+                  size: 78,
+                  selected: selected,
+                ),
+                const SizedBox(height: 7),
+                Text(
+                  cafe.name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color:
+                        selected ? AppColors.brandBlue : AppColors.textPrimary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                    height: 1.2,
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    cafe.name,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: selected
-                          ? AppColors.brandBlue
-                          : AppColors.textPrimary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w900,
-                      height: 1.25,
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
       ),
     );
   }
+}
+
+class _CafeAvatar extends StatelessWidget {
+  const _CafeAvatar({
+    required this.cafe,
+    required this.size,
+    required this.selected,
+  });
+
+  final CollegeModel? cafe;
+  final double size;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    final imageUrl = cafe?.image?.trim() ?? '';
+    final initials = _cafeInitials(cafe?.name ?? 'Bite Hub');
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 220),
+      width: size,
+      height: size,
+      padding: EdgeInsets.all(selected ? 3 : 2),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.white,
+        border: Border.all(
+          color: selected ? AppColors.brandBlue : const Color(0xFFD8E4F7),
+          width: selected ? 2.2 : 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.brandNavy.withValues(alpha: selected ? .13 : .06),
+            blurRadius: selected ? 16 : 10,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: ClipOval(
+        child: imageUrl.isEmpty
+            ? _CafeInitials(initials: initials)
+            : Image.network(
+                imageUrl,
+                fit: BoxFit.cover,
+                filterQuality: FilterQuality.high,
+                isAntiAlias: true,
+                gaplessPlayback: true,
+                errorBuilder: (_, __, ___) => _CafeInitials(initials: initials),
+              ),
+      ),
+    );
+  }
+}
+
+class _CafeInitials extends StatelessWidget {
+  const _CafeInitials({required this.initials});
+
+  final String initials;
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: const Color(0xFFEFF4FF),
+      child: Center(
+        child: Text(
+          initials,
+          style: const TextStyle(
+            color: AppColors.brandBlue,
+            fontSize: 18,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+String _cafeInitials(String name) {
+  final words = name
+      .split(RegExp(r'\s+'))
+      .where((word) => word.trim().isNotEmpty && word != 'مقهى')
+      .toList();
+  if (words.isEmpty) {
+    return 'BH';
+  }
+  if (words.length == 1) {
+    final word = words.first;
+    return word.substring(0, word.length >= 2 ? 2 : 1);
+  }
+  return '${words.first[0]}${words.last[0]}';
 }
 
 class _SearchField extends StatelessWidget {

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 import logging
-import uuid
+import secrets
 
 from asgiref.sync import async_to_sync
 try:
@@ -64,8 +64,7 @@ ORDER_STATUS_NOTIFICATIONS = {
 # ???? ???? _generate_order_number ?????? ????? ?????? ?? ????? ????.
 def _generate_order_number() -> str:
     while True:
-        # ??? ??????? candidate ??? ????? ??? ???? ???? ???? ????? ????.
-        candidate = f"BH{uuid.uuid4().hex[:8].upper()}"
+        candidate = f"BH-{secrets.randbelow(1_000_000):06d}"
         if not Order.objects.filter(order_number=candidate).exists():
             return candidate
 
@@ -92,13 +91,14 @@ def _broadcast_order_event(order: Order, event_name: str) -> None:
     # ??? ??????? payload ??? ????? ??? ???? ???? ???? ????? ????.
     payload = {
         "id": order.id,
-        "order_number": order.order_number,
+        "order_number": order.display_order_number,
         "cafe_id": order.cafe_id,
         "cafe_name": order.cafe.name if getattr(order, "cafe", None) else "",
         "user_id": order.user_id,
         "total_price": str(order.total_price),
         "status": order.status,
         "payment_method": order.payment_method,
+        "notes": order.notes,
         "created_at": order.created_at.isoformat() if order.created_at else None,
         "items": items_payload,
     }
@@ -168,11 +168,15 @@ def create_order(
     total_price: Decimal | None = None,
     payment_method: str = PaymentMethod.WALLET,
     nfc_card_uid: str | None = None,
+    order_note: str | None = None,
 ) -> Order:
     if not items_data:
         raise ValidationServiceError("Order items are required.")
 
     payment_method = _normalize_payment_method(payment_method)
+    normalized_order_note = (order_note or "").strip()
+    if len(normalized_order_note) > 500:
+        raise ValidationServiceError("Order note must not exceed 500 characters.")
 
     # ??? ??????? raw_product_ids ??? ????? ??? ???? ???? ???? ????? ????.
     raw_product_ids = [item.get("product_id") for item in items_data]
@@ -325,6 +329,7 @@ def create_order(
             payment_method=payment_method,
             # ??? ??????? order_number ??? ????? ??? ???? ???? ???? ????? ????.
             order_number=_generate_order_number(),
+            notes=normalized_order_note,
         )
 
         for order_item in order_items:
@@ -336,7 +341,7 @@ def create_order(
         send_real_notification(
             user,
             "تم استلام طلبك",
-            f"طلبك #{order.order_number} قيد المراجعة.",
+            f"طلبك #{order.display_order_number} قيد المراجعة.",
             event_type="ORDER_CREATED",
             order=order,
         )
@@ -361,7 +366,7 @@ def _refund_wallet_for_cancelled_order(order: Order) -> None:
         amount=order.total_price,
         transaction_type="DEPOSIT",
         source="SYSTEM",
-        description=f"Refund for cancelled order #{order.order_number or order.pk}",
+        description=f"Refund for cancelled order #{order.display_order_number}",
     )
 
 
@@ -395,7 +400,7 @@ def cancel_user_order(order_id: int, user) -> Order:
     send_real_notification(
         order.user,
         "تم إلغاء الطلب",
-        f"تم إلغاء طلبك #{order.order_number or order.pk}.",
+        f"تم إلغاء طلبك #{order.display_order_number}.",
         event_type="ORDER_CANCELLED",
         order=order,
     )
@@ -449,12 +454,12 @@ def update_order_status(order_id, cafe_id, new_status, user) -> Order:
 
     title, body = ORDER_STATUS_NOTIFICATIONS.get(
         normalized_status,
-        ("تم تحديث الطلب", f"تم تحديث طلبك #{order.order_number or order.pk}."),
+        ("تم تحديث الطلب", f"تم تحديث طلبك #{order.display_order_number}."),
     )
     send_real_notification(
         order.user,
         title,
-        f"{body} رقم الطلب: {order.order_number or order.pk}.",
+        f"{body} رقم الطلب: {order.display_order_number}.",
         event_type=f"ORDER_{normalized_status}",
         order=order,
     )

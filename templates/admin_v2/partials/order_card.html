@@ -1,7 +1,7 @@
 <article class="kanban-card order-ticket" data-order-id="{{ order.id }}">
   <div class="order-ticket-head">
     <div>
-      <div class="order-number">#{{ order.order_number }}</div>
+      <div class="order-number">#{{ order.display_order_number }}</div>
       <div class="meta">{{ order.created_at|date:"H:i" }} - {{ order.user.full_name|default:order.user.email }}</div>
     </div>
     <span class="order-price">{{ order.total_price }} د.ل</span>
@@ -16,6 +16,12 @@
       <div class="line-item text-muted">بدون عناصر مسجلة</div>
     {% endfor %}
   </div>
+  {% if order.notes %}
+    <div class="order-note">
+      <strong>ملاحظة الطالب</strong>
+      <span>{{ order.notes }}</span>
+    </div>
+  {% endif %}
   <div class="order-ticket-footer">
     <button
       type="button"

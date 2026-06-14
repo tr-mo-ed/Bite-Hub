@@ -134,6 +134,11 @@
     resetCafePasswordInput.select();
   });
 
+  resetCafePasswordForm?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    submitWithFreshCsrf(resetCafePasswordForm);
+  });
+
   const updateCafeImageForm = document.getElementById("updateCafeImageForm");
   const updateCafeImageInput = document.getElementById("updateCafeImageInput");
   const updateCafeImagePreview = document.getElementById("updateCafeImagePreview");
