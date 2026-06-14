@@ -347,7 +347,7 @@
         const wallet = payload.wallet || {};
         writeResult(
           walletOpsResult,
-          `تمت العملية: ${wallet.user || ""} | الرصيد الحالي ${wallet.balance || "0.00"} د.ل | الكود ${wallet.link_code || "-"}`,
+          `تمت العملية: ${wallet.user || ""} | الرصيد الحالي ${wallet.balance || "0.00"} د.ل | البطاقة ${wallet.nfc_card_uid || "-"} | كود المحفظة ${wallet.link_code || "-"}`,
           "success",
         );
         showToast("تم تحديث المحفظة.", "success");
@@ -368,7 +368,7 @@
         const wallet = payload.wallet || {};
         writeResult(
           cardBindResult,
-          `تم ربط البطاقة ${wallet.link_code || "-"} بمحفظة ${wallet.user || ""}.`,
+          `تم ربط البطاقة ${wallet.nfc_card_uid || "-"} بمحفظة ${wallet.user || ""}.`,
           "success",
         );
         showToast("تم تعريف بطاقة الطالب.", "success");

@@ -77,6 +77,7 @@ class _WalletScreenV2State extends State<WalletScreenV2> {
                 _WalletActions(
                   isBusy: _controller.isPerformingAction,
                   onTransfer: _showTransferDialog,
+                  onNfcTransfer: _showNfcTransfer,
                   onNfc: _linkNfcCard,
                   hasNfcCard: wallet.hasNfcCard,
                   onRefresh: _controller.refresh,
@@ -96,18 +97,8 @@ class _WalletScreenV2State extends State<WalletScreenV2> {
       return;
     }
 
-    showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const _NfcScanningDialog(),
-    );
-
     try {
-      final cardUid = await NfcCardService.instance.scanCard();
-      if (!mounted) {
-        return;
-      }
-      Navigator.of(context, rootNavigator: true).pop();
+      final cardUid = await _scanNfcCard();
       final success = await _controller.linkNfcCard(cardUid);
       if (mounted) {
         _showResult(success);
@@ -116,7 +107,83 @@ class _WalletScreenV2State extends State<WalletScreenV2> {
       if (!mounted) {
         return;
       }
-      Navigator.of(context, rootNavigator: true).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error.toString()),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+    }
+  }
+
+  Future<String> _scanNfcCard() async {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const _NfcScanningDialog(),
+    );
+    try {
+      return await NfcCardService.instance.scanCard();
+    } finally {
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+    }
+  }
+
+  Future<void> _showNfcTransfer() async {
+    if (_controller.isPerformingAction) {
+      return;
+    }
+
+    try {
+      final cardUid = await _scanNfcCard();
+      final card = await _controller.lookupNfcCard(cardUid);
+      if (!mounted) {
+        return;
+      }
+      if (card.isOwner) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('لا يمكن التحويل إلى بطاقتك أنت.'),
+            backgroundColor: AppColors.danger,
+          ),
+        );
+        return;
+      }
+
+      final details = [
+        if (card.college.isNotEmpty) card.college,
+        if (card.email.isNotEmpty) card.email,
+        if (card.cardLast4.isNotEmpty) 'البطاقة •••• ${card.cardLast4}',
+      ].join('  •  ');
+      final data = await _showAmountDialog(
+        title: 'تحويل إلى ${card.studentName}',
+        primaryLabel: 'تأكيد التحويل',
+        showWalletCode: false,
+        helperText: details,
+      );
+      if (data == null) {
+        return;
+      }
+
+      final success = await _controller.transferToNfcCard(
+        cardUid: cardUid,
+        amount: data.amount,
+        note: data.note,
+      );
+      if (success && mounted) {
+        await context.read<NotificationProvider>().refreshFromServer(
+              silent: true,
+            );
+      }
+      if (mounted) {
+        _showResult(success);
+      }
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(error.toString()),
@@ -158,6 +225,7 @@ class _WalletScreenV2State extends State<WalletScreenV2> {
     required String primaryLabel,
     required bool showWalletCode,
     bool showRecipientName = false,
+    String? helperText,
   }) {
     final codeController = TextEditingController();
     final recipientNameController = TextEditingController();
@@ -171,6 +239,25 @@ class _WalletScreenV2State extends State<WalletScreenV2> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (helperText != null && helperText.trim().isNotEmpty) ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(BhSpacing.md),
+                decoration: BoxDecoration(
+                  color: AppColors.neutral50,
+                  borderRadius: BorderRadius.circular(BhRadius.sm),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Text(
+                  helperText,
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const SizedBox(height: BhSpacing.md),
+            ],
             if (showWalletCode) ...[
               TextField(
                 controller: codeController,
@@ -577,6 +664,7 @@ class _WalletActions extends StatelessWidget {
   const _WalletActions({
     required this.isBusy,
     required this.onTransfer,
+    required this.onNfcTransfer,
     required this.onNfc,
     required this.hasNfcCard,
     required this.onRefresh,
@@ -584,6 +672,7 @@ class _WalletActions extends StatelessWidget {
 
   final bool isBusy;
   final VoidCallback onTransfer;
+  final VoidCallback onNfcTransfer;
   final VoidCallback onNfc;
   final bool hasNfcCard;
   final VoidCallback onRefresh;
@@ -592,6 +681,11 @@ class _WalletActions extends StatelessWidget {
   Widget build(BuildContext context) {
     final actions = [
       _ActionSpec(Icons.swap_horiz_rounded, 'تحويل', onTransfer),
+      _ActionSpec(
+        Icons.contactless_rounded,
+        'تحويل إلى بطاقة',
+        onNfcTransfer,
+      ),
       _ActionSpec(
         Icons.nfc_rounded,
         hasNfcCard ? 'تغيير البطاقة' : 'ربط بطاقة',

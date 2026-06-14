@@ -952,7 +952,8 @@
                 <th>صاحب المحفظة</th>
                 <th>الهاتف</th>
                 <th>البريد</th>
-                <th>الكود / البطاقة</th>
+                <th>كود المحفظة</th>
+                <th>بطاقة NFC</th>
                 <th>الرصيد</th>
                 <th>آخر تحديث</th>
               </tr>
@@ -967,12 +968,13 @@
                   <td><div class="wallet-muted-value">{{ wallet.user.phone_number|default:"-" }}</div></td>
                   <td><div class="wallet-muted-value">{{ wallet.user.email|default:"-" }}</div></td>
                   <td><span class="wallet-code-chip">{{ wallet.link_code|default:"بدون كود" }}</span></td>
+                  <td><span class="wallet-code-chip">{{ wallet.nfc_card_uid|default:"غير مرتبطة" }}</span></td>
                   <td><strong>{{ wallet.balance|floatformat:2 }} د.ل</strong></td>
                   <td><div class="wallet-muted-value">{{ wallet.updated_at|date:"Y-m-d H:i" }}</div></td>
                 </tr>
               {% empty %}
                 <tr>
-                  <td colspan="6">
+                  <td colspan="7">
                     <div class="wallet-empty-ledger">
                       <div>
                         <div class="fw-bold mb-1">لا توجد محافظ مسجلة</div>
@@ -1048,7 +1050,7 @@
             <div class="nfc-form-grid">
               <div>
                 <label class="form-label">الطالب</label>
-                <input class="form-control" name="identifier" placeholder="email / phone / wallet code" required>
+                <input class="form-control" name="identifier" placeholder="email / phone / wallet code / NFC card" required>
               </div>
               <div>
                 <label class="form-label">كود البطاقة</label>

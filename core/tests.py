@@ -466,6 +466,71 @@ class OrderWorkflowTests(TestCase):
         self.assertIn("/api/v2/app/orders/", response.headers["Link"])
         self.assertEqual(Order.objects.count(), 1)
 
+    def test_create_order_with_linked_nfc_card_withdraws_wallet_balance(self):
+        wallet = Wallet.objects.get(user=self.customer)
+        wallet.nfc_card_uid = "NFC-A1B2C3D4"
+        wallet.save(update_fields=["nfc_card_uid", "updated_at"])
+        Transaction.objects.create(
+            wallet=wallet,
+            amount=Decimal("20.00"),
+            transaction_type="DEPOSIT",
+            source="SYSTEM",
+            description="Test top-up",
+        )
+        self.client.force_login(self.customer)
+
+        response = self.client.post(
+            reverse("v2_app_orders"),
+            data={
+                "cafe_id": self.cafe.id,
+                "payment_method": "NFC",
+                "nfc_card_uid": "nfc-a1b2c3d4",
+                "total_price": "10.00",
+                "items": [{"product_id": self.product.id, "quantity": 2}],
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 201, response.content)
+        wallet.refresh_from_db()
+        self.assertEqual(wallet.balance, Decimal("10.00"))
+        self.assertEqual(Order.objects.get().payment_method, "NFC")
+        self.assertTrue(
+            wallet.transactions.filter(
+                transaction_type="WITHDRAWAL",
+                source="NFC",
+                amount=Decimal("10.00"),
+            ).exists()
+        )
+
+    def test_create_order_rejects_nfc_card_owned_by_another_wallet(self):
+        wallet = Wallet.objects.get(user=self.customer)
+        wallet.nfc_card_uid = "NFC-OWN-CARD"
+        wallet.save(update_fields=["nfc_card_uid", "updated_at"])
+        Transaction.objects.create(
+            wallet=wallet,
+            amount=Decimal("20.00"),
+            transaction_type="DEPOSIT",
+            source="SYSTEM",
+        )
+        self.client.force_login(self.customer)
+
+        response = self.client.post(
+            reverse("v2_app_orders"),
+            data={
+                "cafe_id": self.cafe.id,
+                "payment_method": "NFC",
+                "nfc_card_uid": "NFC-OTHER-CARD",
+                "total_price": "5.00",
+                "items": [{"product_id": self.product.id, "quantity": 1}],
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400, response.content)
+        wallet.refresh_from_db()
+        self.assertEqual(wallet.balance, Decimal("20.00"))
+        self.assertFalse(Order.objects.exists())
     # ???? ???? test_cashier_can_change_order_status_from_panel ?????? ????? ?????? ?? ????? ????.
     def test_cashier_can_change_order_status_from_panel(self):
         # ??? ??????? order ??? ????? ??? ???? ???? ???? ????? ????.
@@ -860,6 +925,86 @@ class OrderWorkflowTests(TestCase):
 
 
 # ???? ???? DashboardRenderSmokeTests ???? ?????? ????????? ???? ???? ?????.
+class NfcWalletApiTests(TestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.sender = User.objects.create_user(
+            email="nfc-sender@example.com",
+            password="StrongPass123",
+            full_name="NFC Sender",
+            phone_number="0910000031",
+        )
+        self.recipient = User.objects.create_user(
+            email="nfc-recipient@example.com",
+            password="StrongPass123",
+            full_name="NFC Recipient",
+            phone_number="0910000032",
+        )
+        Transaction.objects.create(
+            wallet=self.sender.wallet,
+            amount=Decimal("100.00"),
+            transaction_type="DEPOSIT",
+            source="SYSTEM",
+        )
+
+    def test_link_lookup_and_transfer_to_nfc_card(self):
+        self.client.force_login(self.recipient)
+        link_response = self.client.post(
+            reverse("link_nfc_card"),
+            data={"card_uid": "nfc-deadbeef"},
+            content_type="application/json",
+        )
+        self.assertEqual(link_response.status_code, 200, link_response.content)
+
+        self.client.force_login(self.sender)
+        lookup_response = self.client.post(
+            reverse("lookup_nfc_card"),
+            data={"card_uid": "NFC-DEADBEEF"},
+            content_type="application/json",
+        )
+        self.assertEqual(lookup_response.status_code, 200, lookup_response.content)
+        self.assertEqual(
+            lookup_response.json()["card"]["student_name"],
+            self.recipient.full_name,
+        )
+        self.assertNotIn("balance", lookup_response.json()["card"])
+
+        transfer_response = self.client.post(
+            reverse("transfer_to_nfc_card"),
+            data={
+                "card_uid": "NFC-DEADBEEF",
+                "amount": "25.00",
+                "note": "Card transfer",
+            },
+            content_type="application/json",
+        )
+        self.assertEqual(transfer_response.status_code, 200, transfer_response.content)
+        self.sender.wallet.refresh_from_db()
+        self.recipient.wallet.refresh_from_db()
+        self.assertEqual(self.sender.wallet.balance, Decimal("75.00"))
+        self.assertEqual(self.recipient.wallet.balance, Decimal("25.00"))
+        self.assertTrue(
+            self.recipient.wallet.transactions.filter(source="NFC").exists()
+        )
+
+    def test_card_cannot_be_linked_to_two_students(self):
+        self.client.force_login(self.recipient)
+        self.client.post(
+            reverse("link_nfc_card"),
+            data={"card_uid": "NFC-UNIQUE01"},
+            content_type="application/json",
+        )
+        self.client.force_login(self.sender)
+
+        response = self.client.post(
+            reverse("link_nfc_card"),
+            data={"card_uid": "NFC-UNIQUE01"},
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 409, response.content)
+
+
 class DashboardRenderSmokeTests(TestCase):
     # ???? ???? setUp ?????? ????? ?????? ?? ????? ????.
     def setUp(self):
@@ -1009,7 +1154,15 @@ class DashboardRenderSmokeTests(TestCase):
 
         self.assertEqual(response.status_code, 200, response.content)
         wallet = Wallet.objects.get(user=self.student)
-        self.assertEqual(wallet.link_code, "CARD-001")
+        self.assertEqual(wallet.nfc_card_uid, "CARD-001")
+
+        deposit_response = self.client.post(
+            reverse("core:cafe_wallet_operation_api"),
+            data={"identifier": "CARD-001", "operation": "DEPOSIT", "amount": "10.00"},
+        )
+        self.assertEqual(deposit_response.status_code, 200, deposit_response.content)
+        wallet.refresh_from_db()
+        self.assertEqual(wallet.balance, Decimal("10.00"))
 
     def test_cafe_panel_snapshot_returns_current_live_orders(self):
         category = Category.objects.create(cafe=self.cafe, name="Coffee")

@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:bitehub_app/app/data/models/college_model.dart';
 import 'package:bitehub_app/app/data/models/notification_model.dart';
+import 'package:bitehub_app/app/data/models/nfc_card_model.dart';
 import 'package:bitehub_app/app/data/models/order_model.dart';
 import 'package:bitehub_app/app/data/models/product_model.dart';
 import 'package:bitehub_app/app/data/models/user_model.dart' as app_user;
@@ -221,6 +222,11 @@ class ApiService {
         lower.contains('xmlhttprequest')) {
       return 'تعذر الاتصال بالخادم. تأكد من الإنترنت ثم حاول مرة أخرى.';
     }
+    if (lower.contains('<!doctype html') ||
+        lower.contains('<html') ||
+        lower.contains('page not found at')) {
+      return 'الخدمة المطلوبة غير متاحة على الخادم. حدّث التطبيق والخادم ثم حاول مجددًا.';
+    }
     if (lower.contains('account was not found')) {
       return 'لا يوجد حساب بهذه البيانات.';
     }
@@ -347,8 +353,7 @@ class ApiService {
   }
 
   // ???? ???? login ???? ??????? ?? ????? ???? ?????? ?????.
-  Future<Map<String, dynamic>> login(
-      String identifier, String password) async {
+  Future<Map<String, dynamic>> login(String identifier, String password) async {
     final url = Uri.parse('$baseUrl/api/v2/app/auth/login/');
     final normalizedIdentifier = identifier.trim();
     final payload = <String, dynamic>{
@@ -571,6 +576,65 @@ class ApiService {
           url,
           headers: headers,
           body: json.encode({'card_uid': cardUid}),
+        ),
+      );
+      final data = _decodeBody(response);
+      if (response.statusCode == 200 &&
+          data is Map &&
+          data['success'] == true) {
+        return true;
+      }
+      throw _buildException(response, data);
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      throw _networkException(e);
+    }
+  }
+
+  Future<NfcCardModel> lookupNfcCard(String cardUid) async {
+    final url = Uri.parse('$baseUrl/api/v2/app/wallet/nfc/lookup/');
+
+    try {
+      final response = await _sendWithAuthRetry(
+        (headers) => http.post(
+          url,
+          headers: headers,
+          body: json.encode({'card_uid': cardUid}),
+        ),
+      );
+      final data = _decodeBody(response);
+      if (response.statusCode == 200 && data is Map) {
+        final card = data['card'];
+        if (card is Map) {
+          return NfcCardModel.fromJson(Map<String, dynamic>.from(card));
+        }
+      }
+      throw _buildException(response, data);
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      throw _networkException(e);
+    }
+  }
+
+  Future<bool> transferWalletToNfc({
+    required String cardUid,
+    required double amount,
+    String? note,
+  }) async {
+    final url = Uri.parse('$baseUrl/api/v2/app/wallet/nfc/transfer/');
+
+    try {
+      final response = await _sendWithAuthRetry(
+        (headers) => http.post(
+          url,
+          headers: headers,
+          body: json.encode({
+            'card_uid': cardUid,
+            'amount': amount,
+            if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
+          }),
         ),
       );
       final data = _decodeBody(response);

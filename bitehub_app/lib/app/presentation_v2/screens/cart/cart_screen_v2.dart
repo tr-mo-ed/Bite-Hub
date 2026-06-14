@@ -750,17 +750,27 @@ class _CartItemImage extends StatelessWidget {
                 ? Image.network(
                     imageUrl,
                     fit: BoxFit.cover,
+                    filterQuality: FilterQuality.high,
+                    isAntiAlias: true,
+                    gaplessPlayback: true,
                     errorBuilder: (_, __, ___) => const Icon(
                       Icons.fastfood_rounded,
                       color: Color(0xFF94A3B8),
                     ),
                   )
                 : File(imageUrl).existsSync()
-                    ? Image.file(File(imageUrl), fit: BoxFit.cover)
+                    ? Image.file(
+                        File(imageUrl),
+                        fit: BoxFit.cover,
+                        filterQuality: FilterQuality.high,
+                        isAntiAlias: true,
+                      )
                     : hasAsset
                         ? Image.asset(
                             imageUrl,
                             fit: BoxFit.cover,
+                            filterQuality: FilterQuality.high,
+                            isAntiAlias: true,
                             errorBuilder: (_, __, ___) => const Icon(
                               Icons.fastfood_rounded,
                               color: Color(0xFF94A3B8),

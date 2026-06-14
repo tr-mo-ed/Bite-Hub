@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:bitehub_app/app/core/localization/app_strings.dart';
-import 'package:bitehub_app/app/data/models/college_model.dart';
 import 'package:bitehub_app/app/data/providers/auth_provider.dart';
 import 'package:bitehub_app/app/data/providers/navigation_provider.dart';
 import 'package:bitehub_app/app/presentation_v2/controllers/shell_v2_controller.dart';
@@ -38,11 +37,6 @@ class _MainShellV2State extends State<MainShellV2> {
   void dispose() {
     _controller.dispose();
     super.dispose();
-  }
-
-  Future<void> _handleCafeSelection(CollegeModel cafe) async {
-    context.read<NavigationProvider>().setIndex(0);
-    await _homeKey.currentState?.selectCafeById(cafe.id);
   }
 
   void _openCafeDashboard() {
@@ -100,7 +94,6 @@ class _MainShellV2State extends State<MainShellV2> {
               drawer: ShellDrawerV2(
                 controller: _controller,
                 onSelectIndex: navigation.setIndex,
-                onSelectCafe: _handleCafeSelection,
                 onOpenCafeDashboard: _openCafeDashboard,
               ),
               actions: [

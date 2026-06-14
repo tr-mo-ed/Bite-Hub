@@ -270,28 +270,38 @@ class _OrderRow extends StatelessWidget {
                   ),
                 ),
               ),
-              if (isLive)
-                OutlinedButton.icon(
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => LiveOrderTrackingScreenV2(
-                          initialOrder: order,
-                          initialOrderId: order.id,
-                        ),
+              FilledButton.icon(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => LiveOrderTrackingScreenV2(
+                        initialOrder: order,
+                        initialOrderId: order.id,
                       ),
-                    );
-                  },
-                  icon: const Icon(Icons.radar_rounded, size: 16),
-                  label: const Text('تتبع'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.brandBlue,
-                    side: const BorderSide(color: AppColors.border),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(BhRadius.sm),
                     ),
+                  );
+                },
+                icon: Icon(
+                  isLive
+                      ? Icons.location_searching_rounded
+                      : Icons.receipt_long_rounded,
+                  size: 18,
+                ),
+                label: Text(isLive ? 'تتبع الطلب' : 'عرض الطلب'),
+                style: FilledButton.styleFrom(
+                  elevation: 0,
+                  backgroundColor:
+                      isLive ? AppColors.brandBlue : const Color(0xFFEFF4FF),
+                  foregroundColor: isLive ? Colors.white : AppColors.brandBlue,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 11,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(BhRadius.sm),
                   ),
                 ),
+              ),
             ],
           ),
         ],

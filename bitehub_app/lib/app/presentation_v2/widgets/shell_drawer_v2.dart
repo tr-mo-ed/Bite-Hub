@@ -1,21 +1,17 @@
 import 'package:flutter/material.dart';
 
-import 'package:bitehub_app/app/data/models/college_model.dart';
 import 'package:bitehub_app/app/presentation_v2/controllers/shell_v2_controller.dart';
-import 'package:bitehub_app/app/presentation_v2/widgets/product_image_view.dart';
 
 class ShellDrawerV2 extends StatelessWidget {
   const ShellDrawerV2({
     super.key,
     required this.controller,
     required this.onSelectIndex,
-    required this.onSelectCafe,
     required this.onOpenCafeDashboard,
   });
 
   final ShellV2Controller controller;
   final ValueChanged<int> onSelectIndex;
-  final ValueChanged<CollegeModel> onSelectCafe;
   final VoidCallback onOpenCafeDashboard;
 
   @override
@@ -188,128 +184,6 @@ class ShellDrawerV2 extends StatelessWidget {
                       onTap: onOpenCafeDashboard,
                     ),
                   ],
-                  const SizedBox(height: 18),
-                  Row(
-                    children: [
-                      const Expanded(child: _SectionLabel('المقاهي المتاحة')),
-                      IconButton(
-                        onPressed: controller.refreshCafes,
-                        icon: const Icon(
-                          Icons.refresh_rounded,
-                          color: Color(0xFFE0B42C),
-                        ),
-                        tooltip: 'تحديث القائمة',
-                      ),
-                    ],
-                  ),
-                  if (controller.isLoadingCafes)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 20),
-                      child: Center(child: CircularProgressIndicator()),
-                    )
-                  else if (controller.cafes.isEmpty)
-                    Container(
-                      padding: const EdgeInsets.all(18),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(22),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.04),
-                            blurRadius: 16,
-                            offset: const Offset(0, 8),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        children: [
-                          Container(
-                            width: 56,
-                            height: 56,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFFF8E1),
-                              borderRadius: BorderRadius.circular(18),
-                            ),
-                            child: const Icon(
-                              Icons.storefront_outlined,
-                              color: Color(0xFFE0A800),
-                              size: 28,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          const Text(
-                            'لا توجد مقاهٍ متاحة حالياً',
-                            style: TextStyle(fontWeight: FontWeight.w800),
-                          ),
-                          if (controller.errorMessage != null) ...[
-                            const SizedBox(height: 8),
-                            Text(
-                              controller.errorMessage!,
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(color: Colors.redAccent),
-                            ),
-                          ],
-                        ],
-                      ),
-                    )
-                  else
-                    ...controller.cafes.map(
-                      (cafe) => Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: InkWell(
-                          onTap: () => onSelectCafe(cafe),
-                          borderRadius: BorderRadius.circular(18),
-                          child: Ink(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 14,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(18),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.035),
-                                  blurRadius: 12,
-                                  offset: const Offset(0, 6),
-                                ),
-                              ],
-                            ),
-                            child: Row(
-                              children: [
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(14),
-                                  child: SizedBox(
-                                    width: 36,
-                                    height: 36,
-                                    child: ProductImageView(
-                                      imagePath: cafe.image ??
-                                          'assets/images/logo.png',
-                                      fit: BoxFit.cover,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Text(
-                                    cafe.name,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ),
-                                const Icon(
-                                  Icons.chevron_left_rounded,
-                                  color: Color(0xFF64748B),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
                   const SizedBox(height: 12),
                   _DrawerTile(
                     icon: Icons.logout_rounded,

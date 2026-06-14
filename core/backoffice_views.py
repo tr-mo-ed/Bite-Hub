@@ -347,7 +347,14 @@ def _find_wallet_by_identifier(raw_identifier: str | None) -> Wallet | None:
         wallet, _ = Wallet.objects.get_or_create(user=user)
         return wallet
 
-    return Wallet.objects.select_related("user").filter(link_code__iexact=identifier).first()
+    return (
+        Wallet.objects.select_related("user")
+        .filter(
+            Q(link_code__iexact=identifier)
+            | Q(nfc_card_uid__iexact=identifier.upper())
+        )
+        .first()
+    )
 
 
 def _wallet_payload(wallet: Wallet) -> dict:
@@ -358,6 +365,9 @@ def _wallet_payload(wallet: Wallet) -> dict:
         "phone": wallet.user.phone_number,
         "balance": str(wallet.balance),
         "link_code": wallet.link_code,
+        "nfc_card_uid": wallet.nfc_card_uid,
+        "nfc_card_last4": (wallet.nfc_card_uid or "")[-4:],
+        "college": wallet.college,
     }
 
 
@@ -638,11 +648,11 @@ def cafe_bind_wallet_card_api(request: HttpRequest) -> JsonResponse:
     card_code = (request.POST.get("card_code") or request.POST.get("nfc_code") or "").strip().upper()
     if not card_code:
         return JsonResponse({"success": False, "message": "أدخل كود البطاقة أو مرر بطاقة NFC في الحقل."}, status=400)
-    if Wallet.objects.filter(link_code__iexact=card_code).exclude(pk=wallet.pk).exists():
+    if Wallet.objects.filter(nfc_card_uid__iexact=card_code).exclude(pk=wallet.pk).exists():
         return JsonResponse({"success": False, "message": "هذه البطاقة مربوطة بمحفظة أخرى."}, status=400)
 
-    wallet.link_code = card_code
-    wallet.save(update_fields=["link_code", "updated_at"])
+    wallet.nfc_card_uid = card_code
+    wallet.save(update_fields=["nfc_card_uid", "updated_at"])
     return JsonResponse({"success": True, "wallet": _wallet_payload(wallet)})
 
 
@@ -667,7 +677,7 @@ def cafe_panel(request: HttpRequest) -> HttpResponse:
         "kpis": snapshot["kpis"],
         "wallet_kpis": {
             "total_balance": Wallet.objects.aggregate(total=Sum("balance"))["total"] or 0,
-            "linked_cards": Wallet.objects.exclude(link_code__isnull=True).exclude(link_code="").count(),
+            "linked_cards": Wallet.objects.exclude(nfc_card_uid__isnull=True).exclude(nfc_card_uid="").count(),
             "wallets": Wallet.objects.count(),
         },
         "wallet_directory": _wallet_directory_queryset(),

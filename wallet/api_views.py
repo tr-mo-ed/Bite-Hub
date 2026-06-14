@@ -1,11 +1,15 @@
 from decimal import Decimal
-from django.db import transaction
+import re
+
+from django.db import IntegrityError, transaction
 from django.db.models import Q, Sum
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.conf import settings
 from django.contrib.auth import get_user_model
+
+from core.utils import send_real_notification
 
 from .models import Wallet, Transaction
 from .serializers import WalletSerializer
@@ -49,10 +53,114 @@ def get_request_user(request):
     raise ValueError("Authentication required")
 
 
+def _normalize_card_uid(raw_uid):
+    card_uid = str(raw_uid or "").strip().upper()
+    if not 4 <= len(card_uid) <= 64 or not re.fullmatch(r"[A-Z0-9:_-]+", card_uid):
+        raise ValueError("معرف بطاقة NFC غير صحيح.")
+    return card_uid
+
+
+def _parse_positive_amount(raw_amount):
+    try:
+        amount = Decimal(str(raw_amount))
+    except Exception as exc:
+        raise ValueError("قيمة المبلغ غير صحيحة.") from exc
+    if amount <= 0:
+        raise ValueError("يجب أن تكون القيمة أكبر من صفر.")
+    return amount
+
+
+def _masked_email(email):
+    local, separator, domain = str(email or "").partition("@")
+    if not separator:
+        return ""
+    visible = local[:2]
+    return f"{visible}{'*' * max(3, len(local) - len(visible))}@{domain}"
+
+
+def _nfc_wallet_payload(wallet, requesting_user):
+    can_view_private_data = (
+        wallet.user_id == requesting_user.id
+        or requesting_user.is_staff
+        or requesting_user.is_superuser
+    )
+    payload = {
+        "student_name": wallet.user.full_name or wallet.user.email,
+        "college": wallet.college,
+        "email": wallet.user.email if can_view_private_data else _masked_email(wallet.user.email),
+        "wallet_code": wallet.link_code if can_view_private_data else "",
+        "card_last4": (wallet.nfc_card_uid or "")[-4:],
+        "is_owner": wallet.user_id == requesting_user.id,
+    }
+    if can_view_private_data:
+        payload["balance"] = str(wallet.balance)
+        payload["phone"] = wallet.user.phone_number
+    return payload
+
+
+def _transfer_balance(sender_wallet, target_wallet, amount, *, note="", source="USER"):
+    if sender_wallet.id == target_wallet.id:
+        raise ValueError("لا يمكن التحويل إلى نفس المحفظة.")
+
+    with transaction.atomic():
+        wallet_ids = sorted([sender_wallet.id, target_wallet.id])
+        locked_wallets = {
+            wallet.id: wallet
+            for wallet in Wallet.objects.select_for_update()
+            .select_related("user")
+            .filter(id__in=wallet_ids)
+        }
+        sender = locked_wallets[sender_wallet.id]
+        target = locked_wallets[target_wallet.id]
+
+        if sender.balance < amount:
+            raise ValueError("رصيد المحفظة غير كافٍ لإتمام العملية.")
+
+        sender_description = f"تحويل إلى {target.user.full_name or target.user.email}"
+        receiver_description = f"تحويل من {sender.user.full_name or sender.user.email}"
+        if note:
+            sender_description = f"{sender_description} - {note}"
+            receiver_description = f"{receiver_description} - {note}"
+
+        Transaction.objects.create(
+            wallet=sender,
+            amount=amount,
+            transaction_type="WITHDRAWAL",
+            source=source,
+            description=sender_description,
+        )
+        Transaction.objects.create(
+            wallet=target,
+            amount=amount,
+            transaction_type="DEPOSIT",
+            source=source,
+            description=receiver_description,
+        )
+
+    sender.refresh_from_db()
+    target.refresh_from_db()
+    try:
+        send_real_notification(
+            sender.user,
+            "تم إرسال التحويل",
+            f"تم تحويل {amount} د.ل إلى {target.user.full_name or target.user.email}.",
+            event_type="WALLET_TRANSFER_SENT",
+        )
+        send_real_notification(
+            target.user,
+            "وصل تحويل إلى محفظتك",
+            f"استلمت {amount} د.ل من {sender.user.full_name or sender.user.email}.",
+            event_type="WALLET_TRANSFER_RECEIVED",
+        )
+    except Exception:
+        pass
+    return sender, target
+
+
 
 # ???? ???? get_wallet ?????? ????? ?????? ?? ????? ????.
 @api_view(['GET'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def get_wallet(request):
     try:
         # ??? ??????? user ??? ????? ??? ???? ???? ???? ????? ????.
@@ -80,7 +188,7 @@ def get_wallet(request):
 
 # ???? ???? transfer_wallet ?????? ????? ?????? ?? ????? ????.
 @api_view(['POST'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def transfer_wallet(request):
     try:
         # ??? ??????? user ??? ????? ??? ???? ???? ???? ????? ????.
@@ -101,13 +209,9 @@ def transfer_wallet(request):
         return Response({'error': 'يجب إدخال رقم المحفظة.'}, status=400)
 
     try:
-        # ??? ??????? amount ??? ????? ??? ???? ???? ???? ????? ????.
-        amount = Decimal(str(amount_raw))
-    except Exception:
-        return Response({'error': 'قيمة غير صحيحة.'}, status=400)
-
-    if amount <= 0:
-        return Response({'error': 'يجب أن تكون القيمة أكبر من صفر.'}, status=400)
+        amount = _parse_positive_amount(amount_raw)
+    except ValueError as exc:
+        return Response({'error': str(exc)}, status=400)
 
     try:
         # ??? ??????? sender_wallet ??? ????? ??? ???? ???? ???? ????? ????.
@@ -119,59 +223,18 @@ def transfer_wallet(request):
         if not target_wallet_lookup:
             return Response({'error': 'المحفظة المستلمة غير موجودة.'}, status=404)
 
-        if sender_wallet_lookup.id == target_wallet_lookup.id:
-            return Response({'error': 'لا يمكن التحويل إلى نفس المحفظة.'}, status=400)
-
-        with transaction.atomic():
-            wallet_ids = sorted([sender_wallet_lookup.id, target_wallet_lookup.id])
-            locked_wallets = {
-                wallet.id: wallet
-                for wallet in Wallet.objects.select_for_update()
-                .select_related("user")
-                .filter(id__in=wallet_ids)
-            }
-            sender_wallet = locked_wallets[sender_wallet_lookup.id]
-            target_wallet = locked_wallets[target_wallet_lookup.id]
-
-            if sender_wallet.balance < amount:
-                return Response({"error": "Insufficient wallet balance."}, status=400)
-            # ??? ??????? sender_desc ??? ????? ??? ???? ???? ???? ????? ????.
-            sender_desc = f"تحويل إلى {target_wallet.user.full_name}"
-            # ??? ??????? receiver_desc ??? ????? ??? ???? ???? ???? ????? ????.
-            receiver_desc = f"تحويل من {user.full_name}"
-            if note:
-                # ??? ??????? sender_desc ??? ????? ??? ???? ???? ???? ????? ????.
-                sender_desc = f"{sender_desc} - {note}"
-                # ??? ??????? receiver_desc ??? ????? ??? ???? ???? ???? ????? ????.
-                receiver_desc = f"{receiver_desc} - {note}"
-
-            Transaction.objects.create(
-                # ??? ??????? wallet ??? ????? ??? ???? ???? ???? ????? ????.
-                wallet=sender_wallet,
-                # ??? ??????? amount ??? ????? ??? ???? ???? ???? ????? ????.
-                amount=amount,
-                # ??? ??????? transaction_type ??? ????? ??? ???? ???? ???? ????? ????.
-                transaction_type='WITHDRAWAL',
-                # ??? ??????? source ??? ????? ??? ???? ???? ???? ????? ????.
-                source='APP',
-                # ??? ??????? description ??? ????? ??? ???? ???? ???? ????? ????.
-                description=sender_desc,
-            )
-            Transaction.objects.create(
-                # ??? ??????? wallet ??? ????? ??? ???? ???? ???? ????? ????.
-                wallet=target_wallet,
-                # ??? ??????? amount ??? ????? ??? ???? ???? ???? ????? ????.
-                amount=amount,
-                # ??? ??????? transaction_type ??? ????? ??? ???? ???? ???? ????? ????.
-                transaction_type='DEPOSIT',
-                # ??? ??????? source ??? ????? ??? ???? ???? ???? ????? ????.
-                source='APP',
-                # ??? ??????? description ??? ????? ??? ???? ???? ???? ????? ????.
-                description=receiver_desc,
-            )
-
-        sender_wallet.refresh_from_db()
-        return Response({'success': True, 'balance': sender_wallet.balance})
+        sender_wallet, target_wallet = _transfer_balance(
+            sender_wallet_lookup,
+            target_wallet_lookup,
+            amount,
+            note=note,
+            source="USER",
+        )
+        return Response({
+            'success': True,
+            'balance': sender_wallet.balance,
+            'recipient': target_wallet.user.full_name or target_wallet.user.email,
+        })
     except Wallet.DoesNotExist:
         return Response({'error': 'المحفظة غير موجودة.'}, status=404)
     except ValueError as e:
@@ -182,7 +245,7 @@ def transfer_wallet(request):
 
 # ???? ???? link_wallet ?????? ????? ?????? ?? ????? ????.
 @api_view(['POST'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def link_wallet(request):
     try:
         # ??? ??????? user ??? ????? ??? ???? ???? ???? ????? ????.
@@ -208,9 +271,92 @@ def link_wallet(request):
          return Response({'error': str(e)}, status=500)
 
 
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def link_nfc_card(request):
+    try:
+        card_uid = _normalize_card_uid(request.data.get('card_uid'))
+    except ValueError as exc:
+        return Response({'error': str(exc)}, status=400)
+
+    wallet, _ = Wallet.objects.get_or_create(user=request.user)
+    if Wallet.objects.filter(nfc_card_uid__iexact=card_uid).exclude(pk=wallet.pk).exists():
+        return Response({'error': 'هذه البطاقة مرتبطة بطالب آخر.'}, status=409)
+
+    wallet.nfc_card_uid = card_uid
+    try:
+        wallet.save(update_fields=['nfc_card_uid', 'updated_at'])
+    except IntegrityError:
+        return Response({'error': 'هذه البطاقة مرتبطة بطالب آخر.'}, status=409)
+
+    return Response({
+        'success': True,
+        'message': 'تم ربط بطاقة NFC بمحفظتك بنجاح.',
+        'wallet': _nfc_wallet_payload(wallet, request.user),
+    })
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def lookup_nfc_card(request):
+    try:
+        card_uid = _normalize_card_uid(request.data.get('card_uid'))
+    except ValueError as exc:
+        return Response({'error': str(exc)}, status=400)
+
+    wallet = (
+        Wallet.objects.select_related('user')
+        .filter(nfc_card_uid__iexact=card_uid)
+        .first()
+    )
+    if wallet is None:
+        return Response({'error': 'البطاقة غير مرتبطة بأي محفظة.'}, status=404)
+
+    return Response({
+        'success': True,
+        'card': _nfc_wallet_payload(wallet, request.user),
+    })
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def transfer_to_nfc_card(request):
+    try:
+        card_uid = _normalize_card_uid(request.data.get('card_uid'))
+        amount = _parse_positive_amount(request.data.get('amount'))
+    except ValueError as exc:
+        return Response({'error': str(exc)}, status=400)
+
+    sender_wallet, _ = Wallet.objects.get_or_create(user=request.user)
+    target_wallet = (
+        Wallet.objects.select_related('user')
+        .filter(nfc_card_uid__iexact=card_uid)
+        .first()
+    )
+    if target_wallet is None:
+        return Response({'error': 'البطاقة غير مرتبطة بأي محفظة.'}, status=404)
+
+    try:
+        sender_wallet, target_wallet = _transfer_balance(
+            sender_wallet,
+            target_wallet,
+            amount,
+            note=(request.data.get('note') or '').strip(),
+            source='NFC',
+        )
+    except ValueError as exc:
+        return Response({'error': str(exc)}, status=400)
+
+    return Response({
+        'success': True,
+        'balance': sender_wallet.balance,
+        'recipient': _nfc_wallet_payload(target_wallet, request.user),
+    })
+
+
 # ???? ???? topup_wallet ?????? ????? ?????? ?? ????? ????.
 @api_view(['POST'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def topup_wallet(request):
     """
     شحن المحفظة (لأغراض الاختبار أو إذا كان هناك بوابة دفع).
@@ -258,7 +404,7 @@ def topup_wallet(request):
 
 # ???? ???? withdraw_wallet ?????? ????? ?????? ?? ????? ????.
 @api_view(['POST'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def withdraw_wallet(request):
     try:
         # ??? ??????? user ??? ????? ??? ???? ???? ???? ????? ????.
