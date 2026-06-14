@@ -1,4 +1,4 @@
-# مرجع الذكاء الاصطناعي لتعديل مشروع Bite Hub
+﻿# مرجع الذكاء الاصطناعي لتعديل مشروع Bite Hub
 
 هذا الملف مكتوب ليكون نقطة البداية لأي ذكاء اصطناعي أو مطور يريد تعديل مشروع **Bite Hub** بسرعة وبدون تخمين. اقرأ هذا الملف قبل تعديل الكود، ثم افتح الملفات المشار إليها حسب نوع المهمة.
 
@@ -15,7 +15,7 @@
 **Bite Hub** منظومة طلبات أكل داخل بيئة جامعية أو متعددة المقاهي. المشروع مقسوم إلى:
 
 - `bitehub_app`: تطبيق Flutter للمستخدم النهائي.
-- `bitehub_backend_workspace/bitehub_backend_workspace`: Backend مبني بـ Django و Django REST Framework.
+- `.`: Backend مبني بـ Django و Django REST Framework.
 - لوحة ويب داخل Django لإدارة المنظومة والمقاهي.
 - WebSocket مهيأ لتحديثات الطلبات الحية.
 - نظام محفظة داخلي للدفع، الشحن، السحب، والتحويل.
@@ -33,17 +33,17 @@
 | Providers في Flutter | `bitehub_app/lib/app/data/providers/` |
 | شاشات Flutter الحديثة | `bitehub_app/lib/app/presentation_v2/` |
 | Widgets وتصميم V2 | `bitehub_app/lib/app/presentation_v2/widgets/` |
-| Backend Django | `bitehub_backend_workspace/bitehub_backend_workspace/` |
-| إعدادات Django | `bitehub_backend_workspace/bitehub_backend_workspace/bitehub_backend/settings.py` |
-| مسارات Django الرئيسية | `bitehub_backend_workspace/bitehub_backend_workspace/bitehub_backend/urls.py` |
-| Models الأساسية | `bitehub_backend_workspace/bitehub_backend_workspace/core/models.py` |
-| API التطبيق | `bitehub_backend_workspace/bitehub_backend_workspace/core/api_views.py` |
-| مسارات API التطبيق | `bitehub_backend_workspace/bitehub_backend_workspace/core/api_v2_app_urls.py` |
-| منطق الأعمال | `bitehub_backend_workspace/bitehub_backend_workspace/core/services.py` |
-| استعلامات القراءة | `bitehub_backend_workspace/bitehub_backend_workspace/core/selectors.py` |
-| لوحة الإدارة والمقهى | `bitehub_backend_workspace/bitehub_backend_workspace/core/backoffice_views.py` |
-| المستخدمون | `bitehub_backend_workspace/bitehub_backend_workspace/users/` |
-| المحفظة | `bitehub_backend_workspace/bitehub_backend_workspace/wallet/` |
+| Backend Django | `` |
+| إعدادات Django | `bitehub_backend/settings.py` |
+| مسارات Django الرئيسية | `bitehub_backend/urls.py` |
+| Models الأساسية | `core/models.py` |
+| API التطبيق | `core/api_views.py` |
+| مسارات API التطبيق | `core/api_v2_app_urls.py` |
+| منطق الأعمال | `core/services.py` |
+| استعلامات القراءة | `core/selectors.py` |
+| لوحة الإدارة والمقهى | `core/backoffice_views.py` |
+| المستخدمون | `users/` |
+| المحفظة | `wallet/` |
 
 ## تشغيل المشروع أثناء التطوير
 
@@ -52,7 +52,7 @@
 من داخل:
 
 ```powershell
-cd bitehub_backend_workspace\bitehub_backend_workspace
+cd "<project-root>"
 ```
 
 الأوامر المتوقعة:
@@ -238,7 +238,6 @@ bitehub_backend/urls.py
 | المقاهي | `GET /api/v2/app/cafes/` |
 | المنتجات | `GET /api/v2/app/products/` |
 | الطلبات | `GET/POST /api/v2/app/orders/` |
-| إنشاء طلب قديم | `POST /api/v2/app/orders/create/` |
 | إلغاء طلب | `PATCH /api/v2/app/orders/<id>/cancel/` |
 | الإشعارات | `GET /api/v2/app/notifications/` |
 | المحفظة | `/api/v2/app/wallet/` |
@@ -299,7 +298,7 @@ bitehub_backend/urls.py
 ### Backend
 
 ```powershell
-cd bitehub_backend_workspace\bitehub_backend_workspace
+cd "<project-root>"
 python manage.py check
 python manage.py test
 ```
@@ -333,4 +332,3 @@ flutter test
 4. نفذ تعديل محدود.
 5. شغل الفحص المناسب.
 6. اذكر للمستخدم الملفات التي تغيرت وما الذي تم التحقق منه.
-

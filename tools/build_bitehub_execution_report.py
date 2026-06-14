@@ -452,7 +452,7 @@ def add_chapter_5(doc):
         doc,
         ["ر", "نوع الاختبار", "الحالة", "النتيجة المتوقعة", "النتيجة الفعلية"],
         [
-            ["1", "الدخول لشاشة الرئيسية", "الضغط على تبويب BYTE HUB", "عرض المقاهي والمنتجات", "تم التنفيذ بنجاح"],
+            ["1", "الدخول لشاشة الرئيسية", "الضغط على تبويب Bite Hub", "عرض المقاهي والمنتجات", "تم التنفيذ بنجاح"],
             ["2", "الدخول لشاشة طلباتي", "الضغط على تبويب طلباتي", "عرض الطلبات السابقة والحالية", "تم التنفيذ بنجاح"],
             ["3", "الدخول لشاشة السلة", "الضغط على تبويب السلة", "عرض عناصر السلة والإجمالي", "تم التنفيذ بنجاح"],
             ["4", "الدخول لشاشة المحفظة", "الضغط على تبويب المحفظة", "عرض الرصيد والعمليات", "تم التنفيذ بنجاح"],
@@ -543,13 +543,13 @@ def add_results_and_refs(doc):
         ["ر", "المعلومة", "مكان المرجع داخل المشروع"],
         [
             ["1", "حزم Flutter وإصداراتها", "bitehub_app/pubspec.yaml و bitehub_app/pubspec.lock"],
-            ["2", "إصدارات Backend", "bitehub_backend_workspace/bitehub_backend_workspace/requirements.txt"],
-            ["3", "إعداد قاعدة البيانات SQLite/PostgreSQL", "bitehub_backend_workspace/bitehub_backend_workspace/bitehub_backend/settings.py:27-49 و 164-165"],
-            ["4", "مسارات REST API", "bitehub_backend_workspace/bitehub_backend_workspace/bitehub_backend/urls.py و core/api_v2_app_urls.py"],
-            ["5", "مسار WebSocket", "bitehub_backend_workspace/bitehub_backend_workspace/core/routing.py"],
-            ["6", "موديلات المقاهي والمنتجات والطلبات", "bitehub_backend_workspace/bitehub_backend_workspace/core/models.py"],
-            ["7", "موديل المستخدم", "bitehub_backend_workspace/bitehub_backend_workspace/users/models.py"],
-            ["8", "موديلات المحفظة والمعاملات", "bitehub_backend_workspace/bitehub_backend_workspace/wallet/models.py"],
+            ["2", "إصدارات Backend", "requirements.txt"],
+            ["3", "إعداد قاعدة البيانات SQLite/PostgreSQL", "bitehub_backend/settings.py:27-49 و 164-165"],
+            ["4", "مسارات REST API", "bitehub_backend/urls.py و core/api_v2_app_urls.py"],
+            ["5", "مسار WebSocket", "core/routing.py"],
+            ["6", "موديلات المقاهي والمنتجات والطلبات", "core/models.py"],
+            ["7", "موديل المستخدم", "users/models.py"],
+            ["8", "موديلات المحفظة والمعاملات", "wallet/models.py"],
             ["9", "شاشات التطبيق الرئيسية", "bitehub_app/lib/app/presentation_v2/screens"],
             ["10", "نتائج الاختبار", "الأوامر المنفذة: flutter analyze / flutter test / python manage.py check / python manage.py test"],
         ],
@@ -608,11 +608,11 @@ def build_markdown():
 
 - `bitehub_app/pubspec.yaml`
 - `bitehub_app/pubspec.lock`
-- `bitehub_backend_workspace/bitehub_backend_workspace/requirements.txt`
-- `bitehub_backend_workspace/bitehub_backend_workspace/bitehub_backend/settings.py`
-- `bitehub_backend_workspace/bitehub_backend_workspace/core/models.py`
-- `bitehub_backend_workspace/bitehub_backend_workspace/core/api_v2_app_urls.py`
-- `bitehub_backend_workspace/bitehub_backend_workspace/core/routing.py`
+- `requirements.txt`
+- `bitehub_backend/settings.py`
+- `core/models.py`
+- `core/api_v2_app_urls.py`
+- `core/routing.py`
 
 نتائج التحقق:
 

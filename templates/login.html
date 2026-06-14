@@ -257,7 +257,7 @@
   <main class="auth-shell">
     <section class="auth-visual" aria-label="Bite Hub">
       <div class="brand">
-        <img class="brand-logo" src="{% static 'brand/bitehub-logo.png' %}" alt="Bite Hub">
+        <img class="brand-logo" src="{% static 'brand/bitehub-app-icon.png' %}" alt="Bite Hub">
         <div>
           <div class="brand-title">Bite Hub</div>
           <div class="brand-subtitle">Digital Operations</div>
@@ -297,7 +297,7 @@
               <img
                 class="cafe-login-logo"
                 id="selectedCafeLogo"
-                src="{% if target_cafe and target_cafe.image %}{{ target_cafe.image.url }}{% else %}{% static 'brand/bitehub-logo.png' %}{% endif %}"
+                src="{% if target_cafe and target_cafe.image %}{{ target_cafe.image.url }}{% else %}{% static 'brand/bitehub-app-icon.png' %}{% endif %}"
                 alt="صورة المقهى المحدد"
               >
               <div>
@@ -310,12 +310,12 @@
             <div class="mb-3">
               <label for="cafe_id" class="form-label">اسم الكلية أو المقهى</label>
               <select class="form-select" id="cafe_id" name="cafe_id" required>
-                <option value="" data-name="اختر المقهى للمتابعة" data-image="{% static 'brand/bitehub-logo.png' %}">اختر المقهى</option>
+                <option value="" data-name="اختر المقهى للمتابعة" data-image="{% static 'brand/bitehub-app-icon.png' %}">اختر المقهى</option>
                 {% for cafe in cafe_options %}
                   <option
                     value="{{ cafe.id }}"
                     data-name="{{ cafe.name }}"
-                    data-image="{% if cafe.image %}{{ cafe.image.url }}{% else %}{% static 'brand/bitehub-logo.png' %}{% endif %}"
+                    data-image="{% if cafe.image %}{{ cafe.image.url }}{% else %}{% static 'brand/bitehub-app-icon.png' %}{% endif %}"
                     {% if selected_cafe_id == cafe.id|stringformat:"s" %}selected{% endif %}
                   >
                     {{ cafe.faculty.name|default:cafe.name }}
@@ -348,7 +348,7 @@
 
       const updateCafeIdentity = () => {
         const option = cafeSelect.options[cafeSelect.selectedIndex];
-        cafeLogo.src = option?.dataset.image || "{% static 'brand/bitehub-logo.png' %}";
+        cafeLogo.src = option?.dataset.image || "{% static 'brand/bitehub-app-icon.png' %}";
         cafeName.textContent = option?.dataset.name || "اختر المقهى للمتابعة";
       };
 

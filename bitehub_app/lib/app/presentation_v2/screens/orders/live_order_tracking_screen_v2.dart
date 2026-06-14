@@ -290,7 +290,7 @@ class _OrderIdentityCard extends StatelessWidget {
             child: SizedBox.square(
               dimension: 64,
               child: ProductImageView(
-                imagePath: order.cafeLogo ?? 'assets/images/logo.png',
+                imagePath: order.cafeLogo ?? '',
                 fit: BoxFit.cover,
               ),
             ),
@@ -769,8 +769,7 @@ class _OrderDetailsCard extends StatelessWidget {
                       child: SizedBox.square(
                         dimension: 48,
                         child: ProductImageView(
-                          imagePath:
-                              item.productImage ?? 'assets/images/logo.png',
+                          imagePath: item.productImage ?? '',
                           fit: BoxFit.cover,
                         ),
                       ),

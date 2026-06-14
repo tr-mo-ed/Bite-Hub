@@ -1,4 +1,4 @@
-# تقرير المرحلة التنفيذية ومرحلة الاختبار لمنظومة Bite Hub
+﻿# تقرير المرحلة التنفيذية ومرحلة الاختبار لمنظومة Bite Hub
 
 تم إنشاء النسخة المنسقة الكاملة في ملف Word:
 
@@ -23,11 +23,11 @@
 
 - `bitehub_app/pubspec.yaml`
 - `bitehub_app/pubspec.lock`
-- `bitehub_backend_workspace/bitehub_backend_workspace/requirements.txt`
-- `bitehub_backend_workspace/bitehub_backend_workspace/bitehub_backend/settings.py`
-- `bitehub_backend_workspace/bitehub_backend_workspace/core/models.py`
-- `bitehub_backend_workspace/bitehub_backend_workspace/core/api_v2_app_urls.py`
-- `bitehub_backend_workspace/bitehub_backend_workspace/core/routing.py`
+- `requirements.txt`
+- `bitehub_backend/settings.py`
+- `core/models.py`
+- `core/api_v2_app_urls.py`
+- `core/routing.py`
 
 نتائج التحقق:
 

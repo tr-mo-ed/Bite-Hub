@@ -476,29 +476,16 @@ class OrderWorkflowTests(TestCase):
         self.assertContains(panel_response, "البرغر بدون لحم")
         self.assertContains(panel_response, order.display_order_number)
 
-    def test_legacy_create_order_endpoint_marks_deprecation(self):
+    def test_removed_legacy_order_endpoint_returns_not_found(self):
         self.client.force_login(self.customer)
 
         response = self.client.post(
-            reverse("v2_app_create_order"),
-            data={
-                "cafe_id": self.cafe.id,
-                "payment_method": "CASH",
-                "total_price": "5.00",
-                "items": [
-                    {
-                        "product_id": self.product.id,
-                        "quantity": 1,
-                    }
-                ],
-            },
+            "/api/v2/app/orders/create/",
+            data={"cafe_id": self.cafe.id, "items": []},
             content_type="application/json",
         )
 
-        self.assertEqual(response.status_code, 201, response.content)
-        self.assertEqual(response.headers["Deprecation"], "true")
-        self.assertIn("/api/v2/app/orders/", response.headers["Link"])
-        self.assertEqual(Order.objects.count(), 1)
+        self.assertEqual(response.status_code, 404)
 
     def test_create_order_with_linked_nfc_card_withdraws_wallet_balance(self):
         wallet = Wallet.objects.get(user=self.customer)

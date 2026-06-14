@@ -47,10 +47,38 @@ class NotificationCenterSheet extends StatelessWidget {
                 const SizedBox(height: 16),
                 Row(
                   children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.asset(
+                        'assets/images/bitehub_app_icon.png',
+                        width: 44,
+                        height: 44,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                    const SizedBox(width: 11),
                     const Expanded(
-                      child: BhSectionHeader(
-                        title: 'الإشعارات',
-                        subtitle: 'آخر تحديثات الطلبات في مكان واحد',
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'إشعارات Bite Hub',
+                            style: TextStyle(
+                              color: AppColors.textPrimary,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          SizedBox(height: 3),
+                          Text(
+                            'حالة الطلب والمحفظة في مكان واحد',
+                            style: TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     if (provider.unreadCount > 0)

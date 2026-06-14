@@ -1003,47 +1003,25 @@ class ApiService {
 
   // ???? ???? cancelOrder ???? ??????? ?? ????? ???? ?????? ?????.
   Future<void> cancelOrder(int orderId) async {
-    final endpoints = <Uri>[
-      Uri.parse('$baseUrl/api/v2/app/orders/$orderId/cancel/'),
-      Uri.parse('$baseUrl/api/v2/app/orders/$orderId/status/'),
-      Uri.parse('$baseUrl/api/v2/app/orders/$orderId/'),
-    ];
-
-    ApiException? lastError;
-    for (final url in endpoints) {
-      try {
-        final response = await _sendWithAuthRetry(
-          (headers) => http.patch(
-            url,
-            headers: headers,
-            body: json.encode({'status': 'CANCELLED'}),
-          ),
-        );
-        final data = _decodeBody(response);
-
-        if (response.statusCode == 200 || response.statusCode == 204) {
-          return;
-        }
-
-        if (response.statusCode == 404 || response.statusCode == 405) {
-          lastError = _buildException(response, data);
-          continue;
-        }
-
-        throw _buildException(response, data);
-      } on ApiException catch (error) {
-        lastError = error;
-        if (error.statusCode == 404 || error.statusCode == 405) {
-          continue;
-        }
-        rethrow;
-      } catch (e) {
-        throw _networkException(e);
+    final url = Uri.parse('$baseUrl/api/v2/app/orders/$orderId/cancel/');
+    try {
+      final response = await _sendWithAuthRetry(
+        (headers) => http.patch(
+          url,
+          headers: headers,
+          body: json.encode({'status': 'CANCELLED'}),
+        ),
+      );
+      final data = _decodeBody(response);
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        return;
       }
+      throw _buildException(response, data);
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      throw _networkException(e);
     }
-
-    throw lastError ??
-        ApiException('تعذر الوصول إلى مسار إلغاء الطلب في الخادم.');
   }
 
   // ???? ???? updateSecondaryPhone ???? ??????? ?? ????? ???? ?????? ?????.

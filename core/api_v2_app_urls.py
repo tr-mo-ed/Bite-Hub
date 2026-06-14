@@ -19,7 +19,6 @@ urlpatterns = [
     path("cafes/", api_views.get_cafes_list, name="v2_app_cafes"),
     path("products/", api_views.get_products, name="v2_app_products"),
     path("orders/", api_views.orders_endpoint, name="v2_app_orders"),
-    path("orders/create/", api_views.create_order_legacy, name="v2_app_create_order"),
     path("orders/<int:order_id>/cancel/", api_views.cancel_order, name="v2_app_cancel_order"),
     path("notifications/", api_views.notifications_endpoint, name="v2_app_notifications"),
     path("wallet/", include("wallet.api_urls")),

@@ -5,13 +5,9 @@ import 'package:provider/provider.dart';
 import 'package:bitehub_app/app/auth_widget_builder.dart';
 import 'package:bitehub_app/app/data/providers/auth_provider.dart';
 import 'package:bitehub_app/app/data/providers/cart_provider.dart';
-import 'package:bitehub_app/app/data/providers/college_provider.dart';
-import 'package:bitehub_app/app/data/providers/favorites_provider.dart';
 import 'package:bitehub_app/app/data/providers/navigation_provider.dart';
 import 'package:bitehub_app/app/data/providers/locale_provider.dart';
 import 'package:bitehub_app/app/data/providers/notification_provider.dart';
-import 'package:bitehub_app/app/data/providers/product_provider.dart';
-import 'package:bitehub_app/app/data/providers/profile_image_provider.dart';
 import 'package:bitehub_app/app/data/providers/theme_provider.dart';
 import 'package:bitehub_app/app/data/providers/wallet_provider.dart';
 import 'package:bitehub_app/app/data/services/notification_service.dart';
@@ -41,19 +37,15 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => WalletProvider()),
         ChangeNotifierProvider(create: (_) => CartProvider()),
-        ChangeNotifierProvider(create: (_) => ProductProvider()),
-        ChangeNotifierProvider(create: (_) => FavoritesProvider()),
-        ChangeNotifierProvider(create: (_) => CollegeProvider()),
         ChangeNotifierProvider(create: (_) => NotificationProvider()..load()),
         ChangeNotifierProvider(create: (_) => NavigationProvider()),
         ChangeNotifierProvider(create: (_) => LocaleProvider()..load()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()..loadTheme()),
-        ChangeNotifierProvider(create: (_) => ProfileImageProvider()..load()),
       ],
       child: Consumer2<ThemeProvider, LocaleProvider>(
         builder: (context, themeProvider, localeProvider, _) {
           return MaterialApp(
-            title: 'BYTE HUB',
+            title: 'Bite Hub',
             debugShowCheckedModeBanner: false,
             locale: localeProvider.locale,
             supportedLocales: const [Locale('ar'), Locale('en')],

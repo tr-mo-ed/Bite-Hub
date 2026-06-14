@@ -331,7 +331,7 @@
                     <div class="cafe-identity">
                       <img
                         class="cafe-avatar"
-                        src="{% if cafe.image %}{{ cafe.image.url }}{% else %}{% static 'brand/bitehub-logo.png' %}{% endif %}"
+                        src="{% if cafe.image %}{{ cafe.image.url }}{% else %}{% static 'brand/bitehub-app-icon.png' %}{% endif %}"
                         alt="صورة {{ cafe.name }}"
                       >
                       <div>
@@ -398,7 +398,7 @@
                       data-bs-target="#updateCafeImageModal"
                       data-cafe-name="{{ cafe.name }}"
                       data-action="{% url 'core:update_cafe_image_from_dashboard' cafe.id %}"
-                      data-current-image="{% if cafe.image %}{{ cafe.image.url }}{% else %}{% static 'brand/bitehub-logo.png' %}{% endif %}"
+                      data-current-image="{% if cafe.image %}{{ cafe.image.url }}{% else %}{% static 'brand/bitehub-app-icon.png' %}{% endif %}"
                     >
                       تغيير الصورة
                     </button>
@@ -519,7 +519,7 @@
             <img
               id="updateCafeImagePreview"
               class="cafe-image-preview"
-              src="{% static 'brand/bitehub-logo.png' %}"
+              src="{% static 'brand/bitehub-app-icon.png' %}"
               alt="معاينة صورة المقهى"
             >
             <div>

@@ -69,7 +69,7 @@ class ShellDrawerV2 extends StatelessWidget {
                               backgroundColor:
                                   Colors.white.withValues(alpha: 0.16),
                               child: Text(
-                                _initials(currentUser?.fullName ?? 'BYTE HUB'),
+                                _initials(currentUser?.fullName ?? 'Bite Hub'),
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.w900,
@@ -82,7 +82,7 @@ class ShellDrawerV2 extends StatelessWidget {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    currentUser?.fullName ?? 'BYTE HUB',
+                                    currentUser?.fullName ?? 'Bite Hub',
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(

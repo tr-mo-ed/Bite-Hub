@@ -12,11 +12,11 @@ class NotificationService {
 
   static final NotificationService instance = NotificationService._();
 
-  static const String _notificationsKey = 'local_notifications';
-  static const String _statusCacheKey = 'order_status_cache';
+  static const String _notificationsKey = 'bitehub_notifications_v2';
+  static const String _statusCacheKey = 'bitehub_order_status_cache_v2';
   static const String _shownExternalNotificationsKey =
-      'shown_external_notifications';
-  static const String _channelKey = 'order_updates';
+      'bitehub_shown_external_notifications_v2';
+  static const String _channelKey = 'bitehub_order_updates_v2';
   static const int _maxNotifications = 50;
   static const int _maxShownExternalNotifications = 200;
 
@@ -26,11 +26,11 @@ class NotificationService {
       [
         NotificationChannel(
           channelKey: _channelKey,
-          channelName: 'تحديثات الطلبات',
-          channelDescription: 'إشعارات حالة الطلبات القادمة من النظام',
+          channelName: 'Bite Hub - تحديثات الطلبات',
+          channelDescription: 'حالة الطلب والمحفظة داخل Bite Hub',
           importance: NotificationImportance.High,
-          defaultColor: const Color(0xFFE0B42C),
-          ledColor: Colors.white,
+          defaultColor: const Color(0xFF167C68),
+          ledColor: const Color(0xFF167C68),
           playSound: true,
           enableVibration: true,
         ),
@@ -201,9 +201,11 @@ class NotificationService {
         channelKey: _channelKey,
         title: item.title,
         body: item.body,
-        summary: item.orderId == null ? 'إشعار محفظة' : 'تحديث حالة الطلب',
-        icon: 'resource://drawable/ic_launcher_foreground',
-        largeIcon: 'asset://assets/images/logo.png',
+        summary: item.orderId == null
+            ? 'Bite Hub • المحفظة'
+            : 'Bite Hub • تحديث الطلب',
+        icon: 'resource://drawable/ic_stat_bitehub',
+        largeIcon: 'asset://assets/images/bitehub_app_icon.png',
         notificationLayout: NotificationLayout.BigText,
         payload: {
           'order_id': item.orderId?.toString() ?? '',

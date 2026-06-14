@@ -405,18 +405,6 @@ def create_order(request):
         return Response({'error': 'حدث خطأ أثناء إنشاء الطلب.'}, status=500)
 
 
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def create_order_legacy(request):
-    """
-    Backward-compatible alias for older clients.
-    Prefer POST /api/v2/app/orders/ for new integrations.
-    """
-    response = create_order(request._request)
-    response["Deprecation"] = "true"
-    response["Link"] = '</api/v2/app/orders/>; rel="successor-version"'
-    return response
-
 # ???? ???? get_user_orders ?????? ????? ?????? ?? ????? ????.
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])

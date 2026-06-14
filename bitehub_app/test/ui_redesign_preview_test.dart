@@ -21,6 +21,7 @@ import 'package:bitehub_app/app/presentation_v2/screens/home/home_screen_v2.dart
 import 'package:bitehub_app/app/presentation_v2/screens/legal/usage_policy_screen.dart';
 import 'package:bitehub_app/app/presentation_v2/screens/orders/live_order_tracking_screen_v2.dart';
 import 'package:bitehub_app/app/presentation_v2/screens/profile/profile_screen_v2.dart';
+import 'package:bitehub_app/app/presentation_v2/widgets/custom_floating_snack_bar.dart';
 import 'package:bitehub_app/app/presentation_v2/widgets/order_status_ui.dart';
 
 void main() {
@@ -32,17 +33,17 @@ void main() {
       CollegeModel(
         id: '1',
         name: 'مقهى تقنية المعلومات',
-        image: 'assets/images/college_of_it.png',
+        image: '',
       ),
       CollegeModel(
         id: '2',
         name: 'مقهى كلية الطب',
-        image: 'assets/images/college_of_medicine.png',
+        image: '',
       ),
       CollegeModel(
         id: '3',
         name: 'مقهى الاقتصاد',
-        image: 'assets/images/college_of_economics.png',
+        image: '',
       ),
     ];
     final controller = HomeV2Controller()
@@ -122,21 +123,21 @@ void main() {
       createdAt: DateTime(2026, 6, 12, 12, 30).toIso8601String(),
       cafeId: '1',
       cafeName: 'مقهى تقنية المعلومات',
-      cafeLogo: 'assets/images/college_of_it.png',
+      cafeLogo: '',
       items: [
         OrderItem(
           productId: 1,
           productName: 'برغر دجاج',
           quantity: 2,
           price: 12,
-          productImage: 'assets/images/burger1.png',
+          productImage: '',
         ),
         OrderItem(
           productId: 2,
           productName: 'عصير برتقال',
           quantity: 1,
           price: 5,
-          productImage: 'assets/images/drink1.png',
+          productImage: '',
         ),
       ],
     );
@@ -307,6 +308,50 @@ void main() {
     expect(find.text('عرض السياسة كاملة'), findsOneWidget);
     expect(tester.takeException(), isNull);
     controller.dispose();
+  });
+
+  testWidgets('notification banner uses the Bite Hub identity', (tester) async {
+    await _setPhoneViewport(tester);
+
+    await tester.pumpWidget(
+      Builder(
+        builder: (context) => MaterialApp(
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.light(context),
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: Center(
+                child: FilledButton(
+                  onPressed: () {
+                    CustomFloatingSnackBar.show(
+                      context,
+                      title: 'طلبك جاهز',
+                      message: 'توجه إلى نقطة الاستلام.',
+                      duration: const Duration(seconds: 30),
+                    );
+                  },
+                  child: const Text('عرض الإشعار'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('عرض الإشعار'));
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text('Bite Hub'), findsOneWidget);
+    expect(find.text('طلبك جاهز'), findsOneWidget);
+    expect(
+      find.image(
+        const AssetImage('assets/images/bitehub_app_icon.png'),
+      ),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+    await tester.pump(const Duration(seconds: 31));
   });
 
   test('order tracking statuses keep a stable sequence', () {

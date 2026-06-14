@@ -16,6 +16,9 @@ class ProductImageView extends StatelessWidget {
   @override
   // ???? ???? build ???? ??????? ?? ????? ???? ?????? ?????.
   Widget build(BuildContext context) {
+    if (imagePath.trim().isEmpty) {
+      return _fallback();
+    }
     if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
       return Image.network(
         imagePath,
@@ -53,11 +56,15 @@ class ProductImageView extends StatelessWidget {
 
   // ???? ???? _fallback ???? ??????? ?? ????? ???? ?????? ?????.
   Widget _fallback() {
-    return Image.asset(
-      'assets/images/logo.png',
-      fit: fit,
-      filterQuality: FilterQuality.high,
-      isAntiAlias: true,
+    return const ColoredBox(
+      color: Color(0xFFF0F1EC),
+      child: Center(
+        child: Icon(
+          Icons.restaurant_outlined,
+          color: Color(0xFF8A928E),
+          size: 28,
+        ),
+      ),
     );
   }
 }

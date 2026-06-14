@@ -1,4 +1,4 @@
-# التقرير الفني الشامل لمنظومة Bite Hub
+﻿# التقرير الفني الشامل لمنظومة Bite Hub
 
 تاريخ التقرير: 2026-05-09  
 المشروع: Bite Hub  
@@ -83,7 +83,7 @@ bitehub_app
 ### الباكند
 
 ```text
-bitehub_backend_workspace/bitehub_backend_workspace
+.
 ```
 
 يحتوي مشروع Django، وداخله:
@@ -684,7 +684,6 @@ BITE_HUB_API_BASE_URL
 | GET | `/api/v2/app/cafes/` | قائمة المقاهي |
 | GET | `/api/v2/app/products/` | قائمة المنتجات |
 | GET/POST | `/api/v2/app/orders/` | عرض أو إنشاء طلب |
-| POST | `/api/v2/app/orders/create/` | مسار قديم متوافق، deprecated |
 | POST/PATCH | `/api/v2/app/orders/<order_id>/cancel/` | إلغاء طلب |
 | GET | `/api/v2/app/wallet/` | عرض المحفظة |
 | POST | `/api/v2/app/wallet/link/` | ربط محفظة |
@@ -800,7 +799,7 @@ flutter_secure_storage 9.2.4
 ملف المثال:
 
 ```text
-bitehub_backend_workspace/bitehub_backend_workspace/.env.example
+.env.example
 ```
 
 أهم المتغيرات:
