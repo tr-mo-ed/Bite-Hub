@@ -244,6 +244,9 @@
     .wallet-ledger-list {
       display: grid;
       gap: 10px;
+      max-height: 640px;
+      overflow-y: auto;
+      padding-left: 4px;
     }
     .wallet-ledger-row {
       display: grid;
@@ -258,6 +261,61 @@
       text-align: left;
       font-weight: 900;
       white-space: nowrap;
+    }
+    .wallet-history-trigger {
+      appearance: none;
+      padding: 0;
+      border: 0;
+      color: #08111f;
+      background: transparent;
+      font: inherit;
+      font-weight: 900;
+      text-align: right;
+      cursor: pointer;
+    }
+    .wallet-history-trigger:hover,
+    .wallet-history-trigger:focus-visible {
+      color: #263789;
+      text-decoration: underline;
+    }
+    .wallet-history-hint {
+      color: #4357b8;
+      font-size: .72rem;
+      font-weight: 800;
+    }
+    .wallet-history-list {
+      display: grid;
+      gap: 10px;
+      max-height: 430px;
+      overflow-y: auto;
+      padding-left: 4px;
+    }
+    .wallet-history-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 14px;
+      padding: 13px;
+      border: 1px solid rgba(67, 87, 184, .12);
+      border-radius: 8px;
+      background: #f8faff;
+    }
+    .wallet-history-identity {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      padding: 14px;
+      margin-bottom: 16px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, rgba(67, 87, 184, .10), rgba(74, 166, 220, .08));
+    }
+    .wallet-history-identity span {
+      color: #667085;
+      font-size: .78rem;
+    }
+    .wallet-history-identity strong {
+      display: block;
+      color: #08111f;
+      margin-top: 3px;
     }
     .wallet-empty-ledger {
       min-height: 118px;
@@ -856,7 +914,7 @@
 
       <div class="wallet-summary-grid">
         <div class="wallet-summary-tile">
-          <span>إجمالي أرصدة المحافظ</span>
+          <span>أرصدة طلاب هذا المقهى</span>
           <strong>{{ wallet_kpis.total_balance|floatformat:2 }} د.ل</strong>
         </div>
         <div class="wallet-summary-tile">
@@ -909,17 +967,23 @@
           <div class="wallet-card-header">
             <div>
               <h3 class="wallet-card-title">سجل عمليات المحافظ</h3>
-              <p class="wallet-card-subtitle">آخر عمليات الشحن والخصم داخل المنظومة.</p>
+              <p class="wallet-card-subtitle">آخر عملية لكل طالب داخل هذا المقهى فقط. اضغط على الاسم لعرض السجل الكامل.</p>
             </div>
             <span class="bh-pill">Ledger</span>
           </div>
           <div class="wallet-ledger-list">
-            {% for transaction in recent_wallet_transactions %}
+            {% for transaction in recent_wallet_activity %}
               <div class="wallet-ledger-row">
                 <div>
-                  <div class="fw-bold">{{ transaction.wallet.user.full_name|default:transaction.wallet.user.email }}</div>
+                  <button
+                    class="wallet-history-trigger js-wallet-history"
+                    type="button"
+                    data-wallet-id="{{ transaction.wallet_id }}"
+                    data-student-name="{{ transaction.wallet.user.full_name|default:transaction.wallet.user.email }}"
+                  >{{ transaction.wallet.user.full_name|default:transaction.wallet.user.email }}</button>
                   <div class="text-muted small">{{ transaction.description|default:"عملية محفظة" }}</div>
                   <div class="text-muted small">{{ transaction.created_at|date:"Y-m-d H:i" }}</div>
+                  <div class="wallet-history-hint">عرض سجل الطالب الكامل</div>
                 </div>
                 <div class="wallet-ledger-amount {% if transaction.transaction_type == 'DEPOSIT' %}text-success{% else %}text-danger{% endif %}">
                   {% if transaction.transaction_type == 'DEPOSIT' %}+{% else %}-{% endif %}{{ transaction.amount }} د.ل
@@ -937,57 +1001,6 @@
         </section>
       </div>
 
-      <section class="bh-card wallet-directory-card">
-        <div class="wallet-card-header">
-          <div>
-            <h3 class="wallet-card-title">دليل المحافظ</h3>
-            <p class="wallet-card-subtitle">كل محفظة ظاهرة هنا مرتبطة بحساب مستخدم محدد داخل النظام.</p>
-          </div>
-          <span class="bh-pill">{{ wallet_kpis.wallets }} محفظة</span>
-        </div>
-        <div class="table-responsive">
-          <table class="wallet-directory-table">
-            <thead>
-              <tr>
-                <th>صاحب المحفظة</th>
-                <th>الهاتف</th>
-                <th>البريد</th>
-                <th>كود المحفظة</th>
-                <th>بطاقة NFC</th>
-                <th>الرصيد</th>
-                <th>آخر تحديث</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for wallet in wallet_directory %}
-                <tr>
-                  <td>
-                    <div class="wallet-owner-name">{{ wallet.user.full_name|default:wallet.user.email }}</div>
-                    <div class="wallet-muted-value">{{ wallet.college|default:"Bite Hub" }}</div>
-                  </td>
-                  <td><div class="wallet-muted-value">{{ wallet.user.phone_number|default:"-" }}</div></td>
-                  <td><div class="wallet-muted-value">{{ wallet.user.email|default:"-" }}</div></td>
-                  <td><span class="wallet-code-chip">{{ wallet.link_code|default:"بدون كود" }}</span></td>
-                  <td><span class="wallet-code-chip">{{ wallet.nfc_card_uid|default:"غير مرتبطة" }}</span></td>
-                  <td><strong>{{ wallet.balance|floatformat:2 }} د.ل</strong></td>
-                  <td><div class="wallet-muted-value">{{ wallet.updated_at|date:"Y-m-d H:i" }}</div></td>
-                </tr>
-              {% empty %}
-                <tr>
-                  <td colspan="7">
-                    <div class="wallet-empty-ledger">
-                      <div>
-                        <div class="fw-bold mb-1">لا توجد محافظ مسجلة</div>
-                        <div class="small">عند إنشاء أول حساب طالب ستظهر محفظته هنا.</div>
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      </section>
     </div>
 
     <div class="col-12" id="nfc" data-cafe-section-panel="nfc">
@@ -1335,6 +1348,7 @@
       "stockEndpointTemplate": "{% url 'core:toggle_product_stock_api' 0 %}",
       "walletOperationEndpoint": "{% url 'core:cafe_wallet_operation_api' %}",
       "cardBindEndpoint": "{% url 'core:cafe_bind_wallet_card_api' %}",
+      "walletHistoryEndpointTemplate": "{% url 'core:cafe_wallet_history_api' 0 %}",
       "createProductEndpoint": "{% url 'core:create_product_api' %}",
       "saveProductEndpointTemplate": "{% url 'core:save_product_api' 0 %}",
       "csrfToken": "{{ csrf_token }}"
@@ -1354,6 +1368,23 @@
         <div class="modal-footer border-0">
           <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">إلغاء</button>
           <button type="button" class="btn btn-dark rounded-pill px-4" id="confirmCafePanelActionSubmit">تأكيد</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="walletHistoryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+      <div class="modal-content border-0 rounded-2 shadow-lg">
+        <div class="modal-header border-0">
+          <div>
+            <h2 class="h4 fw-bold mb-1" id="walletHistoryTitle">سجل الطالب</h2>
+            <div class="text-muted small">عمليات هذا الطالب داخل {{ cafe.name }} فقط.</div>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body pt-0">
+          <div id="walletHistoryContent" class="wallet-empty-ledger">جاري تحميل السجل...</div>
         </div>
       </div>
     </div>

@@ -8,7 +8,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required, user_passes_test
-from django.db.models import Q, Sum
+from django.db.models import OuterRef, Q, Subquery, Sum
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
@@ -371,11 +371,25 @@ def _wallet_payload(wallet: Wallet) -> dict:
     }
 
 
-def _wallet_directory_queryset():
-    return (
-        Wallet.objects.select_related("user")
+def _cafe_wallet_activity(cafe: Cafe) -> tuple[list[Transaction], list[Wallet]]:
+    latest_transaction_id = (
+        Transaction.objects.filter(cafe=cafe, wallet_id=OuterRef("wallet_id"))
+        .order_by("-created_at")
+        .values("id")[:1]
+    )
+    recent_activity = list(
+        Transaction.objects.filter(cafe=cafe)
+        .filter(id=Subquery(latest_transaction_id))
+        .select_related("wallet", "wallet__user")
+        .order_by("-created_at")
+    )
+    wallet_ids = [transaction_item.wallet_id for transaction_item in recent_activity]
+    wallets = list(
+        Wallet.objects.filter(id__in=wallet_ids)
+        .select_related("user")
         .order_by("user__full_name", "user__email", "id")
     )
+    return recent_activity, wallets
 
 
 # ???? ???? super_admin_dashboard ?????? ????? ?????? ?? ????? ????.
@@ -622,6 +636,7 @@ def cafe_wallet_operation_api(request: HttpRequest) -> JsonResponse:
     try:
         Transaction.objects.create(
             wallet=wallet,
+            cafe=cafe,
             amount=amount,
             transaction_type=operation,
             source="SYSTEM",
@@ -668,6 +683,8 @@ def cafe_panel(request: HttpRequest) -> HttpResponse:
 
     # ??? ??????? snapshot ??? ????? ??? ???? ???? ???? ????? ????.
     snapshot = get_cafe_panel_snapshot(cafe.id)
+    recent_wallet_activity, wallet_directory = _cafe_wallet_activity(cafe)
+    wallet_ids = [wallet.id for wallet in wallet_directory]
     # ??? ??????? context ??? ????? ??? ???? ???? ???? ????? ????.
     context = {
         "cafe": cafe,
@@ -676,12 +693,11 @@ def cafe_panel(request: HttpRequest) -> HttpResponse:
         "categories": Category.objects.for_cafe(cafe.id).filter(is_active=True),
         "kpis": snapshot["kpis"],
         "wallet_kpis": {
-            "total_balance": Wallet.objects.aggregate(total=Sum("balance"))["total"] or 0,
-            "linked_cards": Wallet.objects.exclude(nfc_card_uid__isnull=True).exclude(nfc_card_uid="").count(),
-            "wallets": Wallet.objects.count(),
+            "total_balance": Wallet.objects.filter(id__in=wallet_ids).aggregate(total=Sum("balance"))["total"] or 0,
+            "linked_cards": Wallet.objects.filter(id__in=wallet_ids).exclude(nfc_card_uid__isnull=True).exclude(nfc_card_uid="").count(),
+            "wallets": len(wallet_ids),
         },
-        "wallet_directory": _wallet_directory_queryset(),
-        "recent_wallet_transactions": Transaction.objects.select_related("wallet", "wallet__user").order_by("-created_at")[:8],
+        "recent_wallet_activity": recent_wallet_activity,
         "status_choices": [
             ("PENDING", "New"),
             ("PREPARING", "Preparing"),
@@ -692,6 +708,53 @@ def cafe_panel(request: HttpRequest) -> HttpResponse:
         "ws_path": f"/ws/cafe/{cafe.id}/orders/",
     }
     return render(request, "admin_v2/cafe_panel.html", context)
+
+
+@login_required(login_url="core:cafe_login")
+@user_passes_test(_is_cafe_operator, login_url="core:route_after_login")
+def cafe_wallet_history_api(request: HttpRequest, wallet_id: int) -> JsonResponse:
+    cafe = resolve_backoffice_cafe(request.user)
+    if cafe is None:
+        return JsonResponse({"success": False, "message": "No cafe scope available."}, status=403)
+
+    wallet = Wallet.objects.select_related("user").filter(pk=wallet_id).first()
+    if wallet is None:
+        return JsonResponse({"success": False, "message": "المحفظة غير موجودة."}, status=404)
+
+    transactions = list(
+        Transaction.objects.filter(cafe=cafe, wallet=wallet)
+        .order_by("-created_at")
+    )
+    if not transactions:
+        return JsonResponse(
+            {"success": False, "message": "لا يوجد سجل لهذا الطالب داخل هذا المقهى."},
+            status=404,
+        )
+
+    return JsonResponse(
+        {
+            "success": True,
+            "student": {
+                "name": wallet.user.full_name or wallet.user.email,
+                "email": wallet.user.email,
+                "phone": wallet.user.phone_number,
+                "wallet_code": wallet.link_code,
+                "nfc_card_uid": wallet.nfc_card_uid,
+                "balance": str(wallet.balance),
+            },
+            "transactions": [
+                {
+                    "id": str(transaction_item.id),
+                    "type": transaction_item.transaction_type,
+                    "amount": str(transaction_item.amount),
+                    "source": transaction_item.source,
+                    "description": transaction_item.description or "عملية محفظة",
+                    "created_at": transaction_item.created_at.strftime("%Y-%m-%d %H:%M"),
+                }
+                for transaction_item in transactions
+            ],
+        }
+    )
 
 
 @login_required(login_url="core:cafe_login")

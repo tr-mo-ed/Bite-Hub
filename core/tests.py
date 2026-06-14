@@ -500,6 +500,7 @@ class OrderWorkflowTests(TestCase):
                 transaction_type="WITHDRAWAL",
                 source="NFC",
                 amount=Decimal("10.00"),
+                cafe=self.cafe,
             ).exists()
         )
 
@@ -1132,6 +1133,109 @@ class DashboardRenderSmokeTests(TestCase):
         self.assertEqual(withdraw_response.status_code, 200, withdraw_response.content)
         self.student.wallet.refresh_from_db()
         self.assertEqual(self.student.wallet.balance, Decimal("20.00"))
+        self.assertEqual(
+            set(
+                self.student.wallet.transactions.values_list("cafe_id", flat=True)
+            ),
+            {self.cafe.id},
+        )
+
+    def test_wallet_ledger_is_scoped_to_cafe_and_shows_student_once(self):
+        User = get_user_model()
+        other_cashier = User.objects.create_user(
+            email="other-panel-cashier@example.com",
+            password="StrongPass123",
+            full_name="Other Cafe Cashier",
+            phone_number="0910000024",
+            is_staff=True,
+        )
+        other_cafe = Cafe.objects.create(
+            name="Other Faculty Cafe",
+            code="other-faculty-cafe",
+            owner=other_cashier,
+        )
+        Transaction.objects.create(
+            wallet=self.student.wallet,
+            cafe=self.cafe,
+            amount=Decimal("30.00"),
+            transaction_type="DEPOSIT",
+            source="SYSTEM",
+            description="Panel Cafe deposit",
+        )
+        Transaction.objects.create(
+            wallet=self.student.wallet,
+            cafe=self.cafe,
+            amount=Decimal("5.00"),
+            transaction_type="WITHDRAWAL",
+            source="SYSTEM",
+            description="Panel Cafe latest purchase",
+        )
+        Transaction.objects.create(
+            wallet=self.student.wallet,
+            cafe=other_cafe,
+            amount=Decimal("3.00"),
+            transaction_type="WITHDRAWAL",
+            source="SYSTEM",
+            description="Other Faculty purchase",
+        )
+        self.client.force_login(self.cashier)
+
+        response = self.client.get(reverse("core:cafe_panel"))
+
+        self.assertEqual(response.status_code, 200)
+        activity = response.context["recent_wallet_activity"]
+        self.assertEqual(len(activity), 1)
+        self.assertEqual(activity[0].description, "Panel Cafe latest purchase")
+        self.assertContains(response, "Panel Cafe latest purchase")
+        self.assertNotContains(response, "Other Faculty purchase")
+
+    def test_wallet_history_api_returns_only_current_cafe_transactions(self):
+        User = get_user_model()
+        other_cashier = User.objects.create_user(
+            email="history-other-cashier@example.com",
+            password="StrongPass123",
+            full_name="History Other Cashier",
+            phone_number="0910000025",
+            is_staff=True,
+        )
+        other_cafe = Cafe.objects.create(
+            name="History Other Cafe",
+            code="history-other-cafe",
+            owner=other_cashier,
+        )
+        Transaction.objects.create(
+            wallet=self.student.wallet,
+            cafe=self.cafe,
+            amount=Decimal("12.00"),
+            transaction_type="DEPOSIT",
+            source="SYSTEM",
+            description="Visible cafe operation",
+        )
+        Transaction.objects.create(
+            wallet=self.student.wallet,
+            cafe=other_cafe,
+            amount=Decimal("2.00"),
+            transaction_type="WITHDRAWAL",
+            source="SYSTEM",
+            description="Hidden cafe operation",
+        )
+        self.client.force_login(self.cashier)
+
+        response = self.client.get(
+            reverse(
+                "core:cafe_wallet_history_api",
+                args=[self.student.wallet.id],
+            )
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        payload = response.json()
+        self.assertEqual(payload["student"]["name"], self.student.full_name)
+        self.assertEqual(len(payload["transactions"]), 1)
+        self.assertEqual(
+            payload["transactions"][0]["description"],
+            "Visible cafe operation",
+        )
 
     def test_cafe_wallet_operation_requires_existing_wallet_code(self):
         self.client.force_login(self.cashier)

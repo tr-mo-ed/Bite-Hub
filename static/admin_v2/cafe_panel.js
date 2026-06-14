@@ -11,6 +11,12 @@
   const confirmText = document.getElementById("confirmCafePanelActionText");
   const confirmSubmit = document.getElementById("confirmCafePanelActionSubmit");
   const confirmModal = confirmModalNode ? bootstrap.Modal.getOrCreateInstance(confirmModalNode) : null;
+  const walletHistoryModalNode = document.getElementById("walletHistoryModal");
+  const walletHistoryModal = walletHistoryModalNode
+    ? bootstrap.Modal.getOrCreateInstance(walletHistoryModalNode)
+    : null;
+  const walletHistoryTitle = document.getElementById("walletHistoryTitle");
+  const walletHistoryContent = document.getElementById("walletHistoryContent");
 
   function showToast(message, variant = "dark") {
     let stack = document.querySelector(".bh-toast-stack");
@@ -82,7 +88,63 @@
   }
 
   function endpointFromTemplate(template, id) {
-    return template.replace(/0\/$/, `${id}/`);
+    return template.replace(/\/0(?=\/)/, `/${id}`);
+  }
+
+  function appendTextElement(parent, tagName, text, className = "") {
+    const element = document.createElement(tagName);
+    element.textContent = text;
+    if (className) {
+      element.className = className;
+    }
+    parent.appendChild(element);
+    return element;
+  }
+
+  function renderWalletHistory(payload) {
+    if (!walletHistoryContent) {
+      return;
+    }
+    walletHistoryContent.className = "";
+    walletHistoryContent.replaceChildren();
+
+    const student = payload.student || {};
+    const identity = document.createElement("div");
+    identity.className = "wallet-history-identity";
+    [
+      ["الاسم", student.name || "-"],
+      ["الهاتف", student.phone || "-"],
+      ["البريد", student.email || "-"],
+      ["الرصيد الحالي", `${student.balance || "0.00"} د.ل`],
+    ].forEach(([label, value]) => {
+      const item = document.createElement("div");
+      appendTextElement(item, "span", label);
+      appendTextElement(item, "strong", value);
+      identity.appendChild(item);
+    });
+    walletHistoryContent.appendChild(identity);
+
+    const list = document.createElement("div");
+    list.className = "wallet-history-list";
+    (payload.transactions || []).forEach((transaction) => {
+      const row = document.createElement("div");
+      row.className = "wallet-history-row";
+      const details = document.createElement("div");
+      appendTextElement(details, "div", transaction.description || "عملية محفظة", "fw-bold");
+      appendTextElement(details, "div", transaction.created_at || "", "text-muted small");
+      appendTextElement(details, "div", `المصدر: ${transaction.source || "-"}`, "text-muted small");
+
+      const isDeposit = transaction.type === "DEPOSIT";
+      appendTextElement(
+        row,
+        "div",
+        `${isDeposit ? "+" : "-"}${transaction.amount || "0.00"} د.ل`,
+        `wallet-ledger-amount ${isDeposit ? "text-success" : "text-danger"}`,
+      );
+      row.prepend(details);
+      list.appendChild(row);
+    });
+    walletHistoryContent.appendChild(list);
   }
 
   function showCafeSection(sectionName, { updateUrl = true } = {}) {
@@ -379,6 +441,39 @@
       }
     });
   }
+
+  document.addEventListener("click", async (event) => {
+    const trigger = event.target.closest(".js-wallet-history");
+    if (!trigger || !walletHistoryModal || !walletHistoryContent) {
+      return;
+    }
+
+    const walletId = trigger.dataset.walletId;
+    if (!walletId) {
+      return;
+    }
+
+    walletHistoryTitle.textContent = `سجل ${trigger.dataset.studentName || "الطالب"}`;
+    walletHistoryContent.className = "wallet-empty-ledger";
+    walletHistoryContent.textContent = "جاري تحميل السجل...";
+    walletHistoryModal.show();
+
+    try {
+      const endpoint = endpointFromTemplate(config.walletHistoryEndpointTemplate, walletId);
+      const response = await fetch(endpoint, {
+        headers: { Accept: "application/json" },
+        credentials: "same-origin",
+      });
+      const payload = await response.json();
+      if (!response.ok || payload.success !== true) {
+        throw new Error(payload.message || "تعذر تحميل سجل الطالب.");
+      }
+      renderWalletHistory(payload);
+    } catch (error) {
+      walletHistoryContent.className = "wallet-empty-ledger text-danger";
+      walletHistoryContent.textContent = error.message || "تعذر تحميل سجل الطالب.";
+    }
+  });
 
   document.addEventListener("click", (event) => {
     const button = event.target.closest(".js-edit-product");
