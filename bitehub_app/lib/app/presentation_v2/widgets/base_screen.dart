@@ -131,9 +131,9 @@ class _BaseScreenState extends State<BaseScreen> {
           icon: Icon(tab.activeIcon),
           inactiveIcon: Icon(tab.icon),
           title: tab.title,
-          activeForegroundColor: const Color(0xFF3559C7),
+          activeForegroundColor: AppColors.brandBlue,
           inactiveForegroundColor: AppColors.textSecondary,
-          activeColorSecondary: const Color(0xFFEFF6FF),
+          activeColorSecondary: const Color(0xFFE8F4EF),
           textStyle: const TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.w700,
@@ -253,12 +253,12 @@ class _NotificationBellButton extends StatelessWidget {
                 height: 40,
                 decoration: BoxDecoration(
                   color: unreadCount > 0
-                      ? const Color(0xFFEFF6FF)
+                      ? const Color(0xFFE8F4EF)
                       : AppColors.neutral50,
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(
                     color: unreadCount > 0
-                        ? const Color(0xFFBFDBFE)
+                        ? const Color(0xFFB9DDD2)
                         : AppColors.border,
                   ),
                 ),

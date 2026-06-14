@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:bitehub_app/app/core/theme/app_colors.dart';
 import 'package:bitehub_app/app/presentation_v2/controllers/shell_v2_controller.dart';
 
 class ShellDrawerV2 extends StatelessWidget {
@@ -43,7 +44,7 @@ class ShellDrawerV2 extends StatelessWidget {
                       gradient: const LinearGradient(
                         colors: [
                           Color(0xFF1B2559),
-                          Color(0xFF3559C7),
+                          AppColors.brandBlue,
                           Color(0xFF24A8E0),
                         ],
                         begin: Alignment.topRight,
@@ -52,8 +53,7 @@ class ShellDrawerV2 extends StatelessWidget {
                       borderRadius: BorderRadius.circular(28),
                       boxShadow: [
                         BoxShadow(
-                          color:
-                              const Color(0xFF3559C7).withValues(alpha: 0.18),
+                          color: AppColors.brandBlue.withValues(alpha: 0.18),
                           blurRadius: 24,
                           offset: const Offset(0, 12),
                         ),
@@ -177,8 +177,8 @@ class ShellDrawerV2 extends StatelessWidget {
                       subtitle: controller
                               .authProvider.currentUser?.managedCafeName ??
                           'الدخول إلى المنظومة الصغيرة',
-                      iconColor: const Color(0xFF123C7A),
-                      textColor: const Color(0xFF123C7A),
+                      iconColor: AppColors.brandNavy,
+                      textColor: AppColors.brandNavy,
                       backgroundColor: const Color(0xFFFFF4D6),
                       borderColor: const Color(0xFFF0B429),
                       onTap: onOpenCafeDashboard,
@@ -289,7 +289,7 @@ class _DrawerTile extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Icon(icon, color: iconColor ?? const Color(0xFF3559C7)),
+              Icon(icon, color: iconColor ?? AppColors.brandBlue),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(

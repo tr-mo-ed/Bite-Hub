@@ -156,7 +156,7 @@ class HomeScreenV2State extends State<HomeScreenV2> {
                           trailing: BhStatusPill(
                             label: '${_controller.colleges.length}',
                             foreground: AppColors.brandBlue,
-                            background: const Color(0xFFEFF6FF),
+                            background: const Color(0xFFEAF4EF),
                             icon: Icons.storefront_outlined,
                           ),
                         ),
@@ -306,7 +306,7 @@ class _SelectedCafeHeader extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
             decoration: BoxDecoration(
               color: cartCount > 0
-                  ? const Color(0xFFEFF6FF)
+                  ? const Color(0xFFEAF4EF)
                   : AppColors.neutral100,
               borderRadius: BorderRadius.circular(BhRadius.md),
             ),
@@ -599,7 +599,7 @@ class _CategoryStrip extends StatelessWidget {
             showCheckmark: false,
             label: Text(category),
             onSelected: (_) => onSelect(category),
-            selectedColor: const Color(0xFFEFF6FF),
+            selectedColor: const Color(0xFFEAF4EF),
             backgroundColor: AppColors.surface,
             side: BorderSide(
               color: selected ? AppColors.brandBlue : AppColors.border,
@@ -917,7 +917,7 @@ class _EmptyProductsState extends StatelessWidget {
                 height: 54,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEFF6FF),
+                  color: const Color(0xFFEAF4EF),
                   borderRadius: BorderRadius.circular(BhRadius.md),
                 ),
                 child: const Icon(

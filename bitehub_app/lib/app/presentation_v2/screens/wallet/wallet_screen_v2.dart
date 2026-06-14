@@ -344,7 +344,7 @@ class _BalancePanel extends StatelessWidget {
                 height: 44,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEFF6FF),
+                  color: const Color(0xFFEAF4EF),
                   borderRadius: BorderRadius.circular(BhRadius.md),
                 ),
                 child: const Icon(

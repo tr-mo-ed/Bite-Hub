@@ -10,11 +10,20 @@ import 'package:bitehub_app/app/data/models/user_model.dart';
 import 'package:bitehub_app/app/data/models/wallet_model.dart';
 import 'package:bitehub_app/app/data/providers/auth_provider.dart';
 import 'package:bitehub_app/app/data/providers/locale_provider.dart';
+import 'package:bitehub_app/app/data/providers/navigation_provider.dart';
 import 'package:bitehub_app/app/presentation_v2/controllers/profile_v2_controller.dart';
+import 'package:bitehub_app/app/presentation_v2/screens/legal/usage_policy_screen.dart';
 import 'package:bitehub_app/app/presentation_v2/widgets/network_state_panel.dart';
 
 class ProfileScreenV2 extends StatefulWidget {
-  const ProfileScreenV2({super.key});
+  const ProfileScreenV2({
+    super.key,
+    this.controller,
+    this.initializeController = true,
+  });
+
+  final ProfileV2Controller? controller;
+  final bool initializeController;
 
   @override
   State<ProfileScreenV2> createState() => _ProfileScreenV2State();
@@ -22,19 +31,26 @@ class ProfileScreenV2 extends StatefulWidget {
 
 class _ProfileScreenV2State extends State<ProfileScreenV2> {
   late final ProfileV2Controller _controller;
+  late final bool _ownsController;
 
   @override
   void initState() {
     super.initState();
-    _controller = ProfileV2Controller(
-      authProvider: context.read<AuthProvider>(),
-    );
-    _controller.initialize();
+    _ownsController = widget.controller == null;
+    _controller = widget.controller ??
+        ProfileV2Controller(
+          authProvider: context.read<AuthProvider>(),
+        );
+    if (widget.initializeController) {
+      _controller.initialize();
+    }
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    if (_ownsController) {
+      _controller.dispose();
+    }
     super.dispose();
   }
 
@@ -47,10 +63,10 @@ class _ProfileScreenV2State extends State<ProfileScreenV2> {
       SnackBar(
         content: Text(
           success
-              ? 'تم رفع صورة الحساب إلى الخادم.'
+              ? 'تم تحديث صورة الحساب.'
               : (_controller.errorMessage ?? 'لم يتم تغيير الصورة.'),
         ),
-        backgroundColor: success ? const Color(0xFF0AA77F) : Colors.redAccent,
+        backgroundColor: success ? AppColors.success : AppColors.danger,
       ),
     );
   }
@@ -60,50 +76,18 @@ class _ProfileScreenV2State extends State<ProfileScreenV2> {
     if (user == null) {
       return;
     }
+
     final nameController = TextEditingController(text: user.fullName);
     final emailController = TextEditingController(text: user.email);
     final phoneController = TextEditingController(text: user.phoneNumber);
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showModalBottomSheet<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('تعديل الملف الشخصي'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                textInputAction: TextInputAction.next,
-                decoration: const InputDecoration(labelText: 'الاسم الكامل'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: emailController,
-                keyboardType: TextInputType.emailAddress,
-                textInputAction: TextInputAction.next,
-                decoration:
-                    const InputDecoration(labelText: 'البريد الإلكتروني'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: phoneController,
-                keyboardType: TextInputType.phone,
-                textInputAction: TextInputAction.done,
-                decoration: const InputDecoration(labelText: 'رقم الهاتف'),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('إلغاء'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('حفظ'),
-          ),
-        ],
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => _EditProfileSheet(
+        nameController: nameController,
+        emailController: emailController,
+        phoneController: phoneController,
       ),
     );
 
@@ -114,18 +98,15 @@ class _ProfileScreenV2State extends State<ProfileScreenV2> {
       return;
     }
 
-    final fullName = nameController.text.trim();
-    final email = emailController.text.trim();
-    final phoneNumber = phoneController.text.trim();
+    final success = await _controller.saveProfile(
+      fullName: nameController.text.trim(),
+      email: emailController.text.trim(),
+      phoneNumber: phoneController.text.trim(),
+    );
     nameController.dispose();
     emailController.dispose();
     phoneController.dispose();
 
-    final success = await _controller.saveProfile(
-      fullName: fullName,
-      email: email,
-      phoneNumber: phoneNumber,
-    );
     if (!mounted) {
       return;
     }
@@ -133,37 +114,36 @@ class _ProfileScreenV2State extends State<ProfileScreenV2> {
       SnackBar(
         content: Text(
           success
-              ? 'تم تحديث البيانات بنجاح.'
-              : (_controller.errorMessage ?? 'تعذر تحديث البيانات.'),
+              ? 'تم حفظ بيانات الحساب.'
+              : (_controller.errorMessage ?? 'تعذر حفظ البيانات.'),
         ),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: success ? const Color(0xFF3559C7) : Colors.redAccent,
+        backgroundColor: success ? AppColors.success : AppColors.danger,
       ),
     );
-  }
-
-  Future<void> _handleLogout() async {
-    await _controller.logout();
   }
 
   Future<void> _handleDeleteAccount() async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('حذف الحساب'),
+      builder: (dialogContext) => AlertDialog(
+        icon: const Icon(
+          Ionicons.warning_outline,
+          color: AppColors.danger,
+          size: 32,
+        ),
+        title: const Text('حذف الحساب نهائياً؟'),
         content: const Text(
-          'سيتم حذف حسابك من التطبيق نهائياً. لا يمكن التراجع عن هذه العملية.',
+          'سيتم حذف حساب الطالب ولن تتمكن من استعادته. راجع طلباتك ومحفظتك قبل المتابعة.',
+          textAlign: TextAlign.center,
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('إلغاء'),
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('رجوع'),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Colors.redAccent,
-            ),
-            onPressed: () => Navigator.of(context).pop(true),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
             child: const Text('حذف الحساب'),
           ),
         ],
@@ -178,7 +158,6 @@ class _ProfileScreenV2State extends State<ProfileScreenV2> {
     if (!mounted) {
       return;
     }
-
     if (success) {
       Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
       return;
@@ -186,11 +165,15 @@ class _ProfileScreenV2State extends State<ProfileScreenV2> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(
-          _controller.errorMessage ?? 'تعذر حذف الحساب.',
-        ),
-        backgroundColor: Colors.redAccent,
+        content: Text(_controller.errorMessage ?? 'تعذر حذف الحساب.'),
+        backgroundColor: AppColors.danger,
       ),
+    );
+  }
+
+  void _openPolicy() {
+    Navigator.of(context, rootNavigator: true).push(
+      MaterialPageRoute(builder: (_) => const UsagePolicyScreen()),
     );
   }
 
@@ -198,9 +181,15 @@ class _ProfileScreenV2State extends State<ProfileScreenV2> {
     Navigator.of(context).pushNamed('/cafe-dashboard');
   }
 
+  void _selectTab(int index) {
+    context.read<NavigationProvider>().setIndex(index);
+  }
+
   @override
   Widget build(BuildContext context) {
     final strings = AppStrings.of(context);
+    final localeProvider = context.watch<LocaleProvider>();
+
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, _) {
@@ -210,7 +199,7 @@ class _ProfileScreenV2State extends State<ProfileScreenV2> {
 
         if (_controller.errorMessage != null && _controller.user == null) {
           return NetworkStatePanel(
-            title: 'تعذر تحميل الملف الشخصي',
+            title: 'تعذر تحميل الحساب',
             message: _controller.errorMessage!,
             actionLabel: 'إعادة المحاولة',
             onRetry: _controller.refresh,
@@ -219,105 +208,100 @@ class _ProfileScreenV2State extends State<ProfileScreenV2> {
 
         final user = _controller.user;
         if (user == null) {
-          return const Center(child: Text('لا توجد بيانات مستخدم متاحة.'));
+          return const Center(child: Text('لا توجد بيانات حساب متاحة.'));
         }
 
         return RefreshIndicator(
+          color: AppColors.brandBlue,
           onRefresh: _controller.refresh,
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
+            padding: const EdgeInsets.fromLTRB(18, 12, 18, 124),
             children: [
-              ProfileHeader(
+              _ProfileIdentity(
                 user: user,
                 wallet: _controller.wallet,
                 localImagePath: _controller.localImagePath,
                 onPickImage: _handlePickImage,
               ),
               const SizedBox(height: 18),
-              ProfileMenu(
+              _QuickActions(
+                onOrders: () => _selectTab(1),
+                onWallet: () => _selectTab(3),
+                onEdit: _showEditDialog,
+              ),
+              const SizedBox(height: 26),
+              _SettingsGroup(
                 title: 'الحساب',
-                items: [
-                  ProfileMenuItem(
-                    icon: Ionicons.create_outline,
-                    title: 'تعديل البيانات',
-                    subtitle: 'تحديث الاسم والبريد ورقم الهاتف',
+                children: [
+                  _SettingsRow(
+                    icon: Ionicons.person_outline,
+                    title: 'البيانات الشخصية',
+                    subtitle: 'الاسم والبريد ورقم الهاتف',
                     onTap: _showEditDialog,
                   ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              ProfileMenu(
-                title: strings.language,
-                items: [
-                  ProfileMenuItem(
+                  _SettingsRow(
                     icon: Ionicons.language_outline,
-                    title: context.watch<LocaleProvider>().isArabic
-                        ? strings.arabic
-                        : strings.english,
-                    subtitle: context.watch<LocaleProvider>().isArabic
-                        ? 'التطبيق مضبوط على العربية واتجاه RTL'
-                        : 'App language is English with LTR layout',
-                    onTap: () => context.read<LocaleProvider>().toggle(),
+                    title: strings.language,
+                    subtitle: localeProvider.isArabic ? 'العربية' : 'English',
+                    onTap: localeProvider.toggle,
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-              ProfileMenu(
-                title: 'المعلومات',
-                items: [
-                  ProfileMenuItem(
-                    icon: Ionicons.mail_outline,
-                    title: user.email,
-                    subtitle: 'البريد الإلكتروني',
-                    onTap: _showEditDialog,
+              const SizedBox(height: 22),
+              _SettingsGroup(
+                title: 'الدعم والقانون',
+                children: [
+                  _SettingsRow(
+                    icon: Ionicons.document_text_outline,
+                    title: 'سياسة الاستخدام والإلغاء',
+                    subtitle: 'الطلبات والدفع والاسترداد والخصوصية',
+                    onTap: _openPolicy,
                   ),
-                  ProfileMenuItem(
-                    icon: Ionicons.call_outline,
-                    title: user.phoneNumber,
-                    subtitle: 'رقم الهاتف',
-                    onTap: _showEditDialog,
+                  const _SettingsRow(
+                    icon: Ionicons.information_circle_outline,
+                    title: 'عن Bite Hub',
+                    subtitle: 'منصة طلب ودفع للمقاهي الجامعية',
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
               if (user.hasCafeDashboardAccess) ...[
-                ProfileMenu(
+                const SizedBox(height: 22),
+                _SettingsGroup(
                   title: 'إدارة المقهى',
-                  items: [
-                    ProfileMenuItem(
+                  children: [
+                    _SettingsRow(
                       icon: Ionicons.storefront_outline,
                       title: user.managedCafeName ?? 'لوحة تحكم المقهى',
-                      subtitle: 'الدخول إلى المنظومة الصغيرة الخاصة بالمقهى',
-                      iconColor: const Color(0xFF123C7A),
-                      textColor: const Color(0xFF123C7A),
-                      tileColor: const Color(0xFFFFF4D6),
-                      tileBorderColor: const Color(0xFFF0B429),
+                      subtitle: 'فتح منظومة التشغيل الخاصة بالمقهى',
+                      iconColor: AppColors.warning,
                       onTap: _openCafeDashboard,
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
               ],
-              ProfileMenu(
+              const SizedBox(height: 22),
+              _SettingsGroup(
                 title: 'الجلسة',
-                items: [
-                  ProfileMenuItem(
+                children: [
+                  _SettingsRow(
                     icon: Ionicons.log_out_outline,
                     title: 'تسجيل الخروج',
-                    subtitle: 'إنهاء الجلسة الحالية على هذا الجهاز',
-                    iconColor: Colors.redAccent,
-                    textColor: Colors.redAccent,
-                    onTap: _handleLogout,
-                  ),
-                  ProfileMenuItem(
-                    icon: Ionicons.trash_outline,
-                    title: 'حذف الحساب',
-                    subtitle: 'حذف حساب الطالب من التطبيق بشكل نهائي',
-                    iconColor: const Color(0xFFB91C1C),
-                    textColor: const Color(0xFFB91C1C),
-                    onTap: _handleDeleteAccount,
+                    subtitle: 'إنهاء الجلسة على هذا الجهاز',
+                    onTap: _controller.logout,
                   ),
                 ],
+              ),
+              const SizedBox(height: 14),
+              TextButton(
+                onPressed: _controller.isSaving ? null : _handleDeleteAccount,
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.danger,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                child: const Text(
+                  'حذف الحساب نهائياً',
+                  style: TextStyle(fontWeight: FontWeight.w800),
+                ),
               ),
             ],
           ),
@@ -327,9 +311,8 @@ class _ProfileScreenV2State extends State<ProfileScreenV2> {
   }
 }
 
-class ProfileHeader extends StatelessWidget {
-  const ProfileHeader({
-    super.key,
+class _ProfileIdentity extends StatelessWidget {
+  const _ProfileIdentity({
     required this.user,
     required this.wallet,
     required this.localImagePath,
@@ -341,158 +324,159 @@ class ProfileHeader extends StatelessWidget {
   final String? localImagePath;
   final VoidCallback onPickImage;
 
-  ImageProvider<Object> _resolveImage() {
+  ImageProvider<Object>? _resolveImage() {
     if (localImagePath != null && File(localImagePath!).existsSync()) {
       return FileImage(File(localImagePath!));
     }
     final profileImage = user.profileImage?.trim() ?? '';
-    if (profileImage.isNotEmpty) {
-      return NetworkImage(profileImage);
-    }
-    return const AssetImage('assets/images/logo.png');
+    return profileImage.isEmpty ? null : NetworkImage(profileImage);
   }
 
   @override
   Widget build(BuildContext context) {
+    final image = _resolveImage();
+    final initial =
+        user.fullName.trim().isEmpty ? 'B' : user.fullName.trim()[0];
+
     return Container(
-      padding: const EdgeInsets.all(22),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: AppColors.walletGradient,
-        borderRadius: BorderRadius.circular(34),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: AppColors.border),
         boxShadow: [
           BoxShadow(
-            color: AppColors.brandBlue.withValues(alpha: .24),
-            blurRadius: 34,
-            offset: const Offset(0, 18),
+            color: Colors.black.withValues(alpha: .04),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
       child: Column(
         children: [
-          Stack(
-            clipBehavior: Clip.none,
+          Row(
             children: [
-              CircleAvatar(
-                radius: 46,
-                backgroundColor: Colors.white,
-                backgroundImage: _resolveImage(),
-              ),
-              Positioned(
-                bottom: -4,
-                left: -4,
-                child: Material(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(18),
-                  child: InkWell(
-                    onTap: onPickImage,
-                    borderRadius: BorderRadius.circular(18),
-                    child: const Padding(
-                      padding: EdgeInsets.all(10),
-                      child: Icon(
-                        Ionicons.camera_outline,
-                        color: Color(0xFF3559C7),
-                        size: 18,
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  CircleAvatar(
+                    radius: 38,
+                    backgroundColor: const Color(0xFFE8F4EF),
+                    backgroundImage: image,
+                    child: image == null
+                        ? Text(
+                            initial,
+                            style: const TextStyle(
+                              color: AppColors.brandBlue,
+                              fontSize: 28,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          )
+                        : null,
+                  ),
+                  PositionedDirectional(
+                    bottom: -2,
+                    end: -2,
+                    child: Material(
+                      color: AppColors.textPrimary,
+                      shape: const CircleBorder(),
+                      child: InkWell(
+                        onTap: onPickImage,
+                        customBorder: const CircleBorder(),
+                        child: const Padding(
+                          padding: EdgeInsets.all(8),
+                          child: Icon(
+                            Ionicons.camera_outline,
+                            color: Colors.white,
+                            size: 16,
+                          ),
+                        ),
                       ),
                     ),
                   ),
+                ],
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      user.fullName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 21,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      user.email,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      user.phoneNumber,
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 18),
-          Text(
-            user.fullName,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 24,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            user.email,
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.white70),
-          ),
-          const SizedBox(height: 18),
-          Row(
-            children: [
-              Expanded(
-                child: _HeaderStat(
-                  label: 'الرصيد',
-                  value: wallet == null
-                      ? '--'
-                      : '${wallet!.balance.toStringAsFixed(2)} ${wallet!.currency}',
-                  icon: Ionicons.wallet_outline,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _HeaderStat(
-                  label: 'الهاتف',
-                  value: user.phoneNumber,
-                  icon: Ionicons.call_outline,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _HeaderStat extends StatelessWidget {
-  const _HeaderStat({
-    required this.label,
-    required this.value,
-    required this.icon,
-  });
-
-  final String label;
-  final String value;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        children: [
+          const SizedBox(height: 20),
           Container(
-            width: 38,
-            height: 38,
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.16),
-              borderRadius: BorderRadius.circular(14),
+              color: const Color(0xFFF2F6F3),
+              borderRadius: BorderRadius.circular(18),
             ),
-            child: Icon(icon, color: Colors.white, size: 18),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
               children: [
-                Text(
-                  label,
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 12,
+                Container(
+                  width: 40,
+                  height: 40,
+                  alignment: Alignment.center,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Ionicons.wallet_outline,
+                    color: AppColors.brandBlue,
+                    size: 20,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'الرصيد المتاح',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
                 Text(
-                  value,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  wallet == null
+                      ? '--'
+                      : '${wallet!.balance.toStringAsFixed(2)} ${wallet!.currency}',
                   style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
               ],
@@ -504,143 +488,317 @@ class _HeaderStat extends StatelessWidget {
   }
 }
 
-class ProfileMenu extends StatelessWidget {
-  const ProfileMenu({
-    super.key,
-    required this.title,
-    required this.items,
+class _QuickActions extends StatelessWidget {
+  const _QuickActions({
+    required this.onOrders,
+    required this.onWallet,
+    required this.onEdit,
   });
 
-  final String title;
-  final List<ProfileMenuItem> items;
+  final VoidCallback onOrders;
+  final VoidCallback onWallet;
+  final VoidCallback onEdit;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(26),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
+    return Row(
+      children: [
+        Expanded(
+          child: _QuickAction(
+            icon: Ionicons.receipt_outline,
+            label: 'طلباتي',
+            onTap: onOrders,
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _QuickAction(
+            icon: Ionicons.wallet_outline,
+            label: 'المحفظة',
+            onTap: onWallet,
           ),
-          const SizedBox(height: 14),
-          ...List.generate(items.length, (index) {
-            final item = items[index];
-            return Padding(
-              padding:
-                  EdgeInsets.only(bottom: index == items.length - 1 ? 0 : 10),
-              child: _ProfileMenuTile(item: item),
-            );
-          }),
-        ],
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _QuickAction(
+            icon: Ionicons.create_outline,
+            label: 'تعديل',
+            onTap: onEdit,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _QuickAction extends StatelessWidget {
+  const _QuickAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 15),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: AppColors.textPrimary, size: 22),
+              const SizedBox(height: 7),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 }
 
-class ProfileMenuItem {
-  const ProfileMenuItem({
+class _SettingsGroup extends StatelessWidget {
+  const _SettingsGroup({
+    required this.title,
+    required this.children,
+  });
+
+  final String title;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsetsDirectional.only(start: 4, bottom: 10),
+          child: Text(
+            title,
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Column(
+            children: List.generate(children.length, (index) {
+              return Column(
+                children: [
+                  children[index],
+                  if (index != children.length - 1)
+                    const Divider(
+                      height: 1,
+                      indent: 62,
+                      endIndent: 16,
+                      color: AppColors.border,
+                    ),
+                ],
+              );
+            }),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SettingsRow extends StatelessWidget {
+  const _SettingsRow({
     required this.icon,
     required this.title,
     required this.subtitle,
-    this.iconColor,
-    this.textColor,
-    this.tileColor,
-    this.tileBorderColor,
+    this.iconColor = AppColors.brandBlue,
     this.onTap,
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
-  final Color? iconColor;
-  final Color? textColor;
-  final Color? tileColor;
-  final Color? tileBorderColor;
+  final Color iconColor;
   final VoidCallback? onTap;
-}
-
-class _ProfileMenuTile extends StatelessWidget {
-  const _ProfileMenuTile({required this.item});
-
-  final ProfileMenuItem item;
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: item.tileColor ?? const Color(0xFFF8FAFC),
-      borderRadius: BorderRadius.circular(20),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: item.tileBorderColor == null
-            ? BorderSide.none
-            : BorderSide(color: item.tileBorderColor!, width: 1.1),
-      ),
+      color: Colors.transparent,
       child: InkWell(
-        onTap: item.onTap,
+        onTap: onTap,
         borderRadius: BorderRadius.circular(20),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
           child: Row(
             children: [
               Container(
-                width: 42,
-                height: 42,
+                width: 38,
+                height: 38,
+                alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: const Color(0x140F766E),
-                  borderRadius: BorderRadius.circular(14),
+                  color: iconColor.withValues(alpha: .09),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(
-                  item.icon,
-                  color: item.iconColor ?? const Color(0xFF3559C7),
-                  size: 20,
-                ),
+                child: Icon(icon, color: iconColor, size: 19),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 11),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      item.title,
-                      style: TextStyle(
+                      title,
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
                         fontWeight: FontWeight.w800,
-                        color: item.textColor,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 3),
                     Text(
-                      item.subtitle,
-                      style: TextStyle(
-                        color: (item.textColor ?? Colors.grey.shade600)
-                            .withValues(
-                                alpha: item.textColor == null ? 1 : 0.85),
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
                         fontSize: 12,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
                 ),
               ),
-              if (item.onTap != null)
-                Icon(
+              if (onTap != null)
+                const Icon(
                   Ionicons.chevron_back_outline,
-                  size: 18,
-                  color: item.textColor ?? const Color(0xFF64748B),
+                  color: AppColors.textSecondary,
+                  size: 17,
                 ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EditProfileSheet extends StatelessWidget {
+  const _EditProfileSheet({
+    required this.nameController,
+    required this.emailController,
+    required this.phoneController,
+  });
+
+  final TextEditingController nameController;
+  final TextEditingController emailController;
+  final TextEditingController phoneController;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.viewInsetsOf(context).bottom,
+      ),
+      child: Material(
+        color: Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 42,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: AppColors.border,
+                        borderRadius: BorderRadius.circular(99),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'تعديل البيانات الشخصية',
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 21,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  TextField(
+                    controller: nameController,
+                    textInputAction: TextInputAction.next,
+                    decoration: const InputDecoration(
+                      labelText: 'الاسم الكامل',
+                      prefixIcon: Icon(Ionicons.person_outline),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    textInputAction: TextInputAction.next,
+                    decoration: const InputDecoration(
+                      labelText: 'البريد الإلكتروني',
+                      prefixIcon: Icon(Ionicons.mail_outline),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: phoneController,
+                    keyboardType: TextInputType.phone,
+                    textInputAction: TextInputAction.done,
+                    decoration: const InputDecoration(
+                      labelText: 'رقم الهاتف',
+                      prefixIcon: Icon(Ionicons.call_outline),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: () => Navigator.of(context).pop(true),
+                      child: const Text('حفظ التغييرات'),
+                    ),
+                  ),
+                  Center(
+                    child: TextButton(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      child: const Text('إلغاء'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ),

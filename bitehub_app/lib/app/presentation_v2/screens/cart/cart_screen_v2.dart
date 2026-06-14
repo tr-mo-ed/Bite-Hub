@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'package:bitehub_app/app/core/theme/app_colors.dart';
 import 'package:bitehub_app/app/data/models/cart_item_model.dart';
 import 'package:bitehub_app/app/data/providers/cart_provider.dart';
 import 'package:bitehub_app/app/data/services/api_service.dart';
@@ -113,7 +114,7 @@ class _CartScreenV2State extends State<CartScreenV2> {
               child: const Icon(
                 Icons.shopping_bag_outlined,
                 size: 48,
-                color: Color(0xFF3559C7),
+                color: AppColors.brandBlue,
               ),
             ),
             const SizedBox(height: 20),
@@ -141,14 +142,14 @@ class _CartScreenV2State extends State<CartScreenV2> {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF3559C7), Color(0xFF24A8E0)],
+          colors: [AppColors.brandBlue, AppColors.brandSky],
           begin: Alignment.topRight,
           end: Alignment.bottomLeft,
         ),
         borderRadius: BorderRadius.circular(28),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF3559C7).withValues(alpha: 0.18),
+            color: AppColors.brandBlue.withValues(alpha: 0.18),
             blurRadius: 24,
             offset: const Offset(0, 12),
           ),
@@ -315,7 +316,7 @@ class _CartScreenV2State extends State<CartScreenV2> {
                       style: const TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.w900,
-                        color: Color(0xFF3559C7),
+                        color: AppColors.brandBlue,
                       ),
                     ),
                   ],
@@ -332,14 +333,14 @@ class _CartScreenV2State extends State<CartScreenV2> {
                     decoration: BoxDecoration(
                       color: isBusy
                           ? const Color(0xFF94A3B8)
-                          : const Color(0xFF3559C7),
+                          : AppColors.brandBlue,
                       borderRadius: BorderRadius.circular(22),
                       boxShadow: isBusy
                           ? const []
                           : [
                               BoxShadow(
-                                color: const Color(0xFF3559C7)
-                                    .withValues(alpha: 0.24),
+                                color:
+                                    AppColors.brandBlue.withValues(alpha: 0.24),
                                 blurRadius: 18,
                                 offset: const Offset(0, 8),
                               ),
@@ -464,7 +465,7 @@ class _CartScreenV2State extends State<CartScreenV2> {
                 Icon(
                   Icons.contactless_rounded,
                   size: 72,
-                  color: Color(0xFF3157F5),
+                  color: AppColors.brandBlue,
                 ),
                 SizedBox(height: 18),
                 Text(
@@ -678,7 +679,7 @@ class _CartItemCard extends StatelessWidget {
                   Text(
                     '${item.totalItemPrice.toStringAsFixed(2)} د.ل',
                     style: const TextStyle(
-                      color: Color(0xFF3559C7),
+                      color: AppColors.brandBlue,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -721,7 +722,7 @@ class _CartItemCard extends StatelessWidget {
                       _FloatingIconButton(
                         onTap: onIncrement,
                         icon: Icons.add_rounded,
-                        iconColor: const Color(0xFF3559C7),
+                        iconColor: AppColors.brandBlue,
                         backgroundColor: Colors.white,
                         compact: true,
                       ),
@@ -819,7 +820,7 @@ class _PaymentMethodChip extends StatelessWidget {
           color: selected ? const Color(0x140F766E) : const Color(0xFFF8FAFC),
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
-            color: selected ? const Color(0xFF3559C7) : Colors.grey.shade200,
+            color: selected ? AppColors.brandBlue : Colors.grey.shade200,
           ),
         ),
         child: Row(
@@ -827,15 +828,14 @@ class _PaymentMethodChip extends StatelessWidget {
           children: [
             Icon(
               icon,
-              color: selected ? const Color(0xFF3559C7) : Colors.grey.shade600,
+              color: selected ? AppColors.brandBlue : Colors.grey.shade600,
             ),
             const SizedBox(width: 8),
             Text(
               label,
               style: TextStyle(
                 fontWeight: FontWeight.w700,
-                color:
-                    selected ? const Color(0xFF3559C7) : Colors.grey.shade800,
+                color: selected ? AppColors.brandBlue : Colors.grey.shade800,
               ),
             ),
           ],

@@ -20,6 +20,7 @@ import 'package:bitehub_app/app/core/theme/app_theme.dart';
 import 'package:bitehub_app/app/presentation/screens/auth/login_screen.dart';
 import 'package:bitehub_app/app/presentation/screens/auth/signup_screen.dart';
 import 'package:bitehub_app/app/presentation_v2/screens/cafe/cafe_dashboard_screen_v2.dart';
+import 'package:bitehub_app/app/presentation_v2/screens/legal/usage_policy_screen.dart';
 import 'package:bitehub_app/app/presentation_v2/screens/main_shell_v2.dart';
 import 'package:bitehub_app/app/presentation_v2/widgets/notification_banner_host.dart';
 
@@ -110,6 +111,7 @@ class MyApp extends StatelessWidget {
             routes: {
               '/main': (context) => const MainShellV2(),
               '/cafe-dashboard': (context) => const CafeDashboardScreenV2(),
+              '/usage-policy': (context) => const UsagePolicyScreen(),
               '/login': (context) => const LoginScreen(),
               '/signup': (context) => const SignupScreen(),
             },

@@ -903,6 +903,7 @@ class ApiService {
           status: 'PENDING',
           createdAt: DateTime.now().toIso8601String(),
           notes: orderNote ?? '',
+          paymentMethod: paymentMethod,
           items: items
               .map(
                 (item) => OrderItem(

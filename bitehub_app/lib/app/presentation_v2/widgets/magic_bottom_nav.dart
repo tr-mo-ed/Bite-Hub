@@ -68,7 +68,7 @@ class MagicBottomNav extends StatelessWidget {
                                 end: Alignment.bottomRight,
                                 colors: [
                                   Color(0xFFFFFFFF),
-                                  Color(0xFFEAF1FF),
+                                  Color(0xFFEAF5F0),
                                 ],
                               )
                             : null,

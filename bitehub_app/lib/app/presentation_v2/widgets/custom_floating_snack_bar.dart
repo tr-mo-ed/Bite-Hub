@@ -3,13 +3,15 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
+import 'package:bitehub_app/app/core/theme/app_colors.dart';
+
 class CustomFloatingSnackBar {
   static Future<void> show(
     BuildContext context, {
     required String title,
     required String message,
     IconData icon = Icons.notifications_active_rounded,
-    Color accentColor = const Color(0xFF3559C7),
+    Color accentColor = AppColors.brandBlue,
     Duration duration = const Duration(seconds: 4),
   }) async {
     final overlay = Overlay.maybeOf(context);

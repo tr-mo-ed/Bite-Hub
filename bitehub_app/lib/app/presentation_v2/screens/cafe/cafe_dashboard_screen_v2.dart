@@ -1,6 +1,7 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'package:bitehub_app/app/core/theme/app_colors.dart';
 import 'package:bitehub_app/app/data/providers/auth_provider.dart';
 
 class CafeDashboardScreenV2 extends StatelessWidget {
@@ -37,7 +38,7 @@ class CafeDashboardScreenV2 extends StatelessWidget {
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
                   colors: [
-                    Color(0xFF123C7A),
+                    AppColors.brandNavy,
                     Color(0xFF1C75BC),
                     Color(0xFFF0B429),
                   ],
@@ -112,19 +113,22 @@ class CafeDashboardScreenV2 extends StatelessWidget {
             const _ActionCard(
               icon: Icons.receipt_long_rounded,
               title: 'إدارة الطلبات',
-              subtitle: 'متابعة الطلبات الجديدة، الجاهزة، والملغاة من شاشة واحدة.',
+              subtitle:
+                  'متابعة الطلبات الجديدة، الجاهزة، والملغاة من شاشة واحدة.',
             ),
             const SizedBox(height: 12),
             const _ActionCard(
               icon: Icons.inventory_2_rounded,
               title: 'المنتجات والمخزون',
-              subtitle: 'ربط شاشة المنتجات والمخزون هنا لاحقاً بدون تغيير في الـ RBAC أو التوجيه.',
+              subtitle:
+                  'ربط شاشة المنتجات والمخزون هنا لاحقاً بدون تغيير في الـ RBAC أو التوجيه.',
             ),
             const SizedBox(height: 12),
             const _ActionCard(
               icon: Icons.account_balance_wallet_rounded,
               title: 'محفظة المقهى',
-              subtitle: 'بيانات المحفظة الافتراضية صارت تُجهز تلقائياً مع إنشاء المقهى.',
+              subtitle:
+                  'بيانات المحفظة الافتراضية صارت تُجهز تلقائياً مع إنشاء المقهى.',
             ),
           ],
         ),
@@ -170,7 +174,7 @@ class _ActionCard extends StatelessWidget {
             ),
             child: Icon(
               icon,
-              color: const Color(0xFF123C7A),
+              color: AppColors.brandNavy,
               size: 28,
             ),
           ),
@@ -184,7 +188,7 @@ class _ActionCard extends StatelessWidget {
                   style: const TextStyle(
                     fontWeight: FontWeight.w900,
                     fontSize: 16,
-                    color: Color(0xFF123C7A),
+                    color: AppColors.brandNavy,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -203,4 +207,3 @@ class _ActionCard extends StatelessWidget {
     );
   }
 }
-

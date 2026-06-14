@@ -4,6 +4,7 @@ import 'package:bitehub_app/app/core/theme/app_colors.dart';
 import 'package:bitehub_app/app/data/models/order_model.dart';
 import 'package:bitehub_app/app/data/services/api_service.dart';
 import 'package:bitehub_app/app/presentation_v2/controllers/live_order_controller.dart';
+import 'package:bitehub_app/app/presentation_v2/screens/legal/usage_policy_screen.dart';
 import 'package:bitehub_app/app/presentation_v2/widgets/bh_design.dart';
 import 'package:bitehub_app/app/presentation_v2/widgets/custom_floating_snack_bar.dart';
 import 'package:bitehub_app/app/presentation_v2/widgets/network_state_panel.dart';
@@ -97,7 +98,7 @@ class _LiveOrderTrackingScreenV2State extends State<LiveOrderTrackingScreenV2> {
         return Scaffold(
           backgroundColor: AppColors.background,
           appBar: AppBar(
-            title: Text('الطلب #${order.displayOrderCode}'),
+            title: const Text('تتبع الطلب'),
             actions: [
               IconButton(
                 onPressed: _controller.isRefreshing
@@ -129,26 +130,27 @@ class _LiveOrderTrackingScreenV2State extends State<LiveOrderTrackingScreenV2> {
               children: [
                 _OrderIdentityCard(order: order, status: status),
                 const SizedBox(height: BhSpacing.md),
-                _SyncStatusStrip(
+                _CurrentStatusCard(
+                  status: status,
+                  orderCode: order.displayOrderCode,
                   state: _controller.syncState,
                   lastUpdatedAt: _controller.lastUpdatedAt,
                 ),
                 const SizedBox(height: BhSpacing.md),
-                _CurrentStatusCard(status: status),
-                const SizedBox(height: BhSpacing.md),
                 if (status.isCancelled)
-                  const _CancelledOrderPanel()
+                  _CancelledOrderPanel(order: order)
                 else
                   _OrderTimeline(status: status),
                 const SizedBox(height: BhSpacing.md),
+                _CancellationPolicyCard(
+                  order: order,
+                  canCancel: _canCancel(order.status),
+                  isLoading: _isCancelling,
+                  onCancel: () => _confirmCancelOrder(order),
+                  onOpenPolicy: _openUsagePolicy,
+                ),
+                const SizedBox(height: BhSpacing.md),
                 _OrderDetailsCard(order: order),
-                if (_canCancel(order.status)) ...[
-                  const SizedBox(height: BhSpacing.md),
-                  _CancelOrderButton(
-                    isLoading: _isCancelling,
-                    onPressed: () => _confirmCancelOrder(order),
-                  ),
-                ],
               ],
             ),
           ),
@@ -187,14 +189,27 @@ class _LiveOrderTrackingScreenV2State extends State<LiveOrderTrackingScreenV2> {
     return normalized == 'PENDING' || normalized == 'NEW';
   }
 
+  void _openUsagePolicy() {
+    Navigator.of(context, rootNavigator: true).push(
+      MaterialPageRoute(builder: (_) => const UsagePolicyScreen()),
+    );
+  }
+
   Future<void> _confirmCancelOrder(OrderModel order) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('إلغاء الطلب؟'),
+          icon: const Icon(
+            Icons.cancel_outlined,
+            color: AppColors.danger,
+            size: 32,
+          ),
+          title: const Text('تأكيد إلغاء الطلب'),
           content: Text(
-            'سيتم إلغاء الطلب #${order.displayOrderCode}. لا يمكن التراجع عن هذه العملية.',
+            'سيتم إلغاء الطلب #${order.displayOrderCode}. '
+            '${_isWalletPayment(order) ? 'سيعاد المبلغ تلقائياً إلى محفظتك بعد نجاح الإلغاء.' : 'هذا الطلب غير مدفوع إلكترونياً، لذلك لا يوجد استرداد للمحفظة.'}',
+            textAlign: TextAlign.center,
           ),
           actions: [
             TextButton(
@@ -319,110 +334,77 @@ class _OrderIdentityCard extends StatelessWidget {
   }
 }
 
-class _SyncStatusStrip extends StatelessWidget {
-  const _SyncStatusStrip({
+class _CurrentStatusCard extends StatelessWidget {
+  const _CurrentStatusCard({
+    required this.status,
+    required this.orderCode,
     required this.state,
     required this.lastUpdatedAt,
   });
 
+  final BhOrderStatusSpec status;
+  final String orderCode;
   final LiveOrderSyncState state;
   final DateTime? lastUpdatedAt;
 
   @override
   Widget build(BuildContext context) {
-    final spec = _syncSpec(state);
+    final sync = _syncSpec(state);
+    final nextStep = _nextStepLabel(status);
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: spec.background,
-        borderRadius: BorderRadius.circular(BhRadius.sm),
-        border: Border.all(color: spec.border),
-      ),
-      child: Row(
-        children: [
-          Icon(spec.icon, size: 18, color: spec.foreground),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              spec.label,
-              style: TextStyle(
-                color: spec.foreground,
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: .04),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
           ),
-          if (lastUpdatedAt != null)
-            Text(
-              'آخر تحديث ${_formatTime(lastUpdatedAt!)}',
-              style: const TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
         ],
-      ),
-    );
-  }
-}
-
-class _CurrentStatusCard extends StatelessWidget {
-  const _CurrentStatusCard({required this.status});
-
-  final BhOrderStatusSpec status;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(BhSpacing.lg),
-      decoration: BoxDecoration(
-        color: status.backgroundColor,
-        borderRadius: BorderRadius.circular(BhRadius.lg),
-        border: Border.all(
-          color: status.foregroundColor.withValues(alpha: .18),
-        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 48,
-                height: 48,
+                width: 52,
+                height: 52,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: .82),
-                  borderRadius: BorderRadius.circular(BhRadius.md),
+                  color: status.backgroundColor,
+                  shape: BoxShape.circle,
                 ),
                 child: Icon(
                   status.icon,
                   color: status.foregroundColor,
-                  size: 25,
+                  size: 26,
                 ),
               ),
-              const SizedBox(width: BhSpacing.md),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
+                      'الطلب #$orderCode',
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
                       status.title,
                       style: const TextStyle(
                         color: AppColors.textPrimary,
-                        fontSize: 20,
+                        fontSize: 21,
                         fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      status.description,
-                      style: const TextStyle(
-                        color: AppColors.textSecondary,
-                        fontWeight: FontWeight.w700,
-                        height: 1.45,
                       ),
                     ),
                   ],
@@ -430,8 +412,51 @@ class _CurrentStatusCard extends StatelessWidget {
               ),
             ],
           ),
+          const SizedBox(height: 16),
+          Text(
+            status.description,
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w600,
+              height: 1.55,
+            ),
+          ),
+          if (nextStep != null) ...[
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: AppColors.neutral50,
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Row(
+                children: [
+                  const Text(
+                    'التالي',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      nextStep,
+                      textAlign: TextAlign.end,
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           if (!status.isCancelled) ...[
-            const SizedBox(height: BhSpacing.lg),
+            const SizedBox(height: 18),
             Row(
               children: List.generate(bhTrackingSteps.length, (index) {
                 final active = index <= status.trackingIndex;
@@ -450,6 +475,32 @@ class _CurrentStatusCard extends StatelessWidget {
               }),
             ),
           ],
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Icon(sync.icon, size: 16, color: sync.foreground),
+              const SizedBox(width: 7),
+              Expanded(
+                child: Text(
+                  sync.label,
+                  style: TextStyle(
+                    color: sync.foreground,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              if (lastUpdatedAt != null)
+                Text(
+                  _formatTime(lastUpdatedAt!),
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+            ],
+          ),
         ],
       ),
     );
@@ -583,25 +634,41 @@ class _OrderTimeline extends StatelessWidget {
 }
 
 class _CancelledOrderPanel extends StatelessWidget {
-  const _CancelledOrderPanel();
+  const _CancelledOrderPanel({required this.order});
+
+  final OrderModel order;
 
   @override
   Widget build(BuildContext context) {
-    return const BhSurface(
-      color: Color(0xFFFFF7F7),
-      borderColor: Color(0xFFFECACA),
-      child: Row(
+    return BhSurface(
+      color: const Color(0xFFFFF8F7),
+      borderColor: const Color(0xFFF1D0CC),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.block_rounded, color: AppColors.danger, size: 28),
-          SizedBox(width: BhSpacing.md),
-          Expanded(
-            child: Text(
-              'تم إيقاف رحلة هذا الطلب. لن تظهر مراحل تجهيز أو استلام لاحقة.',
-              style: TextStyle(
-                color: AppColors.danger,
-                fontWeight: FontWeight.w800,
-                height: 1.45,
+          const Row(
+            children: [
+              Icon(Icons.block_rounded, color: AppColors.danger, size: 25),
+              SizedBox(width: BhSpacing.sm),
+              Text(
+                'توقف تنفيذ الطلب',
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            _isWalletPayment(order)
+                ? 'تم إلغاء الطلب. يعاد المبلغ إلى محفظتك تلقائياً، ويمكنك مراجعته في سجل عمليات المحفظة.'
+                : 'تم إلغاء الطلب ولن ينتقل إلى التجهيز أو الاستلام. لا يوجد استرداد إلكتروني لهذا الطلب.',
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w700,
+              height: 1.5,
             ),
           ),
         ],
@@ -807,38 +874,128 @@ class _OrderMetric extends StatelessWidget {
   }
 }
 
-class _CancelOrderButton extends StatelessWidget {
-  const _CancelOrderButton({
+class _CancellationPolicyCard extends StatelessWidget {
+  const _CancellationPolicyCard({
+    required this.order,
+    required this.canCancel,
     required this.isLoading,
-    required this.onPressed,
+    required this.onCancel,
+    required this.onOpenPolicy,
   });
 
+  final OrderModel order;
+  final bool canCancel;
   final bool isLoading;
-  final VoidCallback onPressed;
+  final VoidCallback onCancel;
+  final VoidCallback onOpenPolicy;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 52,
-      child: OutlinedButton.icon(
-        onPressed: isLoading ? null : onPressed,
-        icon: isLoading
-            ? const SizedBox.square(
-                dimension: 18,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: AppColors.danger,
-                ),
-              )
-            : const Icon(Icons.cancel_outlined),
-        label: Text(isLoading ? 'جاري الإلغاء...' : 'إلغاء الطلب'),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.danger,
-          side: const BorderSide(color: Color(0xFFFCA5A5)),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(BhRadius.md),
-          ),
+    final isTerminal = const {'COMPLETED', 'CANCELLED'}
+        .contains(order.status.trim().toUpperCase());
+    final title = canCancel
+        ? 'يمكنك الإلغاء الآن'
+        : isTerminal
+            ? 'سياسة هذا الطلب'
+            : 'بدأ المقهى تنفيذ الطلب';
+    final message = canCancel
+        ? _isWalletPayment(order)
+            ? 'الإلغاء متاح قبل قبول المقهى، وسيعاد المبلغ إلى محفظتك تلقائياً.'
+            : 'الإلغاء متاح قبل قبول المقهى. هذا الطلب غير مدفوع إلكترونياً.'
+        : isTerminal
+            ? 'يمكنك مراجعة سياسة الطلب والدفع والاسترداد في أي وقت.'
+            : 'بعد قبول المقهى لا يمكن الإلغاء ذاتياً من التطبيق. تواصل مع المقهى أو الإدارة عند وجود مشكلة.';
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: canCancel ? const Color(0xFFFFFBF5) : Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: canCancel ? const Color(0xFFF1D9B4) : AppColors.border,
         ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: canCancel
+                      ? const Color(0xFFFFF0DA)
+                      : AppColors.neutral100,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  canCancel
+                      ? Icons.info_outline_rounded
+                      : Icons.policy_outlined,
+                  color:
+                      canCancel ? AppColors.warning : AppColors.textSecondary,
+                  size: 21,
+                ),
+              ),
+              const SizedBox(width: 11),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            message,
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w600,
+              height: 1.55,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              TextButton(
+                onPressed: onOpenPolicy,
+                child: const Text('عرض السياسة كاملة'),
+              ),
+              if (canCancel) ...[
+                const Spacer(),
+                OutlinedButton.icon(
+                  onPressed: isLoading ? null : onCancel,
+                  icon: isLoading
+                      ? const SizedBox.square(
+                          dimension: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppColors.danger,
+                          ),
+                        )
+                      : const Icon(Icons.cancel_outlined, size: 18),
+                  label: Text(
+                    isLoading ? 'جاري الإلغاء...' : 'إلغاء الطلب',
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.danger,
+                    side: const BorderSide(color: Color(0xFFE7B8B8)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -900,8 +1057,8 @@ _SyncVisualSpec _syncSpec(LiveOrderSyncState state) {
         label: 'جاري ربط التحديث المباشر',
         icon: Icons.sync_rounded,
         foreground: AppColors.brandBlue,
-        background: Color(0xFFEFF6FF),
-        border: Color(0xFFBFDBFE),
+        background: Color(0xFFEAF4EF),
+        border: Color(0xFFB9DDD2),
       );
     case LiveOrderSyncState.offline:
       return const _SyncVisualSpec(
@@ -944,6 +1101,22 @@ class _SyncVisualSpec {
   final Color foreground;
   final Color background;
   final Color border;
+}
+
+String? _nextStepLabel(BhOrderStatusSpec status) {
+  if (status.isTerminal || status.isCancelled) {
+    return null;
+  }
+  final nextIndex = status.trackingIndex + 1;
+  if (nextIndex < 0 || nextIndex >= bhTrackingSteps.length) {
+    return null;
+  }
+  return bhTrackingSteps[nextIndex].label;
+}
+
+bool _isWalletPayment(OrderModel order) {
+  final paymentMethod = order.paymentMethod.trim().toUpperCase();
+  return paymentMethod == 'WALLET' || paymentMethod == 'NFC';
 }
 
 String _formatTime(DateTime value) {

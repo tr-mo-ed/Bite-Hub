@@ -6,12 +6,21 @@ import 'package:bitehub_app/app/core/theme/app_theme.dart';
 import 'package:bitehub_app/app/data/models/college_model.dart';
 import 'package:bitehub_app/app/data/models/order_model.dart';
 import 'package:bitehub_app/app/data/models/product_model.dart';
+import 'package:bitehub_app/app/data/models/transaction_model.dart';
+import 'package:bitehub_app/app/data/models/user_model.dart';
+import 'package:bitehub_app/app/data/models/wallet_model.dart';
+import 'package:bitehub_app/app/data/providers/auth_provider.dart';
 import 'package:bitehub_app/app/data/providers/cart_provider.dart';
+import 'package:bitehub_app/app/data/providers/locale_provider.dart';
+import 'package:bitehub_app/app/data/providers/navigation_provider.dart';
 import 'package:bitehub_app/app/data/services/api_service.dart';
 import 'package:bitehub_app/app/presentation_v2/controllers/home_v2_controller.dart';
 import 'package:bitehub_app/app/presentation_v2/controllers/live_order_controller.dart';
+import 'package:bitehub_app/app/presentation_v2/controllers/profile_v2_controller.dart';
 import 'package:bitehub_app/app/presentation_v2/screens/home/home_screen_v2.dart';
+import 'package:bitehub_app/app/presentation_v2/screens/legal/usage_policy_screen.dart';
 import 'package:bitehub_app/app/presentation_v2/screens/orders/live_order_tracking_screen_v2.dart';
+import 'package:bitehub_app/app/presentation_v2/screens/profile/profile_screen_v2.dart';
 import 'package:bitehub_app/app/presentation_v2/widgets/order_status_ui.dart';
 
 void main() {
@@ -156,6 +165,148 @@ void main() {
     await tester.drag(find.byType(ListView), const Offset(0, -620));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('profile screen uses compact account layout without overflow',
+      (tester) async {
+    await _setPhoneViewport(tester);
+    final authProvider = AuthProvider();
+    final controller = ProfileV2Controller(authProvider: authProvider)
+      ..seedPreview(
+        user: User(
+          id: 7,
+          fullName: 'محمد صلاح الترهوني',
+          email: 'student@bitehub.ly',
+          phoneNumber: '0912345678',
+        ),
+        wallet: WalletModel(
+          id: 4,
+          balance: 280,
+          currency: 'د.ل',
+          college: 'كلية اللغة العربية',
+          linkCode: '',
+          userFullName: 'محمد صلاح الترهوني',
+          hasNfcCard: true,
+          nfcCardLast4: '1284',
+          transactions: const <TransactionModel>[],
+        ),
+      );
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<AuthProvider>.value(value: authProvider),
+          ChangeNotifierProvider(create: (_) => LocaleProvider()),
+          ChangeNotifierProvider(create: (_) => NavigationProvider()),
+        ],
+        child: Builder(
+          builder: (context) => MaterialApp(
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.light(context),
+            home: Directionality(
+              textDirection: TextDirection.rtl,
+              child: Scaffold(
+                appBar: AppBar(title: const Text('حسابي')),
+                body: ProfileScreenV2(
+                  controller: controller,
+                  initializeController: false,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('سياسة الاستخدام والإلغاء'), findsOneWidget);
+    expect(find.text('كود المحفظة'), findsNothing);
+    expect(find.text('تحديث البيانات'), findsNothing);
+    expect(tester.takeException(), isNull);
+    await tester.drag(find.byType(ListView), const Offset(0, -700));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    controller.dispose();
+    authProvider.dispose();
+  });
+
+  testWidgets('usage policy is readable on a phone viewport', (tester) async {
+    await _setPhoneViewport(tester);
+
+    await tester.pumpWidget(
+      Builder(
+        builder: (context) => MaterialApp(
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.light(context),
+          home: const Directionality(
+            textDirection: TextDirection.rtl,
+            child: UsagePolicyScreen(),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(
+      find.text('إلغاء الطلب'),
+      300,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(find.text('إلغاء الطلب'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('استرداد الرصيد'),
+      220,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(find.text('استرداد الرصيد'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.drag(find.byType(ListView), const Offset(0, -900));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('accepted order explains why self cancellation is unavailable',
+      (tester) async {
+    await _setPhoneViewport(tester);
+    final order = OrderModel(
+      id: 45,
+      orderNumber: 'BH-123456',
+      totalPrice: 20,
+      status: 'ACCEPTED',
+      paymentMethod: 'WALLET',
+      createdAt: DateTime(2026, 6, 14, 10).toIso8601String(),
+      items: const [],
+    );
+    final controller = LiveOrderController()..seedPreview(order);
+
+    await tester.pumpWidget(
+      Builder(
+        builder: (context) => MaterialApp(
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.light(context),
+          home: Directionality(
+            textDirection: TextDirection.rtl,
+            child: LiveOrderTrackingScreenV2(
+              initialOrder: order,
+              controller: controller,
+              initializeController: false,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(
+      find.text('بدأ المقهى تنفيذ الطلب'),
+      280,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(find.text('بدأ المقهى تنفيذ الطلب'), findsOneWidget);
+    expect(find.text('إلغاء الطلب'), findsNothing);
+    expect(find.text('عرض السياسة كاملة'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    controller.dispose();
   });
 
   test('order tracking statuses keep a stable sequence', () {

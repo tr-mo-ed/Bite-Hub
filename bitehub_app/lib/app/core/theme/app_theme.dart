@@ -19,6 +19,9 @@ class AppTheme {
         secondary: AppColors.success,
         surface: AppColors.surface,
         error: AppColors.brandRed,
+        onPrimary: Colors.white,
+        onSurface: AppColors.textPrimary,
+        outline: AppColors.border,
       ),
       textTheme: Theme.of(context)
           .textTheme
@@ -62,7 +65,7 @@ class AppTheme {
             fontWeight: FontWeight.w800,
           ),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(16),
           ),
         ),
       ),
@@ -76,7 +79,7 @@ class AppTheme {
             fontWeight: FontWeight.w800,
           ),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(16),
           ),
         ),
       ),
@@ -84,7 +87,7 @@ class AppTheme {
         color: AppColors.surface,
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(22),
+          borderRadius: BorderRadius.circular(20),
           side: const BorderSide(color: AppColors.border),
         ),
       ),
@@ -96,7 +99,7 @@ class AppTheme {
           fontFamily: 'Tajawal',
           fontWeight: FontWeight.w700,
         ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
@@ -106,15 +109,15 @@ class AppTheme {
           vertical: 14,
         ),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(16),
           borderSide: const BorderSide(color: AppColors.border),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(16),
           borderSide: const BorderSide(
             color: AppColors.brandBlue,
             width: 1.5,

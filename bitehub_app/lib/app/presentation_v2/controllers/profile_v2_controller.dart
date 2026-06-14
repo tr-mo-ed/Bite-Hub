@@ -40,6 +40,17 @@ class ProfileV2Controller extends ChangeNotifier {
   WalletModel? get wallet => _wallet;
   String? get localImagePath => _localImagePath;
 
+  void seedPreview({
+    required User user,
+    WalletModel? wallet,
+  }) {
+    _user = user;
+    _wallet = wallet;
+    _isLoading = false;
+    _errorMessage = null;
+    notifyListeners();
+  }
+
   // ???? ???? initialize ???? ??????? ?? ????? ???? ?????? ?????.
   Future<void> initialize() async {
     await _loadPersistedImage();

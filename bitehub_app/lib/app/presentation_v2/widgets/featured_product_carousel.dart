@@ -1,5 +1,6 @@
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
+import 'package:bitehub_app/app/core/theme/app_colors.dart';
 import 'package:bitehub_app/app/data/models/product_model.dart';
 import 'package:bitehub_app/app/presentation_v2/widgets/product_image_view.dart';
 
@@ -82,7 +83,7 @@ class FeaturedProductCarousel extends StatelessWidget {
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w800,
-                            color: Color(0xFF3559C7),
+                            color: AppColors.brandBlue,
                           ),
                         ),
                         FilledButton.icon(

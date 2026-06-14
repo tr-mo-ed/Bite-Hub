@@ -54,7 +54,7 @@ class BhOrderStatusSpec {
           description: 'تم اعتماد الطلب وسينتقل إلى التجهيز خلال لحظات.',
           icon: Icons.thumb_up_alt_outlined,
           foregroundColor: AppColors.brandBlue,
-          backgroundColor: Color(0xFFEFF6FF),
+          backgroundColor: Color(0xFFEAF4EF),
           progress: .4,
           trackingIndex: 1,
         );
