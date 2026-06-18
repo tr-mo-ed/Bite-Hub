@@ -1,10 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:pinput/pinput.dart';
 import 'package:provider/provider.dart';
 
 import 'package:bitehub_app/app/core/theme/app_colors.dart';
 import 'package:bitehub_app/app/core/widgets/bh_back_button.dart';
 import 'package:bitehub_app/app/data/providers/auth_provider.dart';
 import 'package:bitehub_app/app/data/providers/wallet_provider.dart';
+import 'package:bitehub_app/app/data/services/api_service.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -18,15 +22,21 @@ class _SignupScreenState extends State<SignupScreen> {
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _codeController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+  EmailLoginChallenge? _challenge;
+  Timer? _resendTimer;
+  int _resendSeconds = 0;
   bool _obscurePassword = true;
 
   @override
   void dispose() {
+    _resendTimer?.cancel();
     _nameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
     _passwordController.dispose();
+    _codeController.dispose();
     super.dispose();
   }
 
@@ -37,20 +47,19 @@ class _SignupScreenState extends State<SignupScreen> {
 
     FocusScope.of(context).unfocus();
     final authProvider = context.read<AuthProvider>();
-    final walletProvider = context.read<WalletProvider>();
 
-    final success = await authProvider.signup(
+    final challenge = await authProvider.signup(
       _nameController.text.trim(),
       _emailController.text.trim(),
       _phoneController.text.trim(),
-      _passwordController.text.trim(),
+      _passwordController.text,
     );
 
     if (!mounted) {
       return;
     }
 
-    if (!success) {
+    if (challenge == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -63,6 +72,41 @@ class _SignupScreenState extends State<SignupScreen> {
       return;
     }
 
+    setState(() {
+      _challenge = challenge;
+      _codeController.clear();
+    });
+    _startResendTimer(challenge.resendAfter);
+  }
+
+  Future<void> _verifySignupCode() async {
+    final challenge = _challenge;
+    if (challenge == null) {
+      return;
+    }
+    if (_codeController.text.trim().length != 6) {
+      _showMessage('أدخل رمز التحقق المكوّن من 6 أرقام.');
+      return;
+    }
+
+    FocusScope.of(context).unfocus();
+    final authProvider = context.read<AuthProvider>();
+    final success = await authProvider.verifySignupCode(
+      email: _emailController.text.trim(),
+      requestId: challenge.requestId,
+      code: _codeController.text.trim(),
+    );
+    if (!mounted) {
+      return;
+    }
+    if (!success) {
+      _showMessage(
+        authProvider.errorMessage ?? 'تعذر تأكيد الرمز. حاول مرة أخرى.',
+      );
+      return;
+    }
+
+    final walletProvider = context.read<WalletProvider>();
     await walletProvider.fetchWalletData();
     if (!mounted) {
       return;
@@ -71,10 +115,38 @@ class _SignupScreenState extends State<SignupScreen> {
     Navigator.of(context).pushNamedAndRemoveUntil('/main', (route) => false);
   }
 
+  void _startResendTimer(int seconds) {
+    _resendTimer?.cancel();
+    setState(() => _resendSeconds = seconds);
+    _resendTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted || _resendSeconds <= 1) {
+        timer.cancel();
+        if (mounted) {
+          setState(() => _resendSeconds = 0);
+        }
+        return;
+      }
+      setState(() => _resendSeconds -= 1);
+    });
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: AppColors.danger,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isLoading =
         context.watch<AuthProvider>().status == AuthStatus.authenticating;
+    if (_challenge != null) {
+      return _buildVerificationScreen(isLoading);
+    }
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -248,6 +320,194 @@ class _SignupScreenState extends State<SignupScreen> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVerificationScreen(bool isLoading) {
+    final challenge = _challenge!;
+    final pinTheme = PinTheme(
+      width: 48,
+      height: 54,
+      textStyle: const TextStyle(
+        color: AppColors.textPrimary,
+        fontSize: 20,
+        fontWeight: FontWeight.w900,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
+    );
+
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+          children: [
+            Align(
+              alignment: Alignment.centerLeft,
+              child: BhBackButton(
+                onPressed: () {
+                  if (isLoading) {
+                    return;
+                  }
+                  _resendTimer?.cancel();
+                  setState(() {
+                    _challenge = null;
+                    _resendSeconds = 0;
+                    _codeController.clear();
+                  });
+                },
+              ),
+            ),
+            const SizedBox(height: 24),
+            const _AuthHeader(
+              title: 'تأكيد البريد',
+              subtitle: 'أدخل الرمز الذي أرسلناه لإكمال إنشاء الحساب.',
+            ),
+            const SizedBox(height: 24),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEAF6F2),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFB9DDD2)),
+              ),
+              child: Column(
+                children: [
+                  const Icon(
+                    Icons.mark_email_read_outlined,
+                    color: AppColors.brandBlue,
+                    size: 30,
+                  ),
+                  const SizedBox(height: 7),
+                  const Text(
+                    'تم إرسال رمز التأكيد إلى',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  Text(
+                    challenge.maskedEmail,
+                    textDirection: TextDirection.ltr,
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 22),
+            Directionality(
+              textDirection: TextDirection.ltr,
+              child: Pinput(
+                length: 6,
+                controller: _codeController,
+                autofocus: true,
+                keyboardType: TextInputType.number,
+                defaultPinTheme: pinTheme,
+                focusedPinTheme: pinTheme.copyWith(
+                  decoration: pinTheme.decoration!.copyWith(
+                    border: Border.all(
+                      color: AppColors.brandBlue,
+                      width: 1.5,
+                    ),
+                  ),
+                ),
+                onCompleted: (_) {
+                  if (!isLoading) {
+                    _verifySignupCode();
+                  }
+                },
+              ),
+            ),
+            if (challenge.debugCode != null) ...[
+              const SizedBox(height: 10),
+              Text(
+                'رمز التطوير: ${challenge.debugCode}',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: AppColors.warning,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+            const SizedBox(height: 24),
+            SizedBox(
+              height: 52,
+              child: FilledButton.icon(
+                onPressed: isLoading ? null : _verifySignupCode,
+                icon: isLoading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Icon(Icons.verified_user_outlined),
+                label: const Text(
+                  'تأكيد وإنشاء الحساب',
+                  style: TextStyle(fontWeight: FontWeight.w900),
+                ),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.brandBlue,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                TextButton(
+                  onPressed: isLoading
+                      ? null
+                      : () {
+                          _resendTimer?.cancel();
+                          setState(() {
+                            _challenge = null;
+                            _resendSeconds = 0;
+                            _codeController.clear();
+                          });
+                        },
+                  child: const Text('تعديل البيانات'),
+                ),
+                const SizedBox(width: 8),
+                TextButton(
+                  onPressed:
+                      isLoading || _resendSeconds > 0 ? null : _handleSignup,
+                  child: Text(
+                    _resendSeconds > 0
+                        ? 'إعادة الإرسال بعد $_resendSeconds ث'
+                        : 'إعادة إرسال الرمز',
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'الرمز صالح لمدة 10 دقائق ويُستخدم مرة واحدة فقط.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
         ),
       ),
     );

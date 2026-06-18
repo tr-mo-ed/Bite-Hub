@@ -69,6 +69,156 @@ class AppLoginApiTests(TestCase):
         self.assertEqual(response.status_code, 400, response.content)
         self.assertEqual(response.json()["error"], "Email is already registered.")
 
+    @override_settings(
+        DEBUG=True,
+        BREVO_API_KEY="",
+        BREVO_DEBUG_EMAIL_CODES=True,
+    )
+    def test_student_can_login_with_email_verification_code(self):
+        user = get_user_model().objects.create_user(
+            email="email-code@example.com",
+            password="StrongPass123",
+            full_name="Email Code Student",
+            phone_number="0912345691",
+        )
+
+        request_response = self.client.post(
+            reverse("v2_app_email_code_request"),
+            data={"email": "EMAIL-CODE@example.com"},
+            content_type="application/json",
+        )
+
+        self.assertEqual(request_response.status_code, 200, request_response.content)
+        challenge = request_response.json()
+        self.assertEqual(len(challenge["debug_code"]), 6)
+        self.assertNotIn("email-code", challenge["masked_email"])
+
+        verify_response = self.client.post(
+            reverse("v2_app_email_code_verify"),
+            data={
+                "email": "email-code@example.com",
+                "request_id": challenge["request_id"],
+                "code": challenge["debug_code"],
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(verify_response.status_code, 200, verify_response.content)
+        self.assertEqual(verify_response.json()["user"]["id"], user.id)
+        self.assertTrue(verify_response.json()["access"])
+
+    @override_settings(
+        DEBUG=True,
+        BREVO_API_KEY="",
+        BREVO_DEBUG_EMAIL_CODES=True,
+    )
+    def test_email_verification_code_cannot_be_reused(self):
+        get_user_model().objects.create_user(
+            email="single-use-code@example.com",
+            password="StrongPass123",
+            full_name="Single Use Student",
+            phone_number="0912345692",
+        )
+        challenge = self.client.post(
+            reverse("v2_app_email_code_request"),
+            data={"email": "single-use-code@example.com"},
+            content_type="application/json",
+        ).json()
+        payload = {
+            "email": "single-use-code@example.com",
+            "request_id": challenge["request_id"],
+            "code": challenge["debug_code"],
+        }
+
+        first_response = self.client.post(
+            reverse("v2_app_email_code_verify"),
+            data=payload,
+            content_type="application/json",
+        )
+        second_response = self.client.post(
+            reverse("v2_app_email_code_verify"),
+            data=payload,
+            content_type="application/json",
+        )
+
+        self.assertEqual(first_response.status_code, 200)
+        self.assertEqual(second_response.status_code, 400)
+
+    @override_settings(
+        DEBUG=True,
+        BREVO_API_KEY="",
+        BREVO_DEBUG_EMAIL_CODES=True,
+    )
+    def test_signup_creates_account_only_after_email_verification(self):
+        signup_response = self.client.post(
+            reverse("v2_app_signup"),
+            data={
+                "full_name": "Verified Student",
+                "email": "verified-signup@example.com",
+                "phone_number": "0912345693",
+                "password": "StrongPass123",
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(signup_response.status_code, 202, signup_response.content)
+        self.assertFalse(
+            get_user_model().objects.filter(
+                email="verified-signup@example.com"
+            ).exists()
+        )
+        challenge = signup_response.json()
+
+        verify_response = self.client.post(
+            reverse("v2_app_signup_verify"),
+            data={
+                "email": "verified-signup@example.com",
+                "request_id": challenge["request_id"],
+                "code": challenge["debug_code"],
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(verify_response.status_code, 201, verify_response.content)
+        user = get_user_model().objects.get(email="verified-signup@example.com")
+        self.assertTrue(user.check_password("StrongPass123"))
+        self.assertTrue(hasattr(user, "wallet"))
+        self.assertTrue(verify_response.json()["access"])
+
+    @override_settings(
+        DEBUG=True,
+        BREVO_API_KEY="",
+        BREVO_DEBUG_EMAIL_CODES=True,
+    )
+    def test_signup_rejects_invalid_verification_code(self):
+        challenge = self.client.post(
+            reverse("v2_app_signup"),
+            data={
+                "full_name": "Unverified Student",
+                "email": "unverified-signup@example.com",
+                "phone_number": "0912345694",
+                "password": "StrongPass123",
+            },
+            content_type="application/json",
+        ).json()
+
+        verify_response = self.client.post(
+            reverse("v2_app_signup_verify"),
+            data={
+                "email": "unverified-signup@example.com",
+                "request_id": challenge["request_id"],
+                "code": "000000",
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(verify_response.status_code, 400)
+        self.assertFalse(
+            get_user_model().objects.filter(
+                email="unverified-signup@example.com"
+            ).exists()
+        )
+
 
 class SuperAdminCafeIdentityTests(TestCase):
     def setUp(self):
@@ -350,6 +500,38 @@ class CafeProvisioningTests(TestCase):
             data={"cafe_id": cafe.id, "password": "NewCafePass2026"},
             follow=True,
         )
+        self.assertEqual(login_response.status_code, 200)
+        self.assertContains(login_response, "confirmCafePanelActionModal")
+
+    def test_cafe_login_accepts_reset_password_pasted_with_outer_whitespace(self):
+        User = get_user_model()
+        superuser = User.objects.create_superuser(
+            email="root-copy-password@example.com",
+            password="StrongPass123",
+            full_name="Root Admin",
+            phone_number="0911000023",
+        )
+        manager = User.objects.create_user(
+            email="copy-password-manager@example.com",
+            password="OldCafePass1",
+            full_name="Copy Password Manager",
+            phone_number="0911000024",
+            is_staff=True,
+        )
+        cafe = provision_cafe(name="Copy Password Cafe", code="copy-password-cafe", owner_id=manager.id)
+        self.client.force_login(superuser)
+        self.client.post(
+            reverse("core:reset_cafe_password_from_dashboard", args=[cafe.id]),
+            data={"manager_password": "NewCafePass2026"},
+        )
+
+        self.client.logout()
+        login_response = self.client.post(
+            reverse("core:cafe_login"),
+            data={"cafe_id": cafe.id, "password": "  NewCafePass2026  "},
+            follow=True,
+        )
+
         self.assertEqual(login_response.status_code, 200)
         self.assertContains(login_response, "confirmCafePanelActionModal")
 

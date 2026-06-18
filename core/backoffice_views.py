@@ -172,7 +172,11 @@ def custom_login(request: HttpRequest, portal: str = "admin", cafe_code: str | N
 
     if request.method == "POST":
         # ??? ??????? password ??? ????? ??? ???? ???? ???? ????? ????.
-        password = request.POST.get("password")
+        password = request.POST.get("password") or ""
+        if portal == "cafe":
+            # Cafe passwords are trimmed when created/reset, so accept the same
+            # value when it is pasted with accidental surrounding whitespace.
+            password = password.strip()
         selected_cafe_id = (request.POST.get("cafe_id") or "").strip()
 
         if portal == "admin":

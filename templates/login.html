@@ -257,7 +257,7 @@
   <main class="auth-shell">
     <section class="auth-visual" aria-label="Bite Hub">
       <div class="brand">
-        <img class="brand-logo" src="{% static 'brand/bitehub-app-icon.png' %}" alt="Bite Hub">
+        <img class="brand-logo" src="{% static 'brand/bitehub-logo.png' %}" alt="Bite Hub">
         <div>
           <div class="brand-title">Bite Hub</div>
           <div class="brand-subtitle">Digital Operations</div>
@@ -297,7 +297,7 @@
               <img
                 class="cafe-login-logo"
                 id="selectedCafeLogo"
-                src="{% if target_cafe and target_cafe.image %}{{ target_cafe.image.url }}{% else %}{% static 'brand/bitehub-app-icon.png' %}{% endif %}"
+                src="{% if target_cafe and target_cafe.image %}{{ target_cafe.image.url }}{% else %}{% static 'brand/bitehub-logo.png' %}{% endif %}"
                 alt="صورة المقهى المحدد"
               >
               <div>
@@ -310,12 +310,12 @@
             <div class="mb-3">
               <label for="cafe_id" class="form-label">اسم الكلية أو المقهى</label>
               <select class="form-select" id="cafe_id" name="cafe_id" required>
-                <option value="" data-name="اختر المقهى للمتابعة" data-image="{% static 'brand/bitehub-app-icon.png' %}">اختر المقهى</option>
+                <option value="" data-name="اختر المقهى للمتابعة" data-image="{% static 'brand/bitehub-logo.png' %}">اختر المقهى</option>
                 {% for cafe in cafe_options %}
                   <option
                     value="{{ cafe.id }}"
                     data-name="{{ cafe.name }}"
-                    data-image="{% if cafe.image %}{{ cafe.image.url }}{% else %}{% static 'brand/bitehub-app-icon.png' %}{% endif %}"
+                    data-image="{% if cafe.image %}{{ cafe.image.url }}{% else %}{% static 'brand/bitehub-logo.png' %}{% endif %}"
                     {% if selected_cafe_id == cafe.id|stringformat:"s" %}selected{% endif %}
                   >
                     {{ cafe.faculty.name|default:cafe.name }}
@@ -327,7 +327,23 @@
 
           <div class="mb-4">
             <label for="password" class="form-label">كلمة المرور</label>
-            <input type="password" class="form-control" id="password" name="password" required autocomplete="current-password">
+            <div class="input-group">
+              <input
+                type="password"
+                class="form-control"
+                id="password"
+                name="password"
+                required
+                autocomplete="{% if portal == 'cafe' %}off{% else %}current-password{% endif %}"
+                {% if portal == "cafe" %}data-lpignore="true"{% endif %}
+              >
+              <button class="btn btn-outline-secondary px-3" type="button" id="togglePassword" aria-label="إظهار كلمة المرور">
+                إظهار
+              </button>
+            </div>
+            {% if portal == "cafe" %}
+              <div class="form-text mt-2">استخدم كلمة مرور المقهى التي ضبطها السوبر أدمن، وليس كلمة مرور السوبر أدمن.</div>
+            {% endif %}
           </div>
 
           <button type="submit" class="btn btn-primary primary-action w-100">{{ submit_label }}</button>
@@ -348,12 +364,28 @@
 
       const updateCafeIdentity = () => {
         const option = cafeSelect.options[cafeSelect.selectedIndex];
-        cafeLogo.src = option?.dataset.image || "{% static 'brand/bitehub-app-icon.png' %}";
+        cafeLogo.src = option?.dataset.image || "{% static 'brand/bitehub-logo.png' %}";
         cafeName.textContent = option?.dataset.name || "اختر المقهى للمتابعة";
       };
 
       cafeSelect.addEventListener("change", updateCafeIdentity);
       updateCafeIdentity();
+    })();
+
+    (() => {
+      const passwordInput = document.getElementById("password");
+      const togglePassword = document.getElementById("togglePassword");
+      if (!passwordInput || !togglePassword) {
+        return;
+      }
+
+      togglePassword.addEventListener("click", () => {
+        const isVisible = passwordInput.type === "text";
+        passwordInput.type = isVisible ? "password" : "text";
+        togglePassword.textContent = isVisible ? "إظهار" : "إخفاء";
+        togglePassword.setAttribute("aria-label", isVisible ? "إظهار كلمة المرور" : "إخفاء كلمة المرور");
+        passwordInput.focus();
+      });
     })();
   </script>
 </body>

@@ -97,21 +97,90 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
+  Future<EmailLoginChallenge?> requestEmailLoginCode(String email) async {
+    _status = AuthStatus.authenticating;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final challenge = await _apiService.requestEmailLoginCode(email);
+      _status = AuthStatus.unauthenticated;
+      notifyListeners();
+      return challenge;
+    } catch (error) {
+      _status = AuthStatus.unauthenticated;
+      _errorMessage = _cleanError(error);
+      notifyListeners();
+      return null;
+    }
+  }
+
+  Future<bool> verifyEmailLoginCode({
+    required String email,
+    required String requestId,
+    required String code,
+  }) async {
+    _status = AuthStatus.authenticating;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      await _apiService.verifyEmailLoginCode(
+        email: email,
+        requestId: requestId,
+        code: code,
+      );
+      await fetchUserProfile();
+      return true;
+    } catch (error) {
+      _status = AuthStatus.unauthenticated;
+      _errorMessage = _cleanError(error);
+      notifyListeners();
+      return false;
+    }
+  }
+
   // ???? ???? signup ???? ??????? ?? ????? ???? ?????? ?????.
-  Future<bool> signup(
+  Future<EmailLoginChallenge?> signup(
       String fullName, String email, String phone, String password) async {
     _status = AuthStatus.authenticating;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      await _apiService.signup(fullName, email, phone, password);
-      // بعد التسجيل بنجاح، نجلب بيانات المستخدم
-      await fetchUserProfile();
-      return true;
+      final challenge =
+          await _apiService.signup(fullName, email, phone, password);
+      _status = AuthStatus.unauthenticated;
+      notifyListeners();
+      return challenge;
     } catch (e) {
       _status = AuthStatus.unauthenticated;
       _errorMessage = _cleanError(e);
+      notifyListeners();
+      return null;
+    }
+  }
+
+  Future<bool> verifySignupCode({
+    required String email,
+    required String requestId,
+    required String code,
+  }) async {
+    _status = AuthStatus.authenticating;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      await _apiService.verifySignupCode(
+        email: email,
+        requestId: requestId,
+        code: code,
+      );
+      await fetchUserProfile();
+      return true;
+    } catch (error) {
+      _status = AuthStatus.unauthenticated;
+      _errorMessage = _cleanError(error);
       notifyListeners();
       return false;
     }

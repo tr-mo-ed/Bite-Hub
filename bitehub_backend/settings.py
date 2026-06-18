@@ -69,12 +69,53 @@ DEBUG = config("DJANGO_DEBUG", default=True, cast=bool)
 ALLOWED_HOSTS = csv_config("DJANGO_ALLOWED_HOSTS", default="*" if DEBUG else "")
 CSRF_TRUSTED_ORIGINS = csv_config("DJANGO_CSRF_TRUSTED_ORIGINS")
 BACKOFFICE_SUPER_ADMIN_EMAIL = config("BACKOFFICE_SUPER_ADMIN_EMAIL", default="hsjshdvehhs@gmail.com")
+BREVO_API_KEY = config("BREVO_API_KEY", default="")
+BREVO_API_URL = config(
+    "BREVO_API_URL",
+    default="https://api.brevo.com/v3/smtp/email",
+)
+BREVO_SENDER_EMAIL = config("BREVO_SENDER_EMAIL", default="no-reply@bitehub.ly")
+BREVO_SENDER_NAME = config("BREVO_SENDER_NAME", default="Bite Hub")
+BREVO_REQUEST_TIMEOUT_SECONDS = config(
+    "BREVO_REQUEST_TIMEOUT_SECONDS",
+    default=10,
+    cast=int,
+)
+BREVO_DEBUG_EMAIL_CODES = config(
+    "BREVO_DEBUG_EMAIL_CODES",
+    default=False,
+    cast=bool,
+)
+EMAIL_LOGIN_CODE_TTL_MINUTES = config(
+    "EMAIL_LOGIN_CODE_TTL_MINUTES",
+    default=10,
+    cast=int,
+)
+EMAIL_LOGIN_RESEND_SECONDS = config(
+    "EMAIL_LOGIN_RESEND_SECONDS",
+    default=60,
+    cast=int,
+)
+EMAIL_LOGIN_MAX_REQUESTS_PER_HOUR = config(
+    "EMAIL_LOGIN_MAX_REQUESTS_PER_HOUR",
+    default=5,
+    cast=int,
+)
+EMAIL_LOGIN_MAX_ATTEMPTS = config(
+    "EMAIL_LOGIN_MAX_ATTEMPTS",
+    default=5,
+    cast=int,
+)
 
 if not DEBUG:
     if SECRET_KEY == "django-insecure-change-me-please":
         raise ImproperlyConfigured("DJANGO_SECRET_KEY must be set when DJANGO_DEBUG=False.")
     if not ALLOWED_HOSTS:
         raise ImproperlyConfigured("DJANGO_ALLOWED_HOSTS must be set when DJANGO_DEBUG=False.")
+    if BREVO_DEBUG_EMAIL_CODES:
+        raise ImproperlyConfigured(
+            "BREVO_DEBUG_EMAIL_CODES must be False when DJANGO_DEBUG=False."
+        )
 
 
 # ??? ??????? SENTRY_DSN ??? ????? ??? ???? ???? ???? ????? ????.

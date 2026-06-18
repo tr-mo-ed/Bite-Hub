@@ -26,6 +26,32 @@ class ApiException implements Exception {
   String toString() => message;
 }
 
+class EmailLoginChallenge {
+  const EmailLoginChallenge({
+    required this.requestId,
+    required this.maskedEmail,
+    required this.expiresIn,
+    required this.resendAfter,
+    this.debugCode,
+  });
+
+  final String requestId;
+  final String maskedEmail;
+  final int expiresIn;
+  final int resendAfter;
+  final String? debugCode;
+
+  factory EmailLoginChallenge.fromJson(Map<String, dynamic> json) {
+    return EmailLoginChallenge(
+      requestId: (json['request_id'] ?? '').toString(),
+      maskedEmail: (json['masked_email'] ?? '').toString(),
+      expiresIn: int.tryParse('${json['expires_in']}') ?? 600,
+      resendAfter: int.tryParse('${json['resend_after']}') ?? 60,
+      debugCode: json['debug_code']?.toString(),
+    );
+  }
+}
+
 // ???? ???? ApiService ???? ???? ????? ???? ?? ???? ????.
 class ApiService {
   // ??? ??????? baseUrl ??? ?????? ???? ????? ????.
@@ -230,6 +256,27 @@ class ApiService {
     if (lower.contains('account was not found')) {
       return 'لا يوجد حساب بهذه البيانات.';
     }
+    if (lower.contains('verification email could not be sent') ||
+        lower.contains('brevo is not configured')) {
+      return 'تعذر إرسال رمز التحقق إلى البريد. حاول بعد قليل.';
+    }
+    if (lower.contains('please wait before requesting another code')) {
+      return 'انتظر قليلاً قبل طلب رمز جديد.';
+    }
+    if (lower.contains('too many login codes requested') ||
+        lower.contains('too many verification codes requested')) {
+      return 'تم طلب رموز كثيرة. حاول مرة أخرى بعد ساعة.';
+    }
+    if (lower.contains('verification code has expired') ||
+        lower.contains('invalid or expired verification code')) {
+      return 'انتهت صلاحية الرمز. اطلب رمزاً جديداً.';
+    }
+    if (lower.contains('invalid verification code')) {
+      return 'رمز التحقق غير صحيح.';
+    }
+    if (lower.contains('too many invalid attempts')) {
+      return 'تم تجاوز عدد المحاولات. اطلب رمزاً جديداً.';
+    }
     if (lower.contains('invalid login') ||
         lower.contains('invalid credentials')) {
       return 'البريد الإلكتروني أو رقم الهاتف أو كلمة السر غير صحيحة.';
@@ -248,6 +295,9 @@ class ApiService {
     }
     if (lower.contains('password is required')) {
       return 'كلمة السر مطلوبة.';
+    }
+    if (lower.contains('password must be at least 6 characters')) {
+      return 'يجب أن تكون كلمة السر 6 أحرف على الأقل.';
     }
     if (normalized.contains('اسم الطالب مطلوب') ||
         lower.contains('full_name') ||
@@ -399,8 +449,76 @@ class ApiService {
     }
   }
 
+  Future<EmailLoginChallenge> requestEmailLoginCode(String email) async {
+    final url = Uri.parse('$baseUrl/api/v2/app/auth/email-code/request/');
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json; charset=UTF-8',
+          'Accept': 'application/json',
+        },
+        body: json.encode({'email': email.trim().toLowerCase()}),
+      );
+      final data = _decodeBody(response);
+      if (response.statusCode == 200 && data is Map) {
+        return EmailLoginChallenge.fromJson(
+          Map<String, dynamic>.from(data),
+        );
+      }
+      throw _buildException(response, data);
+    } on ApiException {
+      rethrow;
+    } catch (error) {
+      throw _networkException(error);
+    }
+  }
+
+  Future<Map<String, dynamic>> verifyEmailLoginCode({
+    required String email,
+    required String requestId,
+    required String code,
+  }) async {
+    final url = Uri.parse('$baseUrl/api/v2/app/auth/email-code/verify/');
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json; charset=UTF-8',
+          'Accept': 'application/json',
+        },
+        body: json.encode({
+          'email': email.trim().toLowerCase(),
+          'request_id': requestId,
+          'code': code.trim(),
+        }),
+      );
+      final data = _decodeBody(response);
+      if (response.statusCode == 200 && data is Map) {
+        final authData = Map<String, dynamic>.from(data);
+        final accessToken =
+            authData['access']?.toString() ?? authData['token']?.toString();
+        if (accessToken != null && accessToken.isNotEmpty) {
+          await saveToken(accessToken);
+        }
+        final refreshToken = authData['refresh']?.toString();
+        if (refreshToken != null && refreshToken.isNotEmpty) {
+          await saveRefreshToken(refreshToken);
+        }
+        return authData;
+      }
+      throw _buildException(response, data);
+    } on ApiException {
+      rethrow;
+    } catch (error) {
+      throw _networkException(error);
+    }
+  }
+
   // ???? ???? signup ???? ??????? ?? ????? ???? ?????? ?????.
-  Future<Map<String, dynamic>> signup(
+  Future<EmailLoginChallenge> signup(
     String fullName,
     String email,
     String phone,
@@ -424,20 +542,10 @@ class ApiService {
       );
       final data = _decodeBody(response);
 
-      if (response.statusCode == 201 || response.statusCode == 200) {
-        if (data is Map) {
-          final accessToken =
-              data['access']?.toString() ?? data['token']?.toString();
-          if (accessToken != null && accessToken.isNotEmpty) {
-            await saveToken(accessToken);
-          }
-        }
-        if (data is Map && data['refresh'] != null) {
-          await saveRefreshToken(data['refresh'].toString());
-        }
-        return data is Map
-            ? Map<String, dynamic>.from(data)
-            : <String, dynamic>{};
+      if (response.statusCode == 202 && data is Map) {
+        return EmailLoginChallenge.fromJson(
+          Map<String, dynamic>.from(data),
+        );
       }
 
       throw _buildException(response, data);
@@ -445,6 +553,48 @@ class ApiService {
       rethrow;
     } catch (e) {
       throw _networkException(e);
+    }
+  }
+
+  Future<Map<String, dynamic>> verifySignupCode({
+    required String email,
+    required String requestId,
+    required String code,
+  }) async {
+    final url = Uri.parse('$baseUrl/api/v2/app/auth/signup/verify/');
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json; charset=UTF-8',
+          'Accept': 'application/json',
+        },
+        body: json.encode({
+          'email': email.trim().toLowerCase(),
+          'request_id': requestId,
+          'code': code.trim(),
+        }),
+      );
+      final data = _decodeBody(response);
+      if (response.statusCode == 201 && data is Map) {
+        final authData = Map<String, dynamic>.from(data);
+        final accessToken =
+            authData['access']?.toString() ?? authData['token']?.toString();
+        if (accessToken != null && accessToken.isNotEmpty) {
+          await saveToken(accessToken);
+        }
+        final refreshToken = authData['refresh']?.toString();
+        if (refreshToken != null && refreshToken.isNotEmpty) {
+          await saveRefreshToken(refreshToken);
+        }
+        return authData;
+      }
+      throw _buildException(response, data);
+    } on ApiException {
+      rethrow;
+    } catch (error) {
+      throw _networkException(error);
     }
   }
 

@@ -2,16 +2,26 @@
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
+import hashlib
+import hmac
 import re
+import secrets
+from datetime import timedelta
+
+from django.conf import settings
 from django.contrib.auth import authenticate
+from django.contrib.auth.hashers import make_password
+from django.contrib.auth.models import update_last_login
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.db.models import Q
 from django.core.cache import cache
+from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 
 from .backoffice_services import CAFE_OWNER_GROUP_NAME
+from .email_delivery import EmailDeliveryError, send_login_code, send_signup_code
 from .models import Cafe
 from .selectors import (
     get_active_cafes,
@@ -31,7 +41,7 @@ from .serializers import (
     ProductSerializer,
     UserSerializer,
 )
-from users.models import User
+from users.models import EmailLoginCode, EmailSignupCode, User
 from wallet.models import Wallet
 from .utils import normalize_libyan_phone
 
@@ -117,6 +127,170 @@ def _build_auth_payload(user):
     }
 
 
+def _hash_email_login_code(request_id, code: str) -> str:
+    message = f"{request_id}:{code}".encode("utf-8")
+    return hmac.new(
+        settings.SECRET_KEY.encode("utf-8"),
+        message,
+        hashlib.sha256,
+    ).hexdigest()
+
+
+def _mask_email(email: str) -> str:
+    local, _, domain = email.partition("@")
+    visible = local[:1] if len(local) <= 2 else local[:2]
+    return f"{visible}{'*' * max(2, len(local) - len(visible))}@{domain}"
+
+
+@csrf_exempt
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def request_email_login_code(request):
+    email = (request.data.get("email") or "").strip().lower()
+    try:
+        validate_email(email)
+    except ValidationError:
+        return Response({"error": "Enter a valid email address."}, status=400)
+
+    user = User.objects.filter(email__iexact=email).first()
+    if user is None:
+        return Response({"error": "Account was not found."}, status=404)
+    if not user.is_active:
+        return Response({"error": "This account is disabled."}, status=403)
+
+    now = timezone.now()
+    resend_after = settings.EMAIL_LOGIN_RESEND_SECONDS
+    latest = EmailLoginCode.objects.filter(user=user).order_by("-created_at").first()
+    if latest is not None:
+        elapsed = (now - latest.created_at).total_seconds()
+        if elapsed < resend_after:
+            return Response(
+                {
+                    "error": "Please wait before requesting another code.",
+                    "retry_after": max(1, int(resend_after - elapsed)),
+                },
+                status=429,
+            )
+
+    requests_last_hour = EmailLoginCode.objects.filter(
+        user=user,
+        created_at__gte=now - timedelta(hours=1),
+    ).count()
+    if requests_last_hour >= settings.EMAIL_LOGIN_MAX_REQUESTS_PER_HOUR:
+        return Response(
+            {"error": "Too many login codes requested. Try again later."},
+            status=429,
+        )
+
+    EmailLoginCode.objects.filter(
+        user=user,
+        consumed_at__isnull=True,
+    ).update(consumed_at=now)
+
+    code = f"{secrets.randbelow(1_000_000):06d}"
+    challenge = EmailLoginCode.objects.create(
+        user=user,
+        code_hash="",
+        expires_at=now + timedelta(minutes=settings.EMAIL_LOGIN_CODE_TTL_MINUTES),
+    )
+    challenge.code_hash = _hash_email_login_code(challenge.request_id, code)
+    challenge.save(update_fields=["code_hash"])
+
+    try:
+        delivery = send_login_code(
+            recipient_email=user.email,
+            recipient_name=user.full_name,
+            code=code,
+        )
+    except EmailDeliveryError:
+        challenge.delete()
+        return Response(
+            {"error": "Verification email could not be sent. Try again later."},
+            status=503,
+        )
+
+    payload = {
+        "request_id": str(challenge.request_id),
+        "masked_email": _mask_email(user.email),
+        "expires_in": settings.EMAIL_LOGIN_CODE_TTL_MINUTES * 60,
+        "resend_after": resend_after,
+        "message": "Verification code sent.",
+    }
+    if delivery.debug_mode:
+        payload["debug_code"] = code
+    return Response(payload)
+
+
+@csrf_exempt
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def verify_email_login_code(request):
+    email = (request.data.get("email") or "").strip().lower()
+    request_id = (request.data.get("request_id") or "").strip()
+    code = (request.data.get("code") or "").strip()
+    if not email or not request_id or not re.fullmatch(r"\d{6}", code):
+        return Response(
+            {"error": "Email and a valid 6-digit code are required."},
+            status=400,
+        )
+
+    user = User.objects.filter(email__iexact=email, is_active=True).first()
+    if user is None:
+        return Response({"error": "Invalid or expired verification code."}, status=400)
+
+    with transaction.atomic():
+        challenge = (
+            EmailLoginCode.objects.select_for_update()
+            .filter(request_id=request_id, user=user)
+            .first()
+        )
+        if challenge is None or challenge.consumed_at is not None:
+            return Response({"error": "Invalid or expired verification code."}, status=400)
+
+        now = timezone.now()
+        if challenge.expires_at <= now:
+            challenge.consumed_at = now
+            challenge.save(update_fields=["consumed_at"])
+            return Response({"error": "Verification code has expired."}, status=400)
+
+        if challenge.attempts >= settings.EMAIL_LOGIN_MAX_ATTEMPTS:
+            challenge.consumed_at = now
+            challenge.save(update_fields=["consumed_at"])
+            return Response(
+                {"error": "Too many invalid attempts. Request a new code."},
+                status=429,
+            )
+
+        expected_hash = _hash_email_login_code(challenge.request_id, code)
+        if not hmac.compare_digest(challenge.code_hash, expected_hash):
+            challenge.attempts += 1
+            update_fields = ["attempts"]
+            if challenge.attempts >= settings.EMAIL_LOGIN_MAX_ATTEMPTS:
+                challenge.consumed_at = now
+                update_fields.append("consumed_at")
+            challenge.save(update_fields=update_fields)
+            return Response(
+                {
+                    "error": "Invalid verification code.",
+                    "attempts_remaining": max(
+                        0,
+                        settings.EMAIL_LOGIN_MAX_ATTEMPTS - challenge.attempts,
+                    ),
+                },
+                status=400,
+            )
+
+        challenge.consumed_at = now
+        challenge.save(update_fields=["consumed_at"])
+        EmailLoginCode.objects.filter(
+            user=user,
+            consumed_at__isnull=True,
+        ).exclude(pk=challenge.pk).update(consumed_at=now)
+        update_last_login(None, user)
+
+    return Response(_build_auth_payload(user))
+
+
 # ???? ???? api_login ?????? ????? ?????? ?? ????? ????.
 @csrf_exempt
 @api_view(['POST'])
@@ -164,22 +338,17 @@ def api_login(request):
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def api_signup(request):
-    # ??? ??????? raw_phone ??? ????? ??? ???? ???? ???? ????? ????.
     raw_phone = request.data.get('phone_number')
-    # ??? ??????? password ??? ????? ??? ???? ???? ???? ????? ????.
-    password = request.data.get('password')
-    # ??? ??????? full_name ??? ????? ??? ???? ???? ???? ????? ????.
+    password = request.data.get('password') or ''
     full_name = (request.data.get('full_name') or request.data.get('name') or '').strip()
-    # ??? ??????? email ??? ????? ??? ???? ???? ???? ????? ????.
     email = (request.data.get('email') or '').strip().lower()
 
-    # ??? ??????? phone_number ??? ????? ??? ???? ???? ???? ????? ????.
     phone_number = normalize_libyan_phone(raw_phone)
     if not phone_number or not re.fullmatch(r'09\d{8}', phone_number):
         return Response({'error': 'Invalid Libyan phone number. Use 09XXXXXXXX.'}, status=400)
 
-    if not password:
-        return Response({'error': 'Password is required.'}, status=400)
+    if len(password) < 6:
+        return Response({'error': 'Password must be at least 6 characters.'}, status=400)
 
     if not full_name:
         return Response({'error': 'Student name is required.'}, status=400)
@@ -201,26 +370,163 @@ def api_signup(request):
     if User.objects.filter(email__iexact=email).exists():
         return Response({'error': 'Email is already registered.'}, status=400)
 
-    try:
-        # ??? ??????? user ??? ????? ??? ???? ???? ???? ????? ????.
-        user = User.objects.create_user(
-            # ??? ??????? phone_number ??? ????? ??? ???? ???? ???? ????? ????.
-            phone_number=phone_number,
-            # ??? ??????? password ??? ????? ??? ???? ???? ???? ????? ????.
-            password=password,
-            # ??? ??????? full_name ??? ????? ??? ???? ???? ???? ????? ????.
-            full_name=full_name,
-            # ??? ??????? email ??? ????? ??? ???? ???? ???? ????? ????.
-            email=email,
+    now = timezone.now()
+    resend_after = settings.EMAIL_LOGIN_RESEND_SECONDS
+    latest = (
+        EmailSignupCode.objects.filter(Q(email__iexact=email) | Q(phone_number=phone_number))
+        .order_by("-created_at")
+        .first()
+    )
+    if latest is not None:
+        elapsed = (now - latest.created_at).total_seconds()
+        if elapsed < resend_after:
+            return Response(
+                {
+                    "error": "Please wait before requesting another code.",
+                    "retry_after": max(1, int(resend_after - elapsed)),
+                },
+                status=429,
+            )
+
+    requests_last_hour = EmailSignupCode.objects.filter(
+        Q(email__iexact=email) | Q(phone_number=phone_number),
+        created_at__gte=now - timedelta(hours=1),
+    ).count()
+    if requests_last_hour >= settings.EMAIL_LOGIN_MAX_REQUESTS_PER_HOUR:
+        return Response(
+            {"error": "Too many verification codes requested. Try again later."},
+            status=429,
         )
-        if not hasattr(user, 'wallet'):
+
+    EmailSignupCode.objects.filter(
+        Q(email__iexact=email) | Q(phone_number=phone_number),
+        consumed_at__isnull=True,
+    ).update(consumed_at=now)
+
+    code = f"{secrets.randbelow(1_000_000):06d}"
+    challenge = EmailSignupCode.objects.create(
+        email=email,
+        full_name=full_name,
+        phone_number=phone_number,
+        password_hash=make_password(password),
+        code_hash="",
+        expires_at=now + timedelta(minutes=settings.EMAIL_LOGIN_CODE_TTL_MINUTES),
+    )
+    challenge.code_hash = _hash_email_login_code(challenge.request_id, code)
+    challenge.save(update_fields=["code_hash"])
+
+    try:
+        delivery = send_signup_code(
+            recipient_email=email,
+            recipient_name=full_name,
+            code=code,
+        )
+    except EmailDeliveryError:
+        challenge.delete()
+        return Response(
+            {"error": "Verification email could not be sent. Try again later."},
+            status=503,
+        )
+
+    payload = {
+        "request_id": str(challenge.request_id),
+        "masked_email": _mask_email(email),
+        "expires_in": settings.EMAIL_LOGIN_CODE_TTL_MINUTES * 60,
+        "resend_after": resend_after,
+        "message": "Verification code sent.",
+    }
+    if delivery.debug_mode:
+        payload["debug_code"] = code
+    return Response(payload, status=202)
+
+
+@csrf_exempt
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def verify_email_signup_code(request):
+    email = (request.data.get("email") or "").strip().lower()
+    request_id = (request.data.get("request_id") or "").strip()
+    code = (request.data.get("code") or "").strip()
+    if not email or not request_id or not re.fullmatch(r"\d{6}", code):
+        return Response(
+            {"error": "Email and a valid 6-digit code are required."},
+            status=400,
+        )
+
+    with transaction.atomic():
+        challenge = (
+            EmailSignupCode.objects.select_for_update()
+            .filter(request_id=request_id, email__iexact=email)
+            .first()
+        )
+        if challenge is None or challenge.consumed_at is not None:
+            return Response({"error": "Invalid or expired verification code."}, status=400)
+
+        now = timezone.now()
+        if challenge.expires_at <= now:
+            challenge.consumed_at = now
+            challenge.save(update_fields=["consumed_at"])
+            return Response({"error": "Verification code has expired."}, status=400)
+
+        if challenge.attempts >= settings.EMAIL_LOGIN_MAX_ATTEMPTS:
+            challenge.consumed_at = now
+            challenge.save(update_fields=["consumed_at"])
+            return Response(
+                {"error": "Too many invalid attempts. Request a new code."},
+                status=429,
+            )
+
+        expected_hash = _hash_email_login_code(challenge.request_id, code)
+        if not hmac.compare_digest(challenge.code_hash, expected_hash):
+            challenge.attempts += 1
+            update_fields = ["attempts"]
+            if challenge.attempts >= settings.EMAIL_LOGIN_MAX_ATTEMPTS:
+                challenge.consumed_at = now
+                update_fields.append("consumed_at")
+            challenge.save(update_fields=update_fields)
+            return Response(
+                {
+                    "error": "Invalid verification code.",
+                    "attempts_remaining": max(
+                        0,
+                        settings.EMAIL_LOGIN_MAX_ATTEMPTS - challenge.attempts,
+                    ),
+                },
+                status=400,
+            )
+
+        if User.objects.filter(email__iexact=challenge.email).exists():
+            return Response({"error": "Email is already registered."}, status=400)
+        if User.objects.filter(phone_number=challenge.phone_number).exists():
+            return Response({"error": "Phone number is already registered."}, status=400)
+
+        user = User(
+            email=challenge.email,
+            full_name=challenge.full_name,
+            phone_number=challenge.phone_number,
+            password=challenge.password_hash,
+        )
+        try:
+            with transaction.atomic():
+                user.save(force_insert=True)
+        except IntegrityError:
+            return Response(
+                {"error": "Phone number or email is already registered."},
+                status=400,
+            )
+
+        if not hasattr(user, "wallet"):
             Wallet.objects.create(user=user)
 
-        return Response(_build_auth_payload(user), status=201)
-    except IntegrityError:
-        return Response({'error': 'Phone number or email is already registered.'}, status=400)
-    except Exception as exc:
-        return Response({'error': str(exc)}, status=400)
+        challenge.consumed_at = now
+        challenge.save(update_fields=["consumed_at"])
+        EmailSignupCode.objects.filter(
+            Q(email__iexact=challenge.email) | Q(phone_number=challenge.phone_number),
+            consumed_at__isnull=True,
+        ).exclude(pk=challenge.pk).update(consumed_at=now)
+        update_last_login(None, user)
+
+    return Response(_build_auth_payload(user), status=201)
 
 
 # ???? ???? get_cafes_list ?????? ????? ?????? ?? ????? ????.

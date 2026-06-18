@@ -7,7 +7,22 @@ from . import api_views
 # ??? ??????? urlpatterns ??? ????? ??? ???? ???? ???? ????? ????.
 urlpatterns = [
     path("auth/login/", api_views.api_login, name="v2_app_login"),
+    path(
+        "auth/email-code/request/",
+        api_views.request_email_login_code,
+        name="v2_app_email_code_request",
+    ),
+    path(
+        "auth/email-code/verify/",
+        api_views.verify_email_login_code,
+        name="v2_app_email_code_verify",
+    ),
     path("auth/signup/", api_views.api_signup, name="v2_app_signup"),
+    path(
+        "auth/signup/verify/",
+        api_views.verify_email_signup_code,
+        name="v2_app_signup_verify",
+    ),
     path("auth/refresh/", TokenRefreshView.as_view(), name="v2_app_token_refresh"),
     path("user/", api_views.get_user_profile, name="v2_app_user_profile"),
     path(
