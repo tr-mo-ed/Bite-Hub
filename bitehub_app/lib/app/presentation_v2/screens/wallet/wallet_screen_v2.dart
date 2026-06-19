@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:bitehub_app/app/core/theme/app_colors.dart';
 import 'package:bitehub_app/app/data/providers/notification_provider.dart';
 import 'package:bitehub_app/app/data/models/transaction_model.dart';
+import 'package:bitehub_app/app/data/models/wallet_debit_request_model.dart';
 import 'package:bitehub_app/app/data/models/wallet_model.dart';
 import 'package:bitehub_app/app/data/services/nfc_card_service.dart';
 import 'package:bitehub_app/app/presentation_v2/controllers/wallet_v2_controller.dart';
@@ -67,6 +68,14 @@ class _WalletScreenV2State extends State<WalletScreenV2> {
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 120),
               children: [
                 _BalancePanel(wallet: wallet),
+                if (wallet.pendingDebitRequests.isNotEmpty) ...[
+                  const SizedBox(height: BhSpacing.md),
+                  _DebitRequestsPanel(
+                    requests: wallet.pendingDebitRequests,
+                    isBusy: _controller.isPerformingAction,
+                    onRespond: _respondToDebitRequest,
+                  ),
+                ],
                 const SizedBox(height: BhSpacing.md),
                 _NfcWalletPanel(
                   wallet: wallet,
@@ -220,6 +229,56 @@ class _WalletScreenV2State extends State<WalletScreenV2> {
     }
   }
 
+  Future<void> _respondToDebitRequest(
+    WalletDebitRequestModel requestItem,
+    bool approve,
+  ) async {
+    if (_controller.isPerformingAction) {
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(approve ? 'تأكيد الموافقة' : 'تأكيد الرفض'),
+        content: Text(
+          approve
+              ? 'سيتم خصم ${requestItem.amount.toStringAsFixed(2)} د.ل لصالح ${requestItem.cafeName}. هل توافق؟'
+              : 'سيتم رفض طلب خصم ${requestItem.amount.toStringAsFixed(2)} د.ل من ${requestItem.cafeName} ولن يتغير رصيدك.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('رجوع'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: approve ? AppColors.success : AppColors.danger,
+            ),
+            child: Text(approve ? 'نعم، أوافق' : 'رفض الطلب'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) {
+      return;
+    }
+
+    final success = await _controller.respondToDebitRequest(
+      requestId: requestItem.id,
+      approve: approve,
+    );
+    if (success && mounted) {
+      await context.read<NotificationProvider>().refreshFromServer(
+            silent: true,
+          );
+    }
+    if (mounted) {
+      _showResult(success);
+    }
+  }
+
   Future<_WalletActionInput?> _showAmountDialog({
     required String title,
     required String primaryLabel,
@@ -320,6 +379,133 @@ class _WalletScreenV2State extends State<WalletScreenV2> {
       SnackBar(
         content: Text(message),
         backgroundColor: success ? AppColors.success : AppColors.danger,
+      ),
+    );
+  }
+}
+
+class _DebitRequestsPanel extends StatelessWidget {
+  const _DebitRequestsPanel({
+    required this.requests,
+    required this.isBusy,
+    required this.onRespond,
+  });
+
+  final List<WalletDebitRequestModel> requests;
+  final bool isBusy;
+  final Future<void> Function(
+    WalletDebitRequestModel requestItem,
+    bool approve,
+  ) onRespond;
+
+  @override
+  Widget build(BuildContext context) {
+    return BhSurface(
+      color: const Color(0xFFFFFBF2),
+      borderColor: const Color(0xFFF1D9A8),
+      padding: const EdgeInsets.all(BhSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(
+                Icons.verified_user_outlined,
+                color: AppColors.warning,
+              ),
+              SizedBox(width: BhSpacing.sm),
+              Expanded(
+                child: Text(
+                  'طلبات خصم تحتاج موافقتك',
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: BhSpacing.md),
+          ...requests.map(
+            (requestItem) => Padding(
+              padding: const EdgeInsets.only(bottom: BhSpacing.sm),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(BhSpacing.md),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(BhRadius.sm),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      requestItem.cafeName,
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'يريد هذا المقهى خصم ${requestItem.amount.toStringAsFixed(2)} د.ل من محفظتك. هل توافق؟',
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        height: 1.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    if (requestItem.note.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        'ملاحظة: ${requestItem.note}',
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: BhSpacing.md),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: FilledButton.icon(
+                            onPressed: isBusy
+                                ? null
+                                : () => onRespond(requestItem, true),
+                            icon: const Icon(Icons.check_rounded),
+                            label: const Text('موافقة'),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: AppColors.success,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: BhSpacing.sm),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: isBusy
+                                ? null
+                                : () => onRespond(requestItem, false),
+                            icon: const Icon(Icons.close_rounded),
+                            label: const Text('رفض'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.danger,
+                              side: const BorderSide(
+                                color: AppColors.danger,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

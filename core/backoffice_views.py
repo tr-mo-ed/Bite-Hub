@@ -42,7 +42,8 @@ from .serializers import OrderSerializer, ProductSerializer
 from .services import NotFoundServiceError, ValidationServiceError, update_order_status
 from .utils import normalize_libyan_phone
 from users.models import User
-from wallet.models import Transaction, Wallet
+from wallet.models import Transaction, Wallet, WalletDebitRequest
+from wallet.services import create_cafe_debit_request
 
 # ??? ??????? logger ??? ????? ??? ???? ???? ???? ????? ????.
 logger = logging.getLogger(__name__)
@@ -389,13 +390,42 @@ def _cafe_wallet_activity(cafe: Cafe) -> tuple[list[Transaction], list[Wallet]]:
         .select_related("wallet", "wallet__user")
         .order_by("-created_at")
     )
-    wallet_ids = [transaction_item.wallet_id for transaction_item in recent_activity]
+    wallet_ids = {
+        transaction_item.wallet_id for transaction_item in recent_activity
+    }
+    wallet_ids.update(
+        WalletDebitRequest.objects.filter(cafe=cafe).values_list(
+            "wallet_id",
+            flat=True,
+        )
+    )
     wallets = list(
         Wallet.objects.filter(id__in=wallet_ids)
         .select_related("user")
         .order_by("user__full_name", "user__email", "id")
     )
     return recent_activity, wallets
+
+
+def _debit_request_payload(request_item: WalletDebitRequest) -> dict:
+    return {
+        "id": str(request_item.id),
+        "student_name": (
+            request_item.wallet.user.full_name
+            or request_item.wallet.user.email
+        ),
+        "student_email": request_item.wallet.user.email,
+        "amount": str(request_item.amount),
+        "note": request_item.note,
+        "status": request_item.status,
+        "status_display": request_item.get_status_display(),
+        "created_at": request_item.created_at.strftime("%Y-%m-%d %H:%M"),
+        "responded_at": (
+            request_item.responded_at.strftime("%Y-%m-%d %H:%M")
+            if request_item.responded_at
+            else ""
+        ),
+    }
 
 
 # ???? ???? super_admin_dashboard ?????? ????? ?????? ?? ????? ????.
@@ -642,9 +672,52 @@ def cafe_wallet_operation_api(request: HttpRequest) -> JsonResponse:
         return JsonResponse({"success": False, "message": "نوع العملية غير صحيح."}, status=400)
 
     note = (request.POST.get("note") or "").strip()
-    description = f"{cafe.name} - {'شحن رصيد' if operation == 'DEPOSIT' else 'خصم رصيد'}"
+    description = f"{cafe.name} - {'شحن رصيد' if operation == 'DEPOSIT' else 'طلب خصم رصيد'}"
     if note:
         description = f"{description} - {note}"
+
+    if operation == "WITHDRAWAL":
+        duplicate_request = (
+            WalletDebitRequest.objects.filter(
+                wallet=wallet,
+                cafe=cafe,
+                amount=amount,
+                status=WalletDebitRequest.Status.PENDING,
+            )
+            .order_by("-created_at")
+            .first()
+        )
+        if duplicate_request is not None:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "message": "يوجد طلب خصم معلّق بنفس المبلغ لهذا الطالب.",
+                    "debit_request": _debit_request_payload(
+                        duplicate_request
+                    ),
+                },
+                status=409,
+            )
+        request_item = create_cafe_debit_request(
+            cafe=cafe,
+            wallet=wallet,
+            amount=amount,
+            requested_by=request.user,
+            note=note,
+        )
+        return JsonResponse(
+            {
+                "success": True,
+                "pending_approval": True,
+                "message": (
+                    "تم إرسال طلب الخصم إلى الطالب. "
+                    "لن يتغير الرصيد قبل موافقته."
+                ),
+                "wallet": _wallet_payload(wallet),
+                "debit_request": _debit_request_payload(request_item),
+            },
+            status=202,
+        )
 
     try:
         Transaction.objects.create(
@@ -711,6 +784,11 @@ def cafe_panel(request: HttpRequest) -> HttpResponse:
             "wallets": len(wallet_ids),
         },
         "recent_wallet_activity": recent_wallet_activity,
+        "debit_requests": (
+            WalletDebitRequest.objects.filter(cafe=cafe)
+            .select_related("wallet", "wallet__user")
+            .order_by("-created_at")[:40]
+        ),
         "status_choices": [
             ("PENDING", "New"),
             ("PREPARING", "Preparing"),
@@ -721,6 +799,31 @@ def cafe_panel(request: HttpRequest) -> HttpResponse:
         "ws_path": f"/ws/cafe/{cafe.id}/orders/",
     }
     return render(request, "admin_v2/cafe_panel.html", context)
+
+
+@login_required(login_url="core:cafe_login")
+@user_passes_test(_is_cafe_operator, login_url="core:route_after_login")
+def cafe_wallet_debit_requests_api(request: HttpRequest) -> JsonResponse:
+    cafe = resolve_backoffice_cafe(request.user)
+    if cafe is None:
+        return JsonResponse(
+            {"success": False, "message": "No cafe scope available."},
+            status=403,
+        )
+    requests = (
+        WalletDebitRequest.objects.filter(cafe=cafe)
+        .select_related("wallet", "wallet__user")
+        .order_by("-created_at")[:40]
+    )
+    return JsonResponse(
+        {
+            "success": True,
+            "requests": [
+                _debit_request_payload(request_item)
+                for request_item in requests
+            ],
+        }
+    )
 
 
 @login_required(login_url="core:cafe_login")

@@ -328,6 +328,53 @@
       border: 1px dashed rgba(67, 87, 184, .22);
       background: linear-gradient(135deg, rgba(74, 166, 220, .08), rgba(255, 241, 0, .10));
     }
+    .debit-request-board {
+      margin-top: 18px;
+      padding: 22px;
+    }
+    .debit-request-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 12px;
+    }
+    .debit-request-card {
+      padding: 14px;
+      border: 1px solid rgba(67, 87, 184, .12);
+      border-radius: 10px;
+      background: #fff;
+    }
+    .debit-request-card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .debit-request-amount {
+      margin-top: 10px;
+      color: #08111f;
+      font-size: 1.2rem;
+      font-weight: 900;
+    }
+    .debit-request-status {
+      display: inline-flex;
+      padding: 6px 9px;
+      border-radius: 999px;
+      font-size: .72rem;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+    .debit-request-status.pending {
+      color: #8a6100;
+      background: #fff3cd;
+    }
+    .debit-request-status.approved {
+      color: #08775f;
+      background: #dff5ed;
+    }
+    .debit-request-status.rejected {
+      color: #b42318;
+      background: #fee4e2;
+    }
     .wallet-directory-card {
       margin-top: 18px;
       padding: 22px;
@@ -867,7 +914,7 @@
     <a class="ops-command" href="#wallets" data-cafe-section-link data-section="wallets">
       <div>
         <strong>المحافظ والدفع</strong>
-        <span>شحن وخصم برصيد مباشر</span>
+        <span>شحن مباشر وخصم بموافقة الطالب</span>
       </div>
       <div class="ops-index">02</div>
     </a>
@@ -923,7 +970,7 @@
       <div class="section-command-bar">
         <div>
           <h2 class="section-command-title">محطة المحافظ والدفع</h2>
-          <p class="section-command-subtitle">تشغيل مالي مباشر للطلاب: تحقق من المحفظة، شحن، خصم، ثم راقب السجل.</p>
+          <p class="section-command-subtitle">الشحن متاح لأي طالب من كل الكليات. الخصم لا ينفذ إلا بعد موافقة صاحب المحفظة.</p>
         </div>
         <span class="bh-pill">Finance Desk</span>
       </div>
@@ -948,7 +995,7 @@
           <div class="wallet-card-header">
             <div>
               <h3 class="wallet-card-title">تنفيذ عملية مالية</h3>
-              <p class="wallet-card-subtitle">استخدم البريد أو الهاتف أو كود البطاقة. لا يتم الشحن إلا إذا كانت المحفظة موجودة.</p>
+              <p class="wallet-card-subtitle">استخدم البريد أو الهاتف أو كود البطاقة. الشحن فوري، والخصم يرسل طلب موافقة للطالب.</p>
             </div>
             <span class="bh-pill">Secure</span>
           </div>
@@ -974,7 +1021,7 @@
               <label class="form-label">ملاحظة</label>
               <input class="form-control" name="note" placeholder="اختياري">
             </div>
-            <button class="btn btn-dark bh-command-btn" type="submit">تنفيذ العملية</button>
+            <button class="btn btn-dark bh-command-btn" type="submit">متابعة العملية</button>
             <div id="walletOpsResult" class="result-panel">جاهز لتنفيذ عملية محفظة.</div>
           </div>
         </form>
@@ -1009,13 +1056,49 @@
               <div class="wallet-empty-ledger">
                 <div>
                   <div class="fw-bold mb-1">لا توجد عمليات محفظة بعد</div>
-                  <div class="small">عند تنفيذ أول شحن أو خصم سيظهر هنا مباشرة.</div>
+                  <div class="small">عند تنفيذ أول شحن أو خصم معتمد سيظهر هنا مباشرة.</div>
                 </div>
               </div>
             {% endfor %}
           </div>
         </section>
       </div>
+
+      <section class="bh-card debit-request-board">
+        <div class="wallet-card-header">
+          <div>
+            <h3 class="wallet-card-title">طلبات الخصم وموافقة الطلاب</h3>
+            <p class="wallet-card-subtitle">يعرض هذا المقهى فقط، مع حالة موافقة أو رفض الطالب ووقت الرد.</p>
+          </div>
+          <span class="bh-pill">Approval</span>
+        </div>
+        <div class="debit-request-list" id="debitRequestList">
+          {% for debit_request in debit_requests %}
+            <article class="debit-request-card">
+              <div class="debit-request-card-header">
+                <div>
+                  <div class="fw-bold">{{ debit_request.wallet.user.full_name|default:debit_request.wallet.user.email }}</div>
+                  <div class="text-muted small">{{ debit_request.wallet.user.email }}</div>
+                </div>
+                <span class="debit-request-status {{ debit_request.status|lower }}">{{ debit_request.get_status_display }}</span>
+              </div>
+              <div class="debit-request-amount">{{ debit_request.amount }} د.ل</div>
+              {% if debit_request.note %}<div class="text-muted small mt-1">{{ debit_request.note }}</div>{% endif %}
+              <div class="text-muted small mt-2">
+                طُلب: {{ debit_request.created_at|date:"Y-m-d H:i" }}
+                {% if debit_request.responded_at %}<br>تم الرد: {{ debit_request.responded_at|date:"Y-m-d H:i" }}{% endif %}
+              </div>
+            </article>
+          {% empty %}
+            <div class="wallet-empty-ledger">
+              <div>
+                <div class="fw-bold mb-1">لا توجد طلبات خصم</div>
+                <div class="small">أي طلب خصم جديد ونتيجته سيظهران هنا.</div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </section>
 
     </div>
 
@@ -1363,6 +1446,7 @@
       "statusEndpointTemplate": "{% url 'core:update_order_status_api' 0 %}",
       "stockEndpointTemplate": "{% url 'core:toggle_product_stock_api' 0 %}",
       "walletOperationEndpoint": "{% url 'core:cafe_wallet_operation_api' %}",
+      "debitRequestsEndpoint": "{% url 'core:cafe_wallet_debit_requests_api' %}",
       "cardBindEndpoint": "{% url 'core:cafe_bind_wallet_card_api' %}",
       "walletHistoryEndpointTemplate": "{% url 'core:cafe_wallet_history_api' 0 %}",
       "createProductEndpoint": "{% url 'core:create_product_api' %}",
@@ -1408,5 +1492,5 @@
 {% endblock %}
 
 {% block extra_scripts %}
-  <script src="{% static 'admin_v2/cafe_panel.js' %}"></script>
+  <script src="{% static 'admin_v2/cafe_panel.js' %}?v=20260619-1"></script>
 {% endblock %}

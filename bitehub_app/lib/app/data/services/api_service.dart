@@ -691,6 +691,38 @@ class ApiService {
     }
   }
 
+  Future<bool> respondWalletDebitRequest({
+    required String requestId,
+    required bool approve,
+  }) async {
+    final url = Uri.parse(
+      '$baseUrl/api/v2/app/wallet/debit-requests/$requestId/respond/',
+    );
+
+    try {
+      final response = await _sendWithAuthRetry(
+        (headers) => http.post(
+          url,
+          headers: headers,
+          body: json.encode({
+            'decision': approve ? 'approve' : 'reject',
+          }),
+        ),
+      );
+      final data = _decodeBody(response);
+      if (response.statusCode == 200 &&
+          data is Map &&
+          data['success'] == true) {
+        return true;
+      }
+      throw _buildException(response, data);
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      throw _networkException(e);
+    }
+  }
+
   // ???? ???? linkWalletWithCode ???? ??????? ?? ????? ???? ?????? ?????.
   Future<bool> linkWalletWithCode(String linkCode) async {
     final url = Uri.parse('$baseUrl/api/v2/app/wallet/link/');

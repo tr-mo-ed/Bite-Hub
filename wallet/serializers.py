@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Wallet, Transaction
+from .models import Transaction, Wallet, WalletDebitRequest
 
 # ???? ???? TransactionSerializer ???? ?????? ????????? ???? ???? ?????.
 class TransactionSerializer(serializers.ModelSerializer):
@@ -35,14 +35,30 @@ class TransactionSerializer(serializers.ModelSerializer):
 
     # ???? ???? get_college_name ?????? ????? ?????? ?? ????? ????.
     def get_college_name(self, obj):
-        # محاولة ذكية لجلب اسم الكلية/المقهى
-        # أولاً: نحاول جلبه من المحفظة مباشرة إذا كان الحقل موجوداً
-        if hasattr(obj.wallet, 'college') and obj.wallet.college:
-            return str(obj.wallet.college)
-        
-        # ثانياً: إذا لم نجد، نحاول جلبه من وصف المعاملة (إذا كان الشراء من مقهى معين)
-        # هذا يعتمد على كيفية تخزين الوصف، لكنه احتياط جيد
-        return "غير محدد"
+        if obj.cafe_id and obj.cafe:
+            return obj.cafe.name
+        return str(obj.wallet.college or "Bite Hub")
+
+
+class WalletDebitRequestSerializer(serializers.ModelSerializer):
+    cafe_name = serializers.CharField(source="cafe.name", read_only=True)
+    status_display = serializers.CharField(
+        source="get_status_display",
+        read_only=True,
+    )
+
+    class Meta:
+        model = WalletDebitRequest
+        fields = [
+            "id",
+            "cafe_name",
+            "amount",
+            "note",
+            "status",
+            "status_display",
+            "created_at",
+            "responded_at",
+        ]
 
 
 # ???? ???? WalletSerializer ???? ?????? ????????? ???? ???? ?????.

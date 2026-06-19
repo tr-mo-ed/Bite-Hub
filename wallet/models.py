@@ -93,6 +93,59 @@ class Transaction(models.Model):
             
             super().save(*args, **kwargs)
 
+
+class WalletDebitRequest(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "PENDING", "بانتظار موافقة الطالب"
+        APPROVED = "APPROVED", "وافق الطالب"
+        REJECTED = "REJECTED", "رفض الطالب"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    wallet = models.ForeignKey(
+        Wallet,
+        on_delete=models.CASCADE,
+        related_name="debit_requests",
+    )
+    cafe = models.ForeignKey(
+        "core.Cafe",
+        on_delete=models.CASCADE,
+        related_name="wallet_debit_requests",
+    )
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="requested_wallet_debits",
+        null=True,
+        blank=True,
+    )
+    transaction_record = models.OneToOneField(
+        Transaction,
+        on_delete=models.SET_NULL,
+        related_name="debit_request",
+        null=True,
+        blank=True,
+    )
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    note = models.CharField(max_length=255, blank=True)
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+        db_index=True,
+    )
+    responded_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+        indexes = [
+            models.Index(fields=("wallet", "status", "created_at")),
+            models.Index(fields=("cafe", "status", "created_at")),
+        ]
+
+    def __str__(self):
+        return f"{self.cafe_id} -> {self.wallet_id}: {self.amount} ({self.status})"
+
 # --- Signals لإنشاء المحفظة تلقائياً ---
 @receiver(post_save, sender=settings.AUTH_USER_MODEL)
 def create_user_wallet(sender, instance, created, **kwargs):

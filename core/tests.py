@@ -15,7 +15,7 @@ from .backoffice_services import CAFE_OWNER_GROUP_NAME, provision_cafe, toggle_p
 from .credential_vault import decrypt_cafe_password
 from .models import Cafe, Category, Faculty, Notification, Order, OrderItem, OrderStatus, Product
 from .services import ValidationServiceError, cancel_user_order, create_order
-from wallet.models import Transaction, Wallet
+from wallet.models import Transaction, Wallet, WalletDebitRequest
 
 
 # ??? ??????? TEST_CHANNEL_LAYERS ??? ????? ??? ???? ???? ???? ????? ????.
@@ -1379,8 +1379,37 @@ class DashboardRenderSmokeTests(TestCase):
             reverse("core:cafe_wallet_operation_api"),
             data={"identifier": self.student.email, "operation": "WITHDRAWAL", "amount": "5.50"},
         )
-        self.assertEqual(withdraw_response.status_code, 200, withdraw_response.content)
+        self.assertEqual(withdraw_response.status_code, 202, withdraw_response.content)
+        self.assertTrue(withdraw_response.json()["pending_approval"])
         self.student.wallet.refresh_from_db()
+        self.assertEqual(self.student.wallet.balance, Decimal("25.50"))
+        debit_request = WalletDebitRequest.objects.get(
+            wallet=self.student.wallet,
+            cafe=self.cafe,
+        )
+        self.assertEqual(debit_request.status, WalletDebitRequest.Status.PENDING)
+        self.assertFalse(
+            self.student.wallet.transactions.filter(
+                transaction_type="WITHDRAWAL"
+            ).exists()
+        )
+        self.assertTrue(
+            Notification.objects.filter(
+                user=self.student,
+                event_type="WALLET_DEBIT_REQUESTED",
+            ).exists()
+        )
+
+        self.client.force_login(self.student)
+        approval_response = self.client.post(
+            reverse("respond_wallet_debit_request", args=[debit_request.id]),
+            data={"decision": "approve"},
+        )
+
+        self.assertEqual(approval_response.status_code, 200, approval_response.content)
+        debit_request.refresh_from_db()
+        self.student.wallet.refresh_from_db()
+        self.assertEqual(debit_request.status, WalletDebitRequest.Status.APPROVED)
         self.assertEqual(self.student.wallet.balance, Decimal("20.00"))
         self.assertEqual(
             set(
@@ -1388,6 +1417,146 @@ class DashboardRenderSmokeTests(TestCase):
             ),
             {self.cafe.id},
         )
+
+    def test_student_can_reject_cafe_debit_request_without_balance_change(self):
+        Transaction.objects.create(
+            wallet=self.student.wallet,
+            cafe=self.cafe,
+            amount=Decimal("15.00"),
+            transaction_type="DEPOSIT",
+            source="SYSTEM",
+            description="Initial funding",
+        )
+        self.client.force_login(self.cashier)
+        request_response = self.client.post(
+            reverse("core:cafe_wallet_operation_api"),
+            data={
+                "identifier": self.student.email,
+                "operation": "WITHDRAWAL",
+                "amount": "4.00",
+            },
+        )
+        debit_request = WalletDebitRequest.objects.get(
+            pk=request_response.json()["debit_request"]["id"]
+        )
+
+        self.client.force_login(self.student)
+        reject_response = self.client.post(
+            reverse("respond_wallet_debit_request", args=[debit_request.id]),
+            data={"decision": "reject"},
+        )
+
+        self.assertEqual(reject_response.status_code, 200, reject_response.content)
+        debit_request.refresh_from_db()
+        self.student.wallet.refresh_from_db()
+        self.assertEqual(debit_request.status, WalletDebitRequest.Status.REJECTED)
+        self.assertEqual(self.student.wallet.balance, Decimal("15.00"))
+        self.assertIsNone(debit_request.transaction_record_id)
+
+    def test_cafe_can_top_up_student_wallet_from_another_college(self):
+        wallet = self.student.wallet
+        wallet.college = "كلية العلوم"
+        wallet.save(update_fields=["college"])
+        self.client.force_login(self.cashier)
+
+        response = self.client.post(
+            reverse("core:cafe_wallet_operation_api"),
+            data={
+                "identifier": self.student.email,
+                "operation": "DEPOSIT",
+                "amount": "18.00",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        wallet.refresh_from_db()
+        self.assertEqual(wallet.balance, Decimal("18.00"))
+        self.assertTrue(
+            wallet.transactions.filter(
+                cafe=self.cafe,
+                transaction_type="DEPOSIT",
+                amount=Decimal("18.00"),
+            ).exists()
+        )
+
+    def test_student_wallet_payload_includes_pending_debit_requests(self):
+        debit_request = WalletDebitRequest.objects.create(
+            wallet=self.student.wallet,
+            cafe=self.cafe,
+            requested_by=self.cashier,
+            amount=Decimal("6.00"),
+            note="طلب تجريبي",
+        )
+        self.client.force_login(self.student)
+
+        response = self.client.get(reverse("get_wallet"))
+
+        self.assertEqual(response.status_code, 200, response.content)
+        requests = response.json()["pending_debit_requests"]
+        self.assertEqual(len(requests), 1)
+        self.assertEqual(requests[0]["id"], str(debit_request.id))
+        self.assertEqual(requests[0]["cafe_name"], self.cafe.name)
+
+    def test_other_student_cannot_respond_to_debit_request(self):
+        User = get_user_model()
+        other_student = User.objects.create_user(
+            email="other-wallet-student@example.com",
+            password="StrongPass123",
+            full_name="Other Wallet Student",
+            phone_number="0910000026",
+        )
+        debit_request = WalletDebitRequest.objects.create(
+            wallet=self.student.wallet,
+            cafe=self.cafe,
+            requested_by=self.cashier,
+            amount=Decimal("3.00"),
+        )
+        self.client.force_login(other_student)
+
+        response = self.client.post(
+            reverse("respond_wallet_debit_request", args=[debit_request.id]),
+            data={"decision": "approve"},
+        )
+
+        self.assertEqual(response.status_code, 400, response.content)
+        debit_request.refresh_from_db()
+        self.assertEqual(debit_request.status, WalletDebitRequest.Status.PENDING)
+
+    def test_debit_request_api_is_scoped_to_current_cafe(self):
+        User = get_user_model()
+        other_cashier = User.objects.create_user(
+            email="debit-other-cashier@example.com",
+            password="StrongPass123",
+            full_name="Debit Other Cashier",
+            phone_number="0910000027",
+            is_staff=True,
+        )
+        other_cafe = Cafe.objects.create(
+            name="Debit Other Cafe",
+            code="debit-other-cafe",
+            owner=other_cashier,
+        )
+        visible_request = WalletDebitRequest.objects.create(
+            wallet=self.student.wallet,
+            cafe=self.cafe,
+            requested_by=self.cashier,
+            amount=Decimal("3.00"),
+        )
+        WalletDebitRequest.objects.create(
+            wallet=self.student.wallet,
+            cafe=other_cafe,
+            requested_by=other_cashier,
+            amount=Decimal("7.00"),
+        )
+        self.client.force_login(self.cashier)
+
+        response = self.client.get(
+            reverse("core:cafe_wallet_debit_requests_api")
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        request_ids = {item["id"] for item in response.json()["requests"]}
+        self.assertEqual(request_ids, {str(visible_request.id)})
 
     def test_wallet_ledger_is_scoped_to_cafe_and_shows_student_once(self):
         User = get_user_model()

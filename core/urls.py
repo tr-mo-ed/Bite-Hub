@@ -25,6 +25,7 @@ urlpatterns = [
     path('cafe-panel/snapshot/', backoffice_views.cafe_panel_snapshot_api, name='cafe_panel_snapshot_api'),
     path('cafe-panel/orders/<int:order_id>/status/', backoffice_views.update_order_status_api, name='update_order_status_api'),
     path('cafe-panel/wallets/operate/', backoffice_views.cafe_wallet_operation_api, name='cafe_wallet_operation_api'),
+    path('cafe-panel/wallets/debit-requests/', backoffice_views.cafe_wallet_debit_requests_api, name='cafe_wallet_debit_requests_api'),
     path('cafe-panel/wallets/bind-card/', backoffice_views.cafe_bind_wallet_card_api, name='cafe_bind_wallet_card_api'),
     path('cafe-panel/wallets/<int:wallet_id>/history/', backoffice_views.cafe_wallet_history_api, name='cafe_wallet_history_api'),
     path('cafe-panel/products/create/', backoffice_views.save_product_api, name='create_product_api'),

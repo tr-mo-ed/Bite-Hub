@@ -11,8 +11,9 @@ from django.contrib.auth import get_user_model
 
 from core.utils import send_real_notification
 
-from .models import Wallet, Transaction
-from .serializers import WalletSerializer
+from .models import Transaction, Wallet, WalletDebitRequest
+from .serializers import WalletDebitRequestSerializer, WalletSerializer
+from .services import respond_to_debit_request
 
 # ??? ??????? User ??? ????? ??? ???? ???? ???? ????? ????.
 User = get_user_model()
@@ -173,7 +174,7 @@ def get_wallet(request):
     wallet = _sync_wallet_balance(wallet)
     
     # جلب آخر 20 معاملة فقط لتقليل الضغط على السيرفر
-    recent_transactions = wallet.transactions.order_by('-created_at')[:20]
+    recent_transactions = wallet.transactions.select_related('cafe').order_by('-created_at')[:20]
     
     # نمرر المعاملات يدوياً للسيريالايزر
     serializer = WalletSerializer(wallet)
@@ -182,8 +183,49 @@ def get_wallet(request):
     # نستبدل المعاملات بالقائمة المحدثة (لضمان الترتيب والعدد)
     from .serializers import TransactionSerializer
     data['transactions'] = TransactionSerializer(recent_transactions, many=True).data
+    debit_requests = (
+        wallet.debit_requests.select_related("cafe")
+        .filter(status=WalletDebitRequest.Status.PENDING)
+        .order_by("-created_at")
+    )
+    data["pending_debit_requests"] = WalletDebitRequestSerializer(
+        debit_requests,
+        many=True,
+    ).data
     
     return Response(data)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def respond_wallet_debit_request(request, request_id):
+    raw_decision = str(request.data.get("decision") or "").strip().lower()
+    if raw_decision not in {"approve", "reject"}:
+        return Response(
+            {"error": "اختر الموافقة أو الرفض."},
+            status=400,
+        )
+
+    try:
+        request_item = respond_to_debit_request(
+            request_id=request_id,
+            user=request.user,
+            approve=raw_decision == "approve",
+        )
+    except ValueError as exc:
+        return Response({"error": str(exc)}, status=400)
+
+    request_item = WalletDebitRequest.objects.select_related("cafe").get(
+        pk=request_item.pk
+    )
+    request_item.wallet.refresh_from_db()
+    return Response(
+        {
+            "success": True,
+            "request": WalletDebitRequestSerializer(request_item).data,
+            "balance": str(request_item.wallet.balance),
+        }
+    )
 
 
 # ???? ???? transfer_wallet ?????? ????? ?????? ?? ????? ????.

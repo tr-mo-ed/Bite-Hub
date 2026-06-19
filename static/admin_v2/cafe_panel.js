@@ -375,6 +375,7 @@
   const resetProductForm = document.getElementById("resetProductForm");
   const walletOpsForm = document.getElementById("walletOpsForm");
   const walletOpsResult = document.getElementById("walletOpsResult");
+  const debitRequestList = document.getElementById("debitRequestList");
   const cardBindForm = document.getElementById("cardBindForm");
   const cardBindResult = document.getElementById("cardBindResult");
 
@@ -402,6 +403,81 @@
     node.classList.toggle("text-danger", variant === "danger");
   }
 
+  function appendTextElement(parent, tagName, className, text) {
+    const element = document.createElement(tagName);
+    element.className = className;
+    element.textContent = text;
+    parent.appendChild(element);
+    return element;
+  }
+
+  function renderDebitRequests(requests) {
+    if (!debitRequestList) {
+      return;
+    }
+    debitRequestList.replaceChildren();
+
+    if (!Array.isArray(requests) || requests.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "wallet-empty-ledger";
+      const content = document.createElement("div");
+      appendTextElement(content, "div", "fw-bold mb-1", "لا توجد طلبات خصم");
+      appendTextElement(content, "div", "small", "أي طلب خصم جديد ونتيجته سيظهران هنا.");
+      empty.appendChild(content);
+      debitRequestList.appendChild(empty);
+      return;
+    }
+
+    requests.forEach((requestItem) => {
+      const card = document.createElement("article");
+      card.className = "debit-request-card";
+
+      const header = document.createElement("div");
+      header.className = "debit-request-card-header";
+      const identity = document.createElement("div");
+      appendTextElement(identity, "div", "fw-bold", requestItem.student_name || requestItem.student_email || "طالب");
+      appendTextElement(identity, "div", "text-muted small", requestItem.student_email || "");
+      header.appendChild(identity);
+
+      const status = appendTextElement(
+        header,
+        "span",
+        `debit-request-status ${(requestItem.status || "PENDING").toLowerCase()}`,
+        requestItem.status_display || requestItem.status || "",
+      );
+      status.dataset.status = requestItem.status || "";
+      card.appendChild(header);
+
+      appendTextElement(card, "div", "debit-request-amount", `${requestItem.amount || "0.00"} د.ل`);
+      if (requestItem.note) {
+        appendTextElement(card, "div", "text-muted small mt-1", requestItem.note);
+      }
+      const timing = requestItem.responded_at
+        ? `طُلب: ${requestItem.created_at || "-"} | تم الرد: ${requestItem.responded_at}`
+        : `طُلب: ${requestItem.created_at || "-"}`;
+      appendTextElement(card, "div", "text-muted small mt-2", timing);
+      debitRequestList.appendChild(card);
+    });
+  }
+
+  async function syncDebitRequests() {
+    if (!debitRequestList || !config.debitRequestsEndpoint) {
+      return;
+    }
+    try {
+      const response = await fetch(config.debitRequestsEndpoint, {
+        headers: { Accept: "application/json" },
+        credentials: "same-origin",
+      });
+      const payload = await response.json();
+      if (response.ok && payload.success === true) {
+        renderDebitRequests(payload.requests);
+      }
+    } catch (_) {
+      // Keep the last rendered state while connectivity is unavailable.
+    }
+  }
+
   if (walletOpsForm) {
     walletOpsForm.addEventListener("submit", async (event) => {
       event.preventDefault();
@@ -409,12 +485,22 @@
       try {
         const payload = await postForm(config.walletOperationEndpoint, new FormData(walletOpsForm));
         const wallet = payload.wallet || {};
-        writeResult(
-          walletOpsResult,
-          `تمت العملية: ${wallet.user || ""} | الرصيد الحالي ${wallet.balance || "0.00"} د.ل | البطاقة ${wallet.nfc_card_uid || "-"} | كود المحفظة ${wallet.link_code || "-"}`,
-          "success",
-        );
-        showToast("تم تحديث المحفظة.", "success");
+        if (payload.pending_approval === true) {
+          writeResult(
+            walletOpsResult,
+            payload.message || `تم إرسال طلب الخصم إلى ${wallet.user || "الطالب"} وبانتظار موافقته.`,
+            "success",
+          );
+          showToast("تم إرسال طلب الخصم إلى الطالب.", "warning");
+          await syncDebitRequests();
+        } else {
+          writeResult(
+            walletOpsResult,
+            `تم الشحن: ${wallet.user || ""} | الرصيد الحالي ${wallet.balance || "0.00"} د.ل | البطاقة ${wallet.nfc_card_uid || "-"} | كود المحفظة ${wallet.link_code || "-"}`,
+            "success",
+          );
+          showToast("تم شحن المحفظة.", "success");
+        }
         walletOpsForm.reset();
       } catch (error) {
         writeResult(walletOpsResult, error.message || "تعذر تنفيذ عملية المحفظة.", "danger");
@@ -660,4 +746,6 @@
   connectSocket();
   startPollingFallback();
   syncLatestOrders();
+  syncDebitRequests();
+  window.setInterval(syncDebitRequests, 10000);
 })();

@@ -18,4 +18,9 @@ urlpatterns = [
     # الرابط سيكون: /api/wallet/transfer/
     path('transfer/', api_views.transfer_wallet, name='transfer_wallet'),
     path('withdraw/', api_views.withdraw_wallet, name='withdraw_wallet'),
+    path(
+        'debit-requests/<uuid:request_id>/respond/',
+        api_views.respond_wallet_debit_request,
+        name='respond_wallet_debit_request',
+    ),
 ]

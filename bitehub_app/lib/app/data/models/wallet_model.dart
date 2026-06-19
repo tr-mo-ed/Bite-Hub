@@ -1,4 +1,5 @@
 import 'package:bitehub_app/app/data/models/transaction_model.dart';
+import 'package:bitehub_app/app/data/models/wallet_debit_request_model.dart';
 
 // ???? ???? WalletModel ???? ???? ????? ???? ?? ???? ????.
 class WalletModel {
@@ -18,6 +19,7 @@ class WalletModel {
   final String nfcCardLast4;
   // ??? ??????? transactions ??? ?????? ???? ????? ????.
   final List<TransactionModel> transactions;
+  final List<WalletDebitRequestModel> pendingDebitRequests;
 
   WalletModel({
     required this.id,
@@ -29,6 +31,7 @@ class WalletModel {
     required this.hasNfcCard,
     required this.nfcCardLast4,
     required this.transactions,
+    this.pendingDebitRequests = const <WalletDebitRequestModel>[],
   });
 
   factory WalletModel.fromJson(Map<String, dynamic> json) {
@@ -50,6 +53,20 @@ class WalletModel {
       }
     }
 
+    final pendingDebitRequests = <WalletDebitRequestModel>[];
+    final rawDebitRequests = json['pending_debit_requests'];
+    if (rawDebitRequests is List) {
+      for (final item in rawDebitRequests) {
+        if (item is Map) {
+          pendingDebitRequests.add(
+            WalletDebitRequestModel.fromJson(
+              Map<String, dynamic>.from(item),
+            ),
+          );
+        }
+      }
+    }
+
     return WalletModel(
       id: json['id'] is int
           ? json['id'] as int
@@ -63,6 +80,7 @@ class WalletModel {
       hasNfcCard: json['has_nfc_card'] == true,
       nfcCardLast4: (json['nfc_card_last4'] ?? '').toString(),
       transactions: transactions,
+      pendingDebitRequests: pendingDebitRequests,
     );
   }
 }

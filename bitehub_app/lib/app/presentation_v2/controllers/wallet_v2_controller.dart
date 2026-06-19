@@ -71,6 +71,21 @@ class WalletV2Controller extends ChangeNotifier {
     return _apiService.lookupNfcCard(cardUid);
   }
 
+  Future<bool> respondToDebitRequest({
+    required String requestId,
+    required bool approve,
+  }) {
+    return _runAction(
+      () => _apiService.respondWalletDebitRequest(
+        requestId: requestId,
+        approve: approve,
+      ),
+      successMessage: approve
+          ? 'تمت الموافقة وخصم المبلغ من محفظتك.'
+          : 'تم رفض طلب الخصم ولن يتغير رصيدك.',
+    );
+  }
+
   Future<bool> transferToNfcCard({
     required String cardUid,
     required double amount,
