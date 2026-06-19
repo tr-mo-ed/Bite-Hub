@@ -116,7 +116,8 @@
         resetCafePasswordSubtitle.textContent = `تغيير كلمة مرور ${button.dataset.cafeName || "المقهى"}.`;
       }
       if (resetCafePasswordInput) {
-        resetCafePasswordInput.value = randomPassword();
+        resetCafePasswordInput.value =
+          button.dataset.currentPassword || randomPassword();
         window.setTimeout(() => {
           resetCafePasswordInput.focus();
           resetCafePasswordInput.select();
@@ -137,6 +138,39 @@
   resetCafePasswordForm?.addEventListener("submit", (event) => {
     event.preventDefault();
     submitWithFreshCsrf(resetCafePasswordForm);
+  });
+
+  document.querySelectorAll(".js-toggle-saved-password").forEach((button) => {
+    button.addEventListener("click", () => {
+      const input = document.getElementById(button.dataset.passwordTarget || "");
+      if (!input) {
+        return;
+      }
+      const visible = input.type === "text";
+      input.type = visible ? "password" : "text";
+      button.textContent = visible ? "إظهار" : "إخفاء";
+    });
+  });
+
+  document.querySelectorAll(".js-copy-saved-password").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const input = document.getElementById(button.dataset.passwordTarget || "");
+      if (!input) {
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(input.value);
+        const previousLabel = button.textContent;
+        button.textContent = "تم النسخ";
+        window.setTimeout(() => {
+          button.textContent = previousLabel;
+        }, 1400);
+      } catch (_error) {
+        input.type = "text";
+        input.focus();
+        input.select();
+      }
+    });
   });
 
   const updateCafeImageForm = document.getElementById("updateCafeImageForm");

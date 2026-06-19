@@ -9,6 +9,7 @@ from django.db import transaction
 from django.utils import timezone
 from django.utils.text import slugify
 
+from .credential_vault import encrypt_cafe_password
 from .forms import CafeImageForm, ProductForm
 from .models import Cafe, Category, Faculty, Product
 from .services import ValidationServiceError, ensure_default_categories_for_cafe
@@ -258,6 +259,9 @@ def provision_cafe_with_credentials(
         owner=owner,
         image=image,
         is_active=True,
+        operator_password_ciphertext=encrypt_cafe_password(
+            normalized_password
+        ),
     )
     return initialize_cafe_runtime(cafe)
 
@@ -413,4 +417,8 @@ def reset_cafe_operator_password(*, cafe_id: int, password: str) -> Cafe:
         owner.is_staff = True
         owner.is_active = True
         owner.save(update_fields=["password", "is_staff", "is_active"])
+    cafe.operator_password_ciphertext = encrypt_cafe_password(
+        normalized_password
+    )
+    cafe.save(update_fields=["operator_password_ciphertext", "updated_at"])
     return cafe

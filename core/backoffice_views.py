@@ -12,6 +12,7 @@ from django.db.models import OuterRef, Q, Subquery, Sum
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
+from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 
 from .backoffice_selectors import (
@@ -35,6 +36,7 @@ from .backoffice_services import (
     toggle_product_stock,
     update_cafe_image,
 )
+from .credential_vault import decrypt_cafe_password
 from .models import Cafe, Category
 from .serializers import OrderSerializer, ProductSerializer
 from .services import NotFoundServiceError, ValidationServiceError, update_order_status
@@ -399,6 +401,7 @@ def _cafe_wallet_activity(cafe: Cafe) -> tuple[list[Transaction], list[Wallet]]:
 # ???? ???? super_admin_dashboard ?????? ????? ?????? ?? ????? ????.
 @login_required(login_url="core:admin_login")
 @user_passes_test(lambda user: user.is_superuser, login_url="core:route_after_login")
+@never_cache
 def super_admin_dashboard(request: HttpRequest) -> HttpResponse:
     # ??? ??????? sales_series ??? ????? ??? ???? ???? ???? ????? ????.
     sales_series = get_super_admin_sales_series()
@@ -413,12 +416,18 @@ def super_admin_dashboard(request: HttpRequest) -> HttpResponse:
             "owner_id": "",
         },
     )
+    cafes = list(get_all_cafes_for_admin())
+    for cafe in cafes:
+        cafe.operator_password_display = decrypt_cafe_password(
+            cafe.operator_password_ciphertext
+        )
+
     # ??? ??????? context ??? ????? ??? ???? ???? ???? ????? ????.
     context = {
         "kpis": get_super_admin_kpis(),
         "sales_series": sales_series,
         "cafe_breakdown": get_super_admin_cafe_breakdown(),
-        "cafes": get_all_cafes_for_admin(),
+        "cafes": cafes,
         "faculties": get_faculty_options(),
         "managers": get_manager_options(),
         "error_snapshots": get_recent_error_snapshots(),

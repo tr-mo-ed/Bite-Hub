@@ -69,6 +69,10 @@ DEBUG = config("DJANGO_DEBUG", default=True, cast=bool)
 ALLOWED_HOSTS = csv_config("DJANGO_ALLOWED_HOSTS", default="*" if DEBUG else "")
 CSRF_TRUSTED_ORIGINS = csv_config("DJANGO_CSRF_TRUSTED_ORIGINS")
 BACKOFFICE_SUPER_ADMIN_EMAIL = config("BACKOFFICE_SUPER_ADMIN_EMAIL", default="hsjshdvehhs@gmail.com")
+CAFE_CREDENTIALS_ENCRYPTION_KEY = config(
+    "CAFE_CREDENTIALS_ENCRYPTION_KEY",
+    default="",
+)
 BREVO_API_KEY = config("BREVO_API_KEY", default="")
 BREVO_API_URL = config(
     "BREVO_API_URL",

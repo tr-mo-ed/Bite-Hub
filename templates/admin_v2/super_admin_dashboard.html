@@ -114,6 +114,22 @@
       font-size: .84rem;
       line-height: 1.7;
     }
+    .cafe-password-cell {
+      min-width: 245px;
+    }
+    .cafe-password-field {
+      min-width: 150px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      direction: ltr;
+      text-align: left;
+      letter-spacing: .03em;
+    }
+    .cafe-password-missing {
+      max-width: 220px;
+      color: #8a6100;
+      font-size: .78rem;
+      line-height: 1.5;
+    }
     .cafe-identity {
       display: flex;
       align-items: center;
@@ -318,6 +334,7 @@
                 <th>الكلية</th>
                 <th>الكود</th>
                 <th>رابط الدخول</th>
+                <th>كلمة المرور</th>
                 <th>الحالة</th>
                 <th>الطلبات</th>
                 <th>الأصناف المباعة</th>
@@ -349,6 +366,38 @@
                       </a>
                     {% else %}
                       <span class="text-muted small">اربط مديرًا أولًا</span>
+                    {% endif %}
+                  </td>
+                  <td class="cafe-password-cell">
+                    {% if cafe.operator_password_display %}
+                      <div class="input-group input-group-sm">
+                        <input
+                          id="cafePassword{{ cafe.id }}"
+                          class="form-control cafe-password-field"
+                          type="password"
+                          value="{{ cafe.operator_password_display }}"
+                          readonly
+                          aria-label="كلمة مرور {{ cafe.name }}"
+                        >
+                        <button
+                          class="btn btn-outline-secondary js-toggle-saved-password"
+                          type="button"
+                          data-password-target="cafePassword{{ cafe.id }}"
+                        >
+                          إظهار
+                        </button>
+                        <button
+                          class="btn btn-outline-dark js-copy-saved-password"
+                          type="button"
+                          data-password-target="cafePassword{{ cafe.id }}"
+                        >
+                          نسخ
+                        </button>
+                      </div>
+                    {% else %}
+                      <div class="cafe-password-missing">
+                        الكلمة القديمة غير قابلة للاستخراج. أعد ضبطها مرة واحدة لتظهر هنا.
+                      </div>
                     {% endif %}
                   </td>
                   <td>
@@ -388,6 +437,7 @@
                       data-bs-target="#resetCafePasswordModal"
                       data-cafe-name="{{ cafe.name }}"
                       data-action="{% url 'core:reset_cafe_password_from_dashboard' cafe.id %}"
+                      data-current-password="{{ cafe.operator_password_display|default:'' }}"
                     >
                       إعادة ضبط كلمة المرور
                     </button>
@@ -575,5 +625,5 @@
 {% endblock %}
 
 {% block extra_scripts %}
-  <script src="{% static 'admin_v2/super_admin_dashboard.js' %}?v=20260618-2"></script>
+  <script src="{% static 'admin_v2/super_admin_dashboard.js' %}?v=20260619-1"></script>
 {% endblock %}

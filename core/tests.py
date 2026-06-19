@@ -12,6 +12,7 @@ from django.urls import reverse
 
 from .api_views import get_products_cached
 from .backoffice_services import CAFE_OWNER_GROUP_NAME, provision_cafe, toggle_product_stock
+from .credential_vault import decrypt_cafe_password
 from .models import Cafe, Category, Faculty, Notification, Order, OrderItem, OrderStatus, Product
 from .services import ValidationServiceError, cancel_user_order, create_order
 from wallet.models import Transaction, Wallet
@@ -309,6 +310,14 @@ class SuperAdminCafeIdentityTests(TestCase):
         self.cafe.refresh_from_db()
         self.assertIsNotNone(self.cafe.owner)
         self.assertTrue(self.cafe.owner.check_password("NewCafePass2026"))
+        self.assertNotIn(
+            "NewCafePass2026",
+            self.cafe.operator_password_ciphertext,
+        )
+        self.assertEqual(
+            decrypt_cafe_password(self.cafe.operator_password_ciphertext),
+            "NewCafePass2026",
+        )
 
     def test_password_reset_form_contains_csrf_and_refreshes_token_before_submit(self):
         self.client.force_login(self.superuser)
@@ -329,6 +338,33 @@ class SuperAdminCafeIdentityTests(TestCase):
             javascript,
         )
         self.assertIn("submitWithFreshCsrf(resetCafePasswordForm)", javascript)
+
+    def test_super_admin_dashboard_shows_saved_cafe_password_only_after_reset(self):
+        self.client.force_login(self.superuser)
+        initial_response = self.client.get(reverse("core:super_admin_dashboard"))
+        self.assertNotContains(initial_response, "CafeSecret2026")
+        self.assertContains(initial_response, "أعد ضبطها مرة واحدة")
+
+        self.client.post(
+            reverse("core:reset_cafe_password_from_dashboard", args=[self.cafe.id]),
+            data={"manager_password": "CafeSecret2026"},
+        )
+
+        response = self.client.get(reverse("core:super_admin_dashboard"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'value="CafeSecret2026"')
+        self.assertContains(response, "js-copy-saved-password")
+        self.assertEqual(response.headers["Cache-Control"], "max-age=0, no-cache, no-store, must-revalidate, private")
+
+    def test_cafe_operator_cannot_open_super_admin_credentials(self):
+        self.client.force_login(self.manager)
+        response = self.client.get(
+            reverse("core:super_admin_dashboard"),
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "cafePassword")
 
 
 # ???? ???? CafeProvisioningTests ???? ?????? ????????? ???? ???? ?????.
@@ -456,6 +492,11 @@ class CafeProvisioningTests(TestCase):
         self.assertIsNotNone(cafe.owner)
         self.assertTrue(cafe.owner.check_password("CafePass@2026"))
         self.assertTrue(cafe.owner.groups.filter(name=CAFE_OWNER_GROUP_NAME).exists())
+        self.assertNotIn("CafePass@2026", cafe.operator_password_ciphertext)
+        self.assertEqual(
+            decrypt_cafe_password(cafe.operator_password_ciphertext),
+            "CafePass@2026",
+        )
 
         self.client.logout()
         login_response = self.client.post(
@@ -491,8 +532,13 @@ class CafeProvisioningTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
+        cafe.refresh_from_db()
         manager.refresh_from_db()
         self.assertTrue(manager.check_password("NewCafePass2026"))
+        self.assertEqual(
+            decrypt_cafe_password(cafe.operator_password_ciphertext),
+            "NewCafePass2026",
+        )
 
         self.client.logout()
         login_response = self.client.post(
