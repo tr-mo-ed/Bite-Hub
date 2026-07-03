@@ -113,6 +113,42 @@ class AppLoginApiTests(TestCase):
         BREVO_API_KEY="",
         BREVO_DEBUG_EMAIL_CODES=True,
     )
+    def test_repeated_email_login_request_reopens_existing_challenge(self):
+        get_user_model().objects.create_user(
+            email="repeat-login-code@example.com",
+            password="StrongPass123",
+            full_name="Repeat Login Student",
+            phone_number="0912345698",
+        )
+        payload = {"email": "repeat-login-code@example.com"}
+
+        first_response = self.client.post(
+            reverse("v2_app_email_code_request"),
+            data=payload,
+            content_type="application/json",
+        )
+        second_response = self.client.post(
+            reverse("v2_app_email_code_request"),
+            data=payload,
+            content_type="application/json",
+        )
+
+        self.assertEqual(first_response.status_code, 200, first_response.content)
+        self.assertEqual(second_response.status_code, 200, second_response.content)
+        self.assertEqual(
+            second_response.json()["request_id"],
+            first_response.json()["request_id"],
+        )
+        self.assertEqual(
+            second_response.json()["message"],
+            "Verification code already sent.",
+        )
+
+    @override_settings(
+        DEBUG=True,
+        BREVO_API_KEY="",
+        BREVO_DEBUG_EMAIL_CODES=True,
+    )
     def test_email_verification_code_cannot_be_reused(self):
         get_user_model().objects.create_user(
             email="single-use-code@example.com",
@@ -185,6 +221,41 @@ class AppLoginApiTests(TestCase):
         self.assertTrue(user.check_password("StrongPass123"))
         self.assertTrue(hasattr(user, "wallet"))
         self.assertTrue(verify_response.json()["access"])
+
+    @override_settings(
+        DEBUG=True,
+        BREVO_API_KEY="",
+        BREVO_DEBUG_EMAIL_CODES=True,
+    )
+    def test_repeated_signup_request_reopens_existing_challenge(self):
+        payload = {
+            "full_name": "Repeat Signup Student",
+            "email": "repeat-signup@example.com",
+            "phone_number": "0912345697",
+            "password": "StrongPass123",
+        }
+
+        first_response = self.client.post(
+            reverse("v2_app_signup"),
+            data=payload,
+            content_type="application/json",
+        )
+        second_response = self.client.post(
+            reverse("v2_app_signup"),
+            data=payload,
+            content_type="application/json",
+        )
+
+        self.assertEqual(first_response.status_code, 202, first_response.content)
+        self.assertEqual(second_response.status_code, 202, second_response.content)
+        self.assertEqual(
+            second_response.json()["request_id"],
+            first_response.json()["request_id"],
+        )
+        self.assertEqual(
+            second_response.json()["message"],
+            "Verification code already sent.",
+        )
 
     @override_settings(
         DEBUG=True,
@@ -703,6 +774,41 @@ class OrderWorkflowTests(TestCase):
         panel_response = self.client.get(reverse("core:cafe_panel"))
         self.assertContains(panel_response, "البرغر بدون لحم")
         self.assertContains(panel_response, order.display_order_number)
+
+    def test_products_api_rejects_category_name_filter_in_url(self):
+        response = self.client.get(
+            reverse("v2_app_products"),
+            data={
+                "cafe_id": self.cafe.id,
+                "category": self.category.name,
+            },
+        )
+
+        self.assertEqual(response.status_code, 400, response.content)
+        self.assertIn("category_id", response.json()["error"])
+
+    def test_products_api_rejects_injection_like_numeric_filters(self):
+        for field in ["cafe_id", "category_id"]:
+            with self.subTest(field=field):
+                response = self.client.get(
+                    reverse("v2_app_products"),
+                    data={field: "1 OR 1=1"},
+                )
+
+                self.assertEqual(response.status_code, 400, response.content)
+
+    def test_products_api_accepts_category_id_filter(self):
+        response = self.client.get(
+            reverse("v2_app_products"),
+            data={
+                "cafe_id": self.cafe.id,
+                "category_id": self.category.id,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(len(response.json()), 1)
+        self.assertEqual(response.json()[0]["category_id"], self.category.id)
 
     def test_removed_legacy_order_endpoint_returns_not_found(self):
         self.client.force_login(self.customer)

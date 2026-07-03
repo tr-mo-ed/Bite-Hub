@@ -1,3 +1,6 @@
+import secrets
+import string
+
 from django.db import models
 from django.conf import settings
 import uuid
@@ -6,13 +9,35 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 
 # ???? ???? Wallet ???? ?????? ????????? ???? ???? ?????.
+WALLET_LINK_CODE_ALPHABET = string.ascii_uppercase + string.digits
+WALLET_LINK_CODE_ALLOWED_CHARS = set(WALLET_LINK_CODE_ALPHABET + "_-")
+WALLET_LINK_CODE_LENGTH = 16
+
+
+def generate_wallet_link_code():
+    return "".join(
+        secrets.choice(WALLET_LINK_CODE_ALPHABET)
+        for _ in range(WALLET_LINK_CODE_LENGTH)
+    )
+
+
+def normalize_wallet_link_code(raw_code):
+    code = str(raw_code or "").strip().upper()
+    if (
+        12 <= len(code) <= 32
+        and all(char in WALLET_LINK_CODE_ALLOWED_CHARS for char in code)
+    ):
+        return code
+    return ""
+
+
 class Wallet(models.Model):
     # ??? ??????? user ?????? ??? ?????? ???? ??? ??????? ????.
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='wallet', verbose_name="الطالب")
     # ??? ??????? balance ?????? ??? ?????? ???? ??? ??????? ????.
     balance = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="الرصيد الحالي")
     # ??? ??????? link_code ?????? ??? ?????? ???? ??? ??????? ????.
-    link_code = models.CharField(max_length=20, unique=True, blank=True, null=True, verbose_name="كود الربط")
+    link_code = models.CharField(max_length=32, unique=True, blank=True, null=True, verbose_name="كود الربط")
     nfc_card_uid = models.CharField(
         max_length=64,
         unique=True,
@@ -27,8 +52,23 @@ class Wallet(models.Model):
 
     # ???? ???? save ?????? ????? ?????? ?? ????? ????.
     def save(self, *args, **kwargs):
-        if not self.link_code:
-            self.link_code = str(uuid.uuid4())[:8].upper()
+        normalized_link_code = normalize_wallet_link_code(self.link_code)
+        if normalized_link_code:
+            self.link_code = normalized_link_code
+        else:
+            for _ in range(20):
+                candidate = generate_wallet_link_code()
+                candidate_exists = (
+                    self.__class__.objects
+                    .filter(link_code=candidate)
+                    .exclude(pk=self.pk)
+                    .exists()
+                )
+                if not candidate_exists:
+                    self.link_code = candidate
+                    break
+            else:
+                self.link_code = generate_wallet_link_code()
         super().save(*args, **kwargs)
 
     # ???? ???? __str__ ?????? ????? ?????? ?? ????? ????.

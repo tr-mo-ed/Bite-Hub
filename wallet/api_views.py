@@ -61,6 +61,13 @@ def _normalize_card_uid(raw_uid):
     return card_uid
 
 
+def _normalize_wallet_link_code(raw_code):
+    code = str(raw_code or "").strip().upper()
+    if not 12 <= len(code) <= 32 or not re.fullmatch(r"[A-Z0-9_-]+", code):
+        raise ValueError("كود المحفظة غير صحيح.")
+    return code
+
+
 def _parse_positive_amount(raw_amount):
     try:
         amount = Decimal(str(raw_amount))
@@ -239,18 +246,19 @@ def transfer_wallet(request):
         return Response({'error': str(e)}, status=401)
 
     # ??? ??????? wallet_code ??? ????? ??? ???? ???? ???? ????? ????.
-    wallet_code = (request.data.get('wallet_code')
-                   or request.data.get('link_code')
-                   or '')
+    raw_wallet_code = (request.data.get('wallet_code')
+                       or request.data.get('link_code')
+                       or '')
     # ??? ??????? amount_raw ??? ????? ??? ???? ???? ???? ????? ????.
     amount_raw = request.data.get('amount')
     # ??? ??????? note ??? ????? ??? ???? ???? ???? ????? ????.
     note = (request.data.get('note') or request.data.get('description') or '').strip()
 
-    if not wallet_code:
+    if not raw_wallet_code:
         return Response({'error': 'يجب إدخال رقم المحفظة.'}, status=400)
 
     try:
+        wallet_code = _normalize_wallet_link_code(raw_wallet_code)
         amount = _parse_positive_amount(amount_raw)
     except ValueError as exc:
         return Response({'error': str(exc)}, status=400)
@@ -296,9 +304,13 @@ def link_wallet(request):
         return Response({'error': str(e)}, status=401)
 
     # ??? ??????? link_code ??? ????? ??? ???? ???? ???? ????? ????.
-    link_code = request.data.get('link_code')
-    if not link_code:
+    raw_link_code = request.data.get('link_code')
+    if not raw_link_code:
         return Response({'error': 'Code is required'}, status=400)
+    try:
+        link_code = _normalize_wallet_link_code(raw_link_code)
+    except ValueError as exc:
+        return Response({'error': str(exc)}, status=400)
     
     try:
         # التأكد من أن الكود فريد وغير مستخدم من شخص آخر

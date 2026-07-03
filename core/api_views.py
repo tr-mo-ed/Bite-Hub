@@ -51,6 +51,18 @@ PRODUCTS_CACHE_KEY = "products:list:v3"
 PRODUCTS_TTL = 1800  # 30 دقيقة
 
 
+def _parse_positive_int_query(value, *, field_name: str):
+    normalized = str(value or "").strip()
+    if not normalized:
+        return None
+    if not re.fullmatch(r"\d{1,12}", normalized):
+        raise ValidationServiceError(f"Invalid {field_name}.")
+    parsed = int(normalized)
+    if parsed <= 0:
+        raise ValidationServiceError(f"Invalid {field_name}.")
+    return parsed
+
+
 # ???? ???? _products_cache_key_for_cafe ?????? ????? ?????? ?? ????? ????.
 def _products_cache_key_for_cafe(cafe_id) -> str:
     return f"{PRODUCTS_CACHE_KEY}:cafe:{cafe_id}"
@@ -142,6 +154,26 @@ def _mask_email(email: str) -> str:
     return f"{visible}{'*' * max(2, len(local) - len(visible))}@{domain}"
 
 
+def _build_email_code_payload(
+    *,
+    challenge,
+    email: str,
+    resend_after: int,
+    message: str = "Verification code sent.",
+):
+    expires_in = max(
+        1,
+        int((challenge.expires_at - timezone.now()).total_seconds()),
+    )
+    return {
+        "request_id": str(challenge.request_id),
+        "masked_email": _mask_email(email),
+        "expires_in": expires_in,
+        "resend_after": resend_after,
+        "message": message,
+    }
+
+
 @csrf_exempt
 @api_view(["POST"])
 @permission_classes([AllowAny])
@@ -164,10 +196,20 @@ def request_email_login_code(request):
     if latest is not None:
         elapsed = (now - latest.created_at).total_seconds()
         if elapsed < resend_after:
+            resend_remaining = max(1, int(resend_after - elapsed))
+            if latest.consumed_at is None and latest.expires_at > now:
+                return Response(
+                    _build_email_code_payload(
+                        challenge=latest,
+                        email=user.email,
+                        resend_after=resend_remaining,
+                        message="Verification code already sent.",
+                    )
+                )
             return Response(
                 {
                     "error": "Please wait before requesting another code.",
-                    "retry_after": max(1, int(resend_after - elapsed)),
+                    "retry_after": resend_remaining,
                 },
                 status=429,
             )
@@ -209,13 +251,11 @@ def request_email_login_code(request):
             status=503,
         )
 
-    payload = {
-        "request_id": str(challenge.request_id),
-        "masked_email": _mask_email(user.email),
-        "expires_in": settings.EMAIL_LOGIN_CODE_TTL_MINUTES * 60,
-        "resend_after": resend_after,
-        "message": "Verification code sent.",
-    }
+    payload = _build_email_code_payload(
+        challenge=challenge,
+        email=user.email,
+        resend_after=resend_after,
+    )
     if delivery.debug_mode:
         payload["debug_code"] = code
     return Response(payload)
@@ -380,10 +420,27 @@ def api_signup(request):
     if latest is not None:
         elapsed = (now - latest.created_at).total_seconds()
         if elapsed < resend_after:
+            resend_remaining = max(1, int(resend_after - elapsed))
+            same_pending_signup = (
+                latest.consumed_at is None
+                and latest.expires_at > now
+                and latest.email.lower() == email
+                and latest.phone_number == phone_number
+            )
+            if same_pending_signup:
+                return Response(
+                    _build_email_code_payload(
+                        challenge=latest,
+                        email=latest.email,
+                        resend_after=resend_remaining,
+                        message="Verification code already sent.",
+                    ),
+                    status=202,
+                )
             return Response(
                 {
                     "error": "Please wait before requesting another code.",
-                    "retry_after": max(1, int(resend_after - elapsed)),
+                    "retry_after": resend_remaining,
                 },
                 status=429,
             )
@@ -428,13 +485,11 @@ def api_signup(request):
             status=503,
         )
 
-    payload = {
-        "request_id": str(challenge.request_id),
-        "masked_email": _mask_email(email),
-        "expires_in": settings.EMAIL_LOGIN_CODE_TTL_MINUTES * 60,
-        "resend_after": resend_after,
-        "message": "Verification code sent.",
-    }
+    payload = _build_email_code_payload(
+        challenge=challenge,
+        email=email,
+        resend_after=resend_after,
+    )
     if delivery.debug_mode:
         payload["debug_code"] = code
     return Response(payload, status=202)
@@ -550,8 +605,15 @@ def get_cafes_list(request):
 @permission_classes([AllowAny])
 def get_products(request):
     # ??? ??????? cafe_id ??? ????? ??? ???? ???? ???? ????? ????.
-    cafe_id = request.GET.get('cafe_id')
-    if not cafe_id:
+    try:
+        cafe_id = _parse_positive_int_query(
+            request.GET.get('cafe_id'),
+            field_name="cafe_id",
+        )
+    except ValidationServiceError as exc:
+        return Response({'error': str(exc)}, status=400)
+
+    if cafe_id is None:
         # ??? ??????? default_cafe ??? ????? ??? ???? ???? ???? ????? ????.
         default_cafe = get_active_cafes().first()
         if default_cafe is None:
@@ -563,18 +625,24 @@ def get_products(request):
     products = get_products_cached(cafe_id)
 
     # ??? ??????? category_id ??? ????? ??? ???? ???? ???? ????? ????.
-    category_id = request.GET.get('category_id')
-    # ??? ??????? category_name ??? ????? ??? ???? ???? ???? ????? ????.
-    category_name = request.GET.get('category') or request.GET.get('category_name')
+    if request.GET.get('category') or request.GET.get('category_name'):
+        return Response(
+            {'error': 'Filtering by category name is disabled. Use category_id.'},
+            status=400,
+        )
+    try:
+        category_id = _parse_positive_int_query(
+            request.GET.get('category_id'),
+            field_name="category_id",
+        )
+    except ValidationServiceError as exc:
+        return Response({'error': str(exc)}, status=400)
     # ??? ??????? available_only ??? ????? ??? ???? ???? ???? ????? ????.
     available_only = request.GET.get('available')
 
     if category_id:
         # ??? ??????? products ??? ????? ??? ???? ???? ???? ????? ????.
-        products = [p for p in products if str(p.category_id) == str(category_id)]
-    elif category_name:
-        # ??? ??????? products ??? ????? ??? ???? ???? ???? ????? ????.
-        products = [p for p in products if p.category.name.lower() == category_name.lower()]
+        products = [p for p in products if p.category_id == category_id]
 
     if available_only and str(available_only).lower() in ['1', 'true', 'yes']:
         # ??? ??????? products ??? ????? ??? ???? ???? ???? ????? ????.

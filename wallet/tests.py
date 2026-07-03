@@ -111,6 +111,47 @@ class WalletTopupPermissionTests(TestCase):
         self.assertEqual(self.student.wallet.balance, Decimal("7.00"))
         self.assertEqual(self.receiver.wallet.balance, Decimal("5.00"))
 
+    def test_wallet_link_codes_are_generated_with_stronger_length(self):
+        self.student.wallet.refresh_from_db()
+        self.assertGreaterEqual(len(self.student.wallet.link_code), 12)
+
+    def test_transfer_rejects_malformed_wallet_code(self):
+        Transaction.objects.create(
+            wallet=self.student.wallet,
+            amount=Decimal("12.00"),
+            transaction_type="DEPOSIT",
+            source="SYSTEM",
+            description="Test funding",
+        )
+        self.client.force_login(self.student)
+
+        response = self.client.post(
+            reverse("transfer_wallet"),
+            data={
+                "wallet_code": "ABC' OR 1=1 --",
+                "amount": "5.00",
+            },
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.receiver.wallet.refresh_from_db()
+        self.assertEqual(self.receiver.wallet.balance, Decimal("0.00"))
+
+    def test_link_wallet_rejects_weak_or_malformed_code(self):
+        self.client.force_login(self.student)
+
+        weak_response = self.client.post(
+            reverse("link_wallet"),
+            data={"link_code": "ABC123"},
+        )
+        malformed_response = self.client.post(
+            reverse("link_wallet"),
+            data={"link_code": "ABC' OR 1=1 --"},
+        )
+
+        self.assertEqual(weak_response.status_code, 400)
+        self.assertEqual(malformed_response.status_code, 400)
+
     def test_transfer_rejects_insufficient_balance_without_receiver_deposit(self):
         self.client.force_login(self.student)
 
