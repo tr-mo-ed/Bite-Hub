@@ -52,6 +52,51 @@ class EmailLoginChallenge {
   }
 }
 
+bool _readBool(dynamic value, {bool defaultValue = true}) {
+  if (value == null) return defaultValue;
+  if (value is bool) return value;
+  final normalized = value.toString().trim().toLowerCase();
+  if (normalized == 'true' || normalized == '1' || normalized == 'yes') {
+    return true;
+  }
+  if (normalized == 'false' || normalized == '0' || normalized == 'no') {
+    return false;
+  }
+  return defaultValue;
+}
+
+class CafeOrderStatus {
+  const CafeOrderStatus({
+    required this.id,
+    required this.name,
+    required this.code,
+    required this.isActive,
+    required this.isAcceptingOrders,
+  });
+
+  final int id;
+  final String name;
+  final String code;
+  final bool isActive;
+  final bool isAcceptingOrders;
+
+  bool get canAcceptOrders => isActive && isAcceptingOrders;
+
+  factory CafeOrderStatus.fromJson(Map<String, dynamic> json) {
+    final cafe = json['cafe'];
+    final map = cafe is Map<String, dynamic> ? cafe : json;
+    return CafeOrderStatus(
+      id: map['id'] is int
+          ? map['id'] as int
+          : int.tryParse('${map['id']}') ?? 0,
+      name: (map['name'] ?? '').toString(),
+      code: (map['code'] ?? '').toString(),
+      isActive: _readBool(map['is_active']),
+      isAcceptingOrders: _readBool(map['is_accepting_orders']),
+    );
+  }
+}
+
 // ???? ???? ApiService ???? ???? ????? ???? ?? ???? ????.
 class ApiService {
   // ??? ??????? baseUrl ??? ?????? ???? ????? ????.
@@ -609,6 +654,56 @@ class ApiService {
 
       if (response.statusCode == 200 && data is Map<String, dynamic>) {
         return app_user.User.fromJson(data);
+      }
+
+      throw _buildException(response, data);
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      throw _networkException(e);
+    }
+  }
+
+  Future<CafeOrderStatus> getManagedCafeOrderStatus() async {
+    final url = Uri.parse('$baseUrl/api/v2/cafe/status/');
+
+    try {
+      final response = await _sendWithAuthRetry(
+        (headers) => http.get(url, headers: headers),
+      );
+      final data = _decodeBody(response);
+
+      if (response.statusCode == 200 && data is Map<String, dynamic>) {
+        return CafeOrderStatus.fromJson(data);
+      }
+
+      throw _buildException(response, data);
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      throw _networkException(e);
+    }
+  }
+
+  Future<CafeOrderStatus> setManagedCafeAcceptingOrders(
+    bool isAcceptingOrders,
+  ) async {
+    final url = Uri.parse('$baseUrl/api/v2/cafe/status/');
+
+    try {
+      final response = await _sendWithAuthRetry(
+        (headers) => http.patch(
+          url,
+          headers: headers,
+          body: json.encode({
+            'is_accepting_orders': isAcceptingOrders,
+          }),
+        ),
+      );
+      final data = _decodeBody(response);
+
+      if (response.statusCode == 200 && data is Map<String, dynamic>) {
+        return CafeOrderStatus.fromJson(data);
       }
 
       throw _buildException(response, data);

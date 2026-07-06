@@ -14,6 +14,9 @@ from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 
 from .backoffice_selectors import (
     get_all_cafes_for_admin,
@@ -31,6 +34,7 @@ from .backoffice_services import (
     provision_cafe_with_credentials,
     reset_cafe_operator_password,
     save_cafe_product,
+    set_cafe_accepting_orders,
     set_cafe_active_status,
     toggle_cafe_active_status,
     toggle_product_stock,
@@ -47,6 +51,27 @@ from wallet.services import create_cafe_debit_request
 
 # ??? ??????? logger ??? ????? ??? ???? ???? ???? ????? ????.
 logger = logging.getLogger(__name__)
+
+
+def _parse_bool_flag(value) -> bool | None:
+    if isinstance(value, bool):
+        return value
+    normalized = str(value or "").strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    return None
+
+
+def _cafe_status_payload(cafe: Cafe) -> dict:
+    return {
+        "id": cafe.id,
+        "name": cafe.name,
+        "code": cafe.code,
+        "is_active": cafe.is_active,
+        "is_accepting_orders": cafe.is_accepting_orders,
+    }
 
 
 def _login_context(**extra) -> dict:
@@ -923,6 +948,47 @@ def update_order_status_api(request: HttpRequest, order_id: int) -> JsonResponse
     # ??? ??????? payload ??? ????? ??? ???? ???? ???? ????? ????.
     payload = OrderSerializer(order).data
     return JsonResponse({"success": True, "order": payload})
+
+
+@api_view(["GET", "PATCH", "POST"])
+@permission_classes([IsAuthenticated])
+def cafe_accepting_orders_api(request):
+    cafe = resolve_backoffice_cafe(request.user)
+    if cafe is None:
+        return Response(
+            {"success": False, "message": "No active cafe is linked to this account."},
+            status=403,
+        )
+
+    if request.method == "GET":
+        return Response({"success": True, "cafe": _cafe_status_payload(cafe)})
+
+    desired_status = _parse_bool_flag(request.data.get("is_accepting_orders"))
+    if desired_status is None:
+        return Response(
+            {
+                "success": False,
+                "message": "is_accepting_orders must be true or false.",
+            },
+            status=400,
+        )
+
+    try:
+        cafe = set_cafe_accepting_orders(
+            cafe_id=cafe.id,
+            is_accepting_orders=desired_status,
+            user=request.user,
+        )
+    except ValidationServiceError as exc:
+        return Response({"success": False, "message": str(exc)}, status=400)
+
+    return Response(
+        {
+            "success": True,
+            "message": "تم فتح استقبال الطلبات." if cafe.is_accepting_orders else "تم إغلاق استقبال الطلبات.",
+            "cafe": _cafe_status_payload(cafe),
+        }
+    )
 
 
 # ???? ???? toggle_product_stock_api ?????? ????? ?????? ?? ????? ????.

@@ -72,6 +72,7 @@ class Cafe(models.Model):
     location = models.CharField(max_length=200, blank=True)
     # ??? ??????? is_active ?????? ??? ?????? ???? ??? ??????? ????.
     is_active = models.BooleanField(default=True)
+    is_accepting_orders = models.BooleanField(default=True)
     suspension_reason = models.CharField(max_length=255, blank=True)
     suspended_at = models.DateTimeField(null=True, blank=True)
     operator_password_ciphertext = models.TextField(blank=True, editable=False)

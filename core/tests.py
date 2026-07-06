@@ -810,6 +810,80 @@ class OrderWorkflowTests(TestCase):
         self.assertEqual(len(response.json()), 1)
         self.assertEqual(response.json()[0]["category_id"], self.category.id)
 
+    def test_products_api_rejects_inactive_cafe(self):
+        self.cafe.is_active = False
+        self.cafe.save(update_fields=["is_active", "updated_at"])
+
+        response = self.client.get(
+            reverse("v2_app_products"),
+            data={"cafe_id": self.cafe.id},
+        )
+
+        self.assertEqual(response.status_code, 404, response.content)
+
+    def test_cafe_owner_can_open_and_close_order_acceptance(self):
+        self.client.force_login(self.cashier)
+
+        initial_response = self.client.get(reverse("v2_cafe_accepting_orders"))
+        self.assertEqual(initial_response.status_code, 200, initial_response.content)
+        self.assertTrue(initial_response.json()["cafe"]["is_accepting_orders"])
+
+        close_response = self.client.patch(
+            reverse("v2_cafe_accepting_orders"),
+            data={"is_accepting_orders": False},
+            content_type="application/json",
+        )
+
+        self.assertEqual(close_response.status_code, 200, close_response.content)
+        self.cafe.refresh_from_db()
+        self.assertFalse(self.cafe.is_accepting_orders)
+        self.assertFalse(close_response.json()["cafe"]["is_accepting_orders"])
+
+        open_response = self.client.patch(
+            reverse("v2_cafe_accepting_orders"),
+            data={"is_accepting_orders": True},
+            content_type="application/json",
+        )
+
+        self.assertEqual(open_response.status_code, 200, open_response.content)
+        self.cafe.refresh_from_db()
+        self.assertTrue(self.cafe.is_accepting_orders)
+
+    def test_create_order_rejects_closed_cafe_before_wallet_withdrawal(self):
+        self.cafe.is_accepting_orders = False
+        self.cafe.save(update_fields=["is_accepting_orders", "updated_at"])
+        wallet = self.customer.wallet
+        Transaction.objects.create(
+            wallet=wallet,
+            amount=Decimal("20.00"),
+            transaction_type="DEPOSIT",
+            source="SYSTEM",
+            description="Test top-up",
+        )
+        wallet.refresh_from_db()
+
+        with self.assertRaisesMessage(
+            ValidationServiceError,
+            "Cafe is currently closed for orders.",
+        ):
+            create_order(
+                user=self.customer,
+                cafe_id=self.cafe.id,
+                payment_method="WALLET",
+                total_price=Decimal("5.00"),
+                items_data=[
+                    {
+                        "product_id": self.product.id,
+                        "quantity": 1,
+                    }
+                ],
+            )
+
+        wallet.refresh_from_db()
+        self.assertEqual(wallet.balance, Decimal("20.00"))
+        self.assertFalse(Order.objects.exists())
+        self.assertFalse(wallet.transactions.filter(transaction_type="WITHDRAWAL").exists())
+
     def test_removed_legacy_order_endpoint_returns_not_found(self):
         self.client.force_login(self.customer)
 

@@ -80,6 +80,12 @@ class HomeScreenV2State extends State<HomeScreenV2> {
   }
 
   void _addToCart(ProductModel product) {
+    final selectedCafe = _controller.selectedCafe;
+    if (selectedCafe != null && !selectedCafe.canAcceptOrders) {
+      _showMessage('المقهى مغلق حاليًا ولا يستقبل طلبات جديدة');
+      return;
+    }
+
     if (!product.isAvailable) {
       _showMessage('هذا المنتج غير متاح حالياً');
       return;
@@ -172,6 +178,11 @@ class HomeScreenV2State extends State<HomeScreenV2> {
                           selectedCafe: selectedCafe,
                           onSelect: _controller.selectCafe,
                         ),
+                        if (selectedCafe != null &&
+                            !selectedCafe.canAcceptOrders) ...[
+                          const SizedBox(height: BhSpacing.md),
+                          _CafeClosedNotice(cafeName: selectedCafe.name),
+                        ],
                         const SizedBox(height: BhSpacing.lg),
                         BhSectionHeader(
                           title: selectedCafe?.name ?? 'قائمة المنتجات',
@@ -225,6 +236,8 @@ class HomeScreenV2State extends State<HomeScreenV2> {
                         final product = visibleProducts[index];
                         return _ProductCard(
                           product: product,
+                          canAcceptOrders:
+                              selectedCafe?.canAcceptOrders ?? true,
                           onAddToCart: () => _addToCart(product),
                         );
                       },
@@ -609,6 +622,59 @@ class _SelectedCafeHeader extends StatelessWidget {
   }
 }
 
+class _CafeClosedNotice extends StatelessWidget {
+  const _CafeClosedNotice({required this.cafeName});
+
+  final String cafeName;
+
+  @override
+  Widget build(BuildContext context) {
+    return BhSurface(
+      borderColor: const Color(0xFFFEE2E2),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFEE2E2),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Icon(
+              Icons.lock_clock_rounded,
+              color: AppColors.danger,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$cafeName مغلق حاليًا',
+                  style: const TextStyle(
+                    color: AppColors.danger,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'يمكنك تصفح القائمة، لكن إنشاء الطلبات متوقف إلى أن يفتح المقهى استقبال الطلبات.',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    height: 1.35,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _CafeSelector extends StatelessWidget {
   const _CafeSelector({
     required this.cafes,
@@ -703,18 +769,32 @@ class _CafeCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 9),
                 Expanded(
-                  child: Text(
-                    cafe.name,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: selected
-                          ? AppColors.brandBlue
-                          : AppColors.textPrimary,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w900,
-                      height: 1.2,
-                    ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        cafe.name,
+                        maxLines: cafe.canAcceptOrders ? 2 : 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: selected
+                              ? AppColors.brandBlue
+                              : AppColors.textPrimary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w900,
+                          height: 1.2,
+                        ),
+                      ),
+                      if (!cafe.canAcceptOrders) ...[
+                        const SizedBox(height: 5),
+                        const _SmallBadge(
+                          label: 'مغلق',
+                          foreground: AppColors.danger,
+                          background: Color(0xFFFEE2E2),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
                 if (selected) ...[
@@ -937,15 +1017,18 @@ class _CategoryStrip extends StatelessWidget {
 class _ProductCard extends StatelessWidget {
   const _ProductCard({
     required this.product,
+    required this.canAcceptOrders,
     required this.onAddToCart,
   });
 
   final ProductModel product;
+  final bool canAcceptOrders;
   final VoidCallback onAddToCart;
 
   @override
   Widget build(BuildContext context) {
     final hasDiscount = product.hasDiscount && product.originalPrice != null;
+    final canAddToCart = product.isAvailable && canAcceptOrders;
 
     return BhSurface(
       padding: EdgeInsets.zero,
@@ -995,7 +1078,7 @@ class _ProductCard extends StatelessWidget {
                       background: const Color(0xFFFFF7E6),
                     ),
                   ),
-                if (!product.isAvailable)
+                if (!canAddToCart)
                   Positioned.fill(
                     child: DecoratedBox(
                       decoration: BoxDecoration(
@@ -1064,7 +1147,7 @@ class _ProductCard extends StatelessWidget {
                       SizedBox.square(
                         dimension: 36,
                         child: IconButton.filled(
-                          onPressed: product.isAvailable ? onAddToCart : null,
+                          onPressed: canAddToCart ? onAddToCart : null,
                           icon: const Icon(Icons.add_rounded, size: 21),
                           padding: EdgeInsets.zero,
                           tooltip: 'إضافة إلى السلة',

@@ -106,6 +106,7 @@ def _build_cafe_access_payload(user):
             'name': managed_cafe.name,
             'code': managed_cafe.code,
             'is_active': managed_cafe.is_active,
+            'is_accepting_orders': managed_cafe.is_accepting_orders,
         } if managed_cafe is not None else None,
         'roles': {
             'is_cafe_owner': is_cafe_owner,
@@ -620,6 +621,10 @@ def get_products(request):
             return Response([])
         # ??? ??????? cafe_id ??? ????? ??? ???? ???? ???? ????? ????.
         cafe_id = default_cafe.id
+    else:
+        selected_cafe = Cafe.objects.filter(pk=cafe_id, is_active=True).only("id").first()
+        if selected_cafe is None:
+            return Response({"error": "Cafe was not found."}, status=404)
 
     # ??? ??????? products ??? ????? ??? ???? ???? ???? ????? ????.
     products = get_products_cached(cafe_id)
@@ -844,4 +849,3 @@ def orders_endpoint(request):
     return create_order(request._request)
 
 # Deprecated purchase endpoint intentionally omitted.
-

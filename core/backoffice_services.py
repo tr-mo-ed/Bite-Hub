@@ -390,6 +390,30 @@ def toggle_cafe_active_status(*, cafe_id: int, suspension_reason: str = "") -> C
 
 
 @transaction.atomic
+def set_cafe_accepting_orders(
+    *,
+    cafe_id: int,
+    is_accepting_orders: bool,
+    user=None,
+) -> Cafe:
+    cafe = Cafe.objects.select_related("owner").filter(pk=cafe_id).first()
+    if cafe is None:
+        raise ValidationServiceError("Cafe not found.")
+    if not cafe.is_active:
+        raise ValidationServiceError("Cafe is disabled by admin.")
+
+    if user is not None and not getattr(user, "is_superuser", False):
+        user_cafe = getattr(user, "my_cafe", None)
+        if user_cafe is None or user_cafe.id != cafe.id:
+            raise ValidationServiceError("You cannot update another cafe.")
+
+    cafe.is_accepting_orders = bool(is_accepting_orders)
+    cafe.save(update_fields=["is_accepting_orders", "updated_at"])
+    cache.clear()
+    return cafe
+
+
+@transaction.atomic
 def reset_cafe_operator_password(*, cafe_id: int, password: str) -> Cafe:
     cafe = Cafe.objects.select_related("owner").filter(pk=cafe_id).first()
     if cafe is None:

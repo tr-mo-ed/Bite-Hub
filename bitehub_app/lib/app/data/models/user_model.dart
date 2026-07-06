@@ -1,3 +1,16 @@
+bool _parseBool(dynamic value, {bool defaultValue = false}) {
+  if (value == null) return defaultValue;
+  if (value is bool) return value;
+  final normalized = value.toString().trim().toLowerCase();
+  if (normalized == 'true' || normalized == '1' || normalized == 'yes') {
+    return true;
+  }
+  if (normalized == 'false' || normalized == '0' || normalized == 'no') {
+    return false;
+  }
+  return defaultValue;
+}
+
 // ???? ???? User ???? ???? ????? ???? ?? ???? ????.
 class User {
   // ??? ??????? id ??? ?????? ???? ????? ????.
@@ -24,6 +37,8 @@ class User {
   final String? managedCafeName;
   // ??? ??????? managedCafeCode ??? ?????? ???? ????? ????.
   final String? managedCafeCode;
+  final bool managedCafeIsActive;
+  final bool managedCafeIsAcceptingOrders;
 
   User({
     required this.id,
@@ -38,18 +53,23 @@ class User {
     this.managedCafeId,
     this.managedCafeName,
     this.managedCafeCode,
+    this.managedCafeIsActive = false,
+    this.managedCafeIsAcceptingOrders = true,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
     final managedCafe = json['managed_cafe'];
     return User(
-      id: json['id'] is int ? json['id'] : int.tryParse(json['id'].toString()) ?? 0,
+      id: json['id'] is int
+          ? json['id']
+          : int.tryParse(json['id'].toString()) ?? 0,
       fullName: json['full_name'] ?? json['name'] ?? 'مستخدم',
       email: json['email'] ?? '',
       phoneNumber: json['phone_number'] ?? json['phone'] ?? '',
       secondaryPhone: json['secondary_phone'] ?? json['secondary_phone_number'],
       profileImage: json['profile_image_url'] ?? json['image'],
-      dateJoined: json['date_joined'] ?? json['joined_at'] ?? json['created_at'],
+      dateJoined:
+          json['date_joined'] ?? json['joined_at'] ?? json['created_at'],
       isCafeOwner: json['is_cafe_owner'] == true,
       hasMiniSystemDashboard: json['has_mini_system_dashboard'] == true,
       managedCafeId: managedCafe is Map<String, dynamic>
@@ -63,6 +83,15 @@ class User {
       managedCafeCode: managedCafe is Map<String, dynamic>
           ? managedCafe['code']?.toString()
           : null,
+      managedCafeIsActive: managedCafe is Map<String, dynamic>
+          ? _parseBool(managedCafe['is_active'])
+          : false,
+      managedCafeIsAcceptingOrders: managedCafe is Map<String, dynamic>
+          ? _parseBool(
+              managedCafe['is_accepting_orders'],
+              defaultValue: true,
+            )
+          : true,
     );
   }
 
