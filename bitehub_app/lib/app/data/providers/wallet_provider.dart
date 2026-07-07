@@ -98,9 +98,8 @@ class WalletProvider extends ChangeNotifier {
       college: _wallet!.college,
       linkCode: _wallet!.linkCode,
       userFullName: _wallet!.userFullName,
-      hasNfcCard: _wallet!.hasNfcCard,
-      nfcCardLast4: _wallet!.nfcCardLast4,
       transactions: _wallet!.transactions,
+      pendingDebitRequests: _wallet!.pendingDebitRequests,
     );
     notifyListeners();
   }

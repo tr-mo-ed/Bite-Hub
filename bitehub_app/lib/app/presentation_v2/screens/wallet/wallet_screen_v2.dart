@@ -6,7 +6,6 @@ import 'package:bitehub_app/app/data/providers/notification_provider.dart';
 import 'package:bitehub_app/app/data/models/transaction_model.dart';
 import 'package:bitehub_app/app/data/models/wallet_debit_request_model.dart';
 import 'package:bitehub_app/app/data/models/wallet_model.dart';
-import 'package:bitehub_app/app/data/services/nfc_card_service.dart';
 import 'package:bitehub_app/app/presentation_v2/controllers/wallet_v2_controller.dart';
 import 'package:bitehub_app/app/presentation_v2/widgets/bh_design.dart';
 import 'package:bitehub_app/app/presentation_v2/widgets/network_state_panel.dart';
@@ -76,19 +75,10 @@ class _WalletScreenV2State extends State<WalletScreenV2> {
                     onRespond: _respondToDebitRequest,
                   ),
                 ],
-                const SizedBox(height: BhSpacing.md),
-                _NfcWalletPanel(
-                  wallet: wallet,
-                  isBusy: _controller.isPerformingAction,
-                  onLink: _linkNfcCard,
-                ),
                 const SizedBox(height: BhSpacing.lg),
                 _WalletActions(
                   isBusy: _controller.isPerformingAction,
                   onTransfer: _showTransferDialog,
-                  onNfcTransfer: _showNfcTransfer,
-                  onNfc: _linkNfcCard,
-                  hasNfcCard: wallet.hasNfcCard,
                   onRefresh: _controller.refresh,
                 ),
                 const SizedBox(height: BhSpacing.lg),
@@ -99,107 +89,6 @@ class _WalletScreenV2State extends State<WalletScreenV2> {
         );
       },
     );
-  }
-
-  Future<void> _linkNfcCard() async {
-    if (_controller.isPerformingAction) {
-      return;
-    }
-
-    try {
-      final cardUid = await _scanNfcCard();
-      final success = await _controller.linkNfcCard(cardUid);
-      if (mounted) {
-        _showResult(success);
-      }
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(error.toString()),
-          backgroundColor: AppColors.danger,
-        ),
-      );
-    }
-  }
-
-  Future<String> _scanNfcCard() async {
-    showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const _NfcScanningDialog(),
-    );
-    try {
-      return await NfcCardService.instance.scanCard();
-    } finally {
-      if (mounted) {
-        Navigator.of(context, rootNavigator: true).pop();
-      }
-    }
-  }
-
-  Future<void> _showNfcTransfer() async {
-    if (_controller.isPerformingAction) {
-      return;
-    }
-
-    try {
-      final cardUid = await _scanNfcCard();
-      final card = await _controller.lookupNfcCard(cardUid);
-      if (!mounted) {
-        return;
-      }
-      if (card.isOwner) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('لا يمكن التحويل إلى بطاقتك أنت.'),
-            backgroundColor: AppColors.danger,
-          ),
-        );
-        return;
-      }
-
-      final details = [
-        if (card.college.isNotEmpty) card.college,
-        if (card.email.isNotEmpty) card.email,
-        if (card.cardLast4.isNotEmpty) 'البطاقة •••• ${card.cardLast4}',
-      ].join('  •  ');
-      final data = await _showAmountDialog(
-        title: 'تحويل إلى ${card.studentName}',
-        primaryLabel: 'تأكيد التحويل',
-        showWalletCode: false,
-        helperText: details,
-      );
-      if (data == null) {
-        return;
-      }
-
-      final success = await _controller.transferToNfcCard(
-        cardUid: cardUid,
-        amount: data.amount,
-        note: data.note,
-      );
-      if (success && mounted) {
-        await context.read<NotificationProvider>().refreshFromServer(
-              silent: true,
-            );
-      }
-      if (mounted) {
-        _showResult(success);
-      }
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(error.toString()),
-          backgroundColor: AppColors.danger,
-        ),
-      );
-    }
   }
 
   Future<void> _showTransferDialog() async {
@@ -636,253 +525,27 @@ class _BalancePanel extends StatelessWidget {
   }
 }
 
-class _NfcWalletPanel extends StatelessWidget {
-  const _NfcWalletPanel({
-    required this.wallet,
-    required this.isBusy,
-    required this.onLink,
-  });
-
-  final WalletModel wallet;
-  final bool isBusy;
-  final VoidCallback onLink;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        gradient: AppColors.walletGradient,
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.brandBlue.withValues(alpha: .25),
-            blurRadius: 30,
-            offset: const Offset(0, 16),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          PositionedDirectional(
-            top: -46,
-            end: -28,
-            child: Container(
-              width: 150,
-              height: 150,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: .10),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: .16),
-                  width: 18,
-                ),
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(22),
-            child: Row(
-              children: [
-                TweenAnimationBuilder<double>(
-                  tween: Tween(begin: .86, end: 1),
-                  duration: const Duration(milliseconds: 700),
-                  curve: Curves.easeOutBack,
-                  builder: (context, value, child) => Transform.scale(
-                    scale: value,
-                    child: child,
-                  ),
-                  child: Container(
-                    width: 66,
-                    height: 66,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: .16),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: .3),
-                      ),
-                    ),
-                    child: const Icon(
-                      Icons.nfc_rounded,
-                      size: 36,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        wallet.hasNfcCard
-                            ? 'بطاقة NFC مرتبطة'
-                            : 'فعّل الدفع ببطاقتك',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 17,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        wallet.hasNfcCard
-                            ? 'تنتهي بالرمز •••• ${wallet.nfcCardLast4}'
-                            : 'قرّب البطاقة من خلف الهاتف لربطها بمحفظتك.',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: .78),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          height: 1.45,
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      FilledButton.icon(
-                        onPressed: isBusy ? null : onLink,
-                        icon: const Icon(Icons.contactless_rounded, size: 18),
-                        label: Text(
-                          wallet.hasNfcCard
-                              ? 'استبدال البطاقة'
-                              : 'مسح وربط البطاقة',
-                        ),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: AppColors.brandNavy,
-                          minimumSize: const Size(0, 42),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _NfcScanningDialog extends StatelessWidget {
-  const _NfcScanningDialog();
-
-  @override
-  Widget build(BuildContext context) {
-    return PopScope(
-      canPop: false,
-      child: Dialog(
-        backgroundColor: Colors.transparent,
-        child: Container(
-          padding: const EdgeInsets.all(26),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(30),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.brandNavy.withValues(alpha: .18),
-                blurRadius: 40,
-                offset: const Offset(0, 18),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TweenAnimationBuilder<double>(
-                tween: Tween(begin: .82, end: 1.08),
-                duration: const Duration(milliseconds: 900),
-                curve: Curves.easeInOut,
-                builder: (context, value, child) =>
-                    Transform.scale(scale: value, child: child),
-                child: Container(
-                  width: 94,
-                  height: 94,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: AppColors.accentGradient,
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.brandBlue.withValues(alpha: .3),
-                        blurRadius: 28,
-                      ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.nfc_rounded,
-                    color: Colors.white,
-                    size: 48,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 22),
-              const Text(
-                'بانتظار بطاقة NFC',
-                style: TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'قرّب البطاقة من الجزء الخلفي للهاتف وثبّتها لثانية.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: AppColors.textSecondary,
-                  fontWeight: FontWeight.w700,
-                  height: 1.55,
-                ),
-              ),
-              const SizedBox(height: 20),
-              const LinearProgressIndicator(
-                minHeight: 5,
-                borderRadius: BorderRadius.all(Radius.circular(99)),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _WalletActions extends StatelessWidget {
   const _WalletActions({
     required this.isBusy,
     required this.onTransfer,
-    required this.onNfcTransfer,
-    required this.onNfc,
-    required this.hasNfcCard,
     required this.onRefresh,
   });
 
   final bool isBusy;
   final VoidCallback onTransfer;
-  final VoidCallback onNfcTransfer;
-  final VoidCallback onNfc;
-  final bool hasNfcCard;
   final VoidCallback onRefresh;
 
   @override
   Widget build(BuildContext context) {
     final actions = [
       _ActionSpec(Icons.swap_horiz_rounded, 'تحويل', onTransfer),
-      _ActionSpec(
-        Icons.contactless_rounded,
-        'تحويل إلى بطاقة',
-        onNfcTransfer,
-      ),
-      _ActionSpec(
-        Icons.nfc_rounded,
-        hasNfcCard ? 'تغيير البطاقة' : 'ربط بطاقة',
-        onNfc,
-      ),
       _ActionSpec(Icons.refresh_rounded, 'تحديث', onRefresh),
     ];
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final columns = constraints.maxWidth >= 520 ? 4 : 2;
+        final columns = constraints.maxWidth >= 520 ? 2 : 2;
         return GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),

@@ -23,6 +23,7 @@ urlpatterns = [
     path('super-admin/cafes/<int:cafe_id>/password/', backoffice_views.reset_cafe_password_from_dashboard, name='reset_cafe_password_from_dashboard'),
     path('cafe-panel/', backoffice_views.cafe_panel, name='cafe_panel'),
     path('cafe-panel/snapshot/', backoffice_views.cafe_panel_snapshot_api, name='cafe_panel_snapshot_api'),
+    path('cafe-panel/accepting-orders/', backoffice_views.cafe_accepting_orders_web_api, name='cafe_accepting_orders_web_api'),
     path('cafe-panel/orders/<int:order_id>/status/', backoffice_views.update_order_status_api, name='update_order_status_api'),
     path('cafe-panel/wallets/operate/', backoffice_views.cafe_wallet_operation_api, name='cafe_wallet_operation_api'),
     path('cafe-panel/wallets/debit-requests/', backoffice_views.cafe_wallet_debit_requests_api, name='cafe_wallet_debit_requests_api'),

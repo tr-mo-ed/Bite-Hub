@@ -27,9 +27,9 @@ String transactionSourceLabel(TransactionModel transaction) {
       return 'المقهى';
     case 'USER':
       return 'المستخدم';
-    case 'NFC':
-      return 'بطاقة NFC';
     default:
-      return transaction.source.trim();
+      return transaction.source.trim().isEmpty
+          ? 'المحفظة'
+          : transaction.source.trim();
   }
 }

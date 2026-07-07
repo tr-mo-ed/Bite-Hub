@@ -386,7 +386,7 @@ class _HomeHero extends StatelessWidget {
                 children: [
                   Expanded(
                     child: _HeroMetric(
-                      icon: Icons.storefront_rounded,
+                            icon: Icons.storefront_outlined,
                       value: '$cafeCount',
                       label: 'مقهى',
                     ),
@@ -394,7 +394,7 @@ class _HomeHero extends StatelessWidget {
                   const SizedBox(width: 8),
                   Expanded(
                     child: _HeroMetric(
-                      icon: Icons.restaurant_menu_rounded,
+                            icon: Icons.restaurant_menu_outlined,
                       value: '$productCount',
                       label: 'منتج',
                     ),
@@ -402,7 +402,7 @@ class _HomeHero extends StatelessWidget {
                   const SizedBox(width: 8),
                   const Expanded(
                     child: _HeroMetric(
-                      icon: Icons.flash_on_rounded,
+                            icon: Icons.bolt_outlined,
                       value: 'سريع',
                       label: 'طلبك',
                     ),
@@ -445,7 +445,7 @@ class _HeroCartBadge extends StatelessWidget {
         children: [
           const Center(
             child: Icon(
-              Icons.shopping_bag_rounded,
+              Icons.shopping_bag_outlined,
               color: Colors.white,
               size: 23,
             ),
@@ -641,7 +641,7 @@ class _CafeClosedNotice extends StatelessWidget {
               borderRadius: BorderRadius.circular(14),
             ),
             child: const Icon(
-              Icons.lock_clock_rounded,
+              Icons.lock_clock_outlined,
               color: AppColors.danger,
             ),
           ),
@@ -800,7 +800,7 @@ class _CafeCard extends StatelessWidget {
                 if (selected) ...[
                   const SizedBox(width: 6),
                   const Icon(
-                    Icons.check_circle_rounded,
+                    Icons.check_circle_outline_rounded,
                     color: AppColors.brandBlue,
                     size: 18,
                   ),

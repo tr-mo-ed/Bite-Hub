@@ -49,31 +49,31 @@ class _MainShellV2State extends State<MainShellV2> {
       BaseScreenTab(
         title: strings.home,
         icon: Icons.home_outlined,
-        activeIcon: Icons.home_rounded,
+        activeIcon: Icons.home_outlined,
         screen: HomeScreenV2(key: _homeKey),
       ),
       BaseScreenTab(
         title: strings.orders,
         icon: Icons.receipt_long_outlined,
-        activeIcon: Icons.receipt_long_rounded,
+        activeIcon: Icons.receipt_long_outlined,
         screen: const OrdersScreenV2(),
       ),
       BaseScreenTab(
         title: strings.cart,
         icon: Icons.shopping_cart_outlined,
-        activeIcon: Icons.shopping_cart_rounded,
+        activeIcon: Icons.shopping_cart_outlined,
         screen: const CartScreenV2(),
       ),
       BaseScreenTab(
         title: strings.wallet,
         icon: Icons.account_balance_wallet_outlined,
-        activeIcon: Icons.account_balance_wallet_rounded,
+        activeIcon: Icons.account_balance_wallet_outlined,
         screen: const WalletScreenV2(),
       ),
       BaseScreenTab(
         title: strings.profile,
         icon: Icons.person_outline,
-        activeIcon: Icons.person_rounded,
+        activeIcon: Icons.person_outline,
         screen: const ProfileScreenV2(),
       ),
     ];

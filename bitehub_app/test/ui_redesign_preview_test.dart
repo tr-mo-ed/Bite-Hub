@@ -187,8 +187,6 @@ void main() {
           college: 'كلية اللغة العربية',
           linkCode: '',
           userFullName: 'محمد صلاح الترهوني',
-          hasNfcCard: true,
-          nfcCardLast4: '1284',
           transactions: const <TransactionModel>[],
         ),
       );
@@ -227,6 +225,7 @@ void main() {
     await tester.drag(find.byType(ListView), const Offset(0, -700));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
+    await tester.pump(const Duration(seconds: 5));
     controller.dispose();
     authProvider.dispose();
   });

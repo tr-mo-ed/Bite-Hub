@@ -182,8 +182,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   : _buildPasswordLogin(isLoading),
             ),
             const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+            Wrap(
+              alignment: WrapAlignment.center,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 TextButton(
                   onPressed: () => Navigator.pushNamed(context, '/signup'),
@@ -244,17 +245,24 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     final pinTheme = PinTheme(
-      width: 48,
-      height: 54,
+      width: 50,
+      height: 58,
       textStyle: const TextStyle(
         color: AppColors.textPrimary,
-        fontSize: 20,
+        fontSize: 22,
         fontWeight: FontWeight.w900,
       ),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.brandBlue.withValues(alpha: .06),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
     );
 
@@ -263,33 +271,65 @@ class _LoginScreenState extends State<LoginScreen> {
       children: [
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
-            color: const Color(0xFFEAF6F2),
-            borderRadius: BorderRadius.circular(14),
+            gradient: const LinearGradient(
+              colors: [Color(0xFFEAF6F2), Color(0xFFFFFFFF)],
+              begin: Alignment.topRight,
+              end: Alignment.bottomLeft,
+            ),
+            borderRadius: BorderRadius.circular(22),
             border: Border.all(color: const Color(0xFFB9DDD2)),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.brandBlue.withValues(alpha: .08),
+                blurRadius: 22,
+                offset: const Offset(0, 10),
+              ),
+            ],
           ),
           child: Column(
             children: [
-              const Icon(
-                Icons.outgoing_mail,
-                color: AppColors.brandBlue,
-                size: 28,
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'تم إرسال الرمز إلى',
-                style: TextStyle(
-                  color: AppColors.textSecondary,
-                  fontWeight: FontWeight.w700,
+              Container(
+                width: 54,
+                height: 54,
+                decoration: BoxDecoration(
+                  color: AppColors.brandBlue.withValues(alpha: .10),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: const Icon(
+                  Icons.mark_email_read_outlined,
+                  color: AppColors.brandBlue,
+                  size: 28,
                 ),
               ),
+              const SizedBox(height: 10),
+              const Text(
+                'أدخل رمز التحقق المرسل إلى بريدك',
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 5),
               Text(
                 challenge.maskedEmail,
                 textDirection: TextDirection.ltr,
                 style: const TextStyle(
                   color: AppColors.textPrimary,
                   fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'إن لم يظهر في البريد الوارد، راجع الرسائل غير المرغوب فيها.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  height: 1.45,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ],
@@ -307,6 +347,12 @@ class _LoginScreenState extends State<LoginScreen> {
             focusedPinTheme: pinTheme.copyWith(
               decoration: pinTheme.decoration!.copyWith(
                 border: Border.all(color: AppColors.brandBlue, width: 1.5),
+              ),
+            ),
+            submittedPinTheme: pinTheme.copyWith(
+              decoration: pinTheme.decoration!.copyWith(
+                color: const Color(0xFFEAF6F2),
+                border: Border.all(color: AppColors.brandBlue),
               ),
             ),
             onCompleted: (_) {

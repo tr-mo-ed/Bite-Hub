@@ -7,7 +7,6 @@ import 'package:bitehub_app/app/core/theme/app_colors.dart';
 import 'package:bitehub_app/app/data/models/cart_item_model.dart';
 import 'package:bitehub_app/app/data/providers/cart_provider.dart';
 import 'package:bitehub_app/app/data/services/api_service.dart';
-import 'package:bitehub_app/app/data/services/nfc_card_service.dart';
 import 'package:bitehub_app/app/presentation_v2/controllers/cart_v2_controller.dart';
 import 'package:bitehub_app/app/presentation_v2/screens/orders/live_order_tracking_screen_v2.dart';
 import 'package:bitehub_app/app/presentation_v2/widgets/custom_floating_snack_bar.dart';
@@ -229,40 +228,19 @@ class _CartScreenV2State extends State<CartScreenV2> {
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: _PaymentMethodChip(
-                  icon: Icons.account_balance_wallet_rounded,
-                  label: 'المحفظة',
-                  selected: _controller.paymentMethod == 'WALLET',
-                  onTap: () => _controller.selectPaymentMethod('WALLET'),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _PaymentMethodChip(
-                  icon: Icons.nfc_rounded,
-                  label: 'بطاقة NFC',
-                  selected: _controller.paymentMethod == 'NFC',
-                  onTap: () => _controller.selectPaymentMethod('NFC'),
-                ),
-              ),
-            ],
+          _PaymentMethodChip(
+            icon: Icons.account_balance_wallet_rounded,
+            label: 'المحفظة',
+            selected: true,
+            onTap: () => _controller.selectPaymentMethod('WALLET'),
           ),
           const SizedBox(height: 10),
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 260),
-            child: Text(
-              _controller.paymentMethod == 'NFC'
-                  ? 'سيُطلب منك تقريب البطاقة المرتبطة بمحفظتك قبل تأكيد الطلب.'
-                  : 'سيتم الخصم مباشرة من رصيد محفظتك.',
-              key: ValueKey(_controller.paymentMethod),
-              style: TextStyle(
-                color: Colors.grey.shade600,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
+          Text(
+            'سيتم الخصم مباشرة من رصيد محفظتك المحلية داخل Bite Hub.',
+            style: TextStyle(
+              color: Colors.grey.shade600,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
@@ -387,13 +365,6 @@ class _CartScreenV2State extends State<CartScreenV2> {
   Future<void> _handleCheckout() async {
     try {
       setState(() => _isSubmittingOrder = true);
-      String? nfcCardUid;
-      if (_controller.paymentMethod == 'NFC') {
-        nfcCardUid = await _scanNfcForPayment();
-        if (nfcCardUid == null) {
-          return;
-        }
-      }
       final orderItems = _controller.items
           .map(
             (item) => <String, dynamic>{
@@ -407,9 +378,8 @@ class _CartScreenV2State extends State<CartScreenV2> {
         _controller.totalAmount,
         orderItems,
         _controller.items.first.collegeId,
-        paymentMethod: _controller.paymentMethod,
+        paymentMethod: 'WALLET',
         orderNote: _notesController.text.trim(),
-        nfcCardUid: nfcCardUid,
       );
       if (!mounted) {
         return;
@@ -442,75 +412,6 @@ class _CartScreenV2State extends State<CartScreenV2> {
       if (mounted) {
         setState(() => _isSubmittingOrder = false);
       }
-    }
-  }
-
-  Future<String?> _scanNfcForPayment() async {
-    showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => PopScope(
-        canPop: false,
-        child: Dialog(
-          backgroundColor: Colors.transparent,
-          child: Container(
-            padding: const EdgeInsets.all(26),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(30),
-            ),
-            child: const Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.contactless_rounded,
-                  size: 72,
-                  color: AppColors.brandBlue,
-                ),
-                SizedBox(height: 18),
-                Text(
-                  'قرّب بطاقة الدفع',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                SizedBox(height: 8),
-                Text(
-                  'استخدم البطاقة المرتبطة بمحفظتك لتأكيد العملية.',
-                  textAlign: TextAlign.center,
-                ),
-                SizedBox(height: 20),
-                LinearProgressIndicator(
-                  minHeight: 5,
-                  borderRadius: BorderRadius.all(Radius.circular(99)),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-
-    try {
-      final uid = await NfcCardService.instance.scanCard();
-      if (mounted) {
-        Navigator.of(context, rootNavigator: true).pop();
-      }
-      return uid;
-    } catch (error) {
-      if (!mounted) {
-        return null;
-      }
-      Navigator.of(context, rootNavigator: true).pop();
-      await CustomFloatingSnackBar.show(
-        context,
-        title: 'تعذر قراءة البطاقة',
-        message: error.toString(),
-        icon: Icons.nfc_rounded,
-        accentColor: const Color(0xFFDC2626),
-      );
-      return null;
     }
   }
 

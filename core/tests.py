@@ -1,4 +1,5 @@
 from decimal import Decimal
+import json
 from io import StringIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -1561,6 +1562,37 @@ class DashboardRenderSmokeTests(TestCase):
         self.assertNotContains(response, "Operations OS")
         self.assertNotContains(response, "Live Ops")
         self.assertNotContains(response, "WebSocket")
+
+    def test_cafe_panel_can_open_and_close_order_acceptance(self):
+        self.client.force_login(self.cashier)
+
+        close_response = self.client.post(
+            reverse("core:cafe_accepting_orders_web_api"),
+            data=json.dumps({"is_accepting_orders": False}),
+            content_type="application/json",
+        )
+
+        self.assertEqual(close_response.status_code, 200, close_response.content)
+        self.cafe.refresh_from_db()
+        self.assertFalse(self.cafe.is_accepting_orders)
+        self.assertFalse(close_response.json()["cafe"]["is_accepting_orders"])
+
+        cafes_response = self.client.get(reverse("v2_app_cafes"))
+        payload = next(
+            item for item in cafes_response.json() if item["id"] == self.cafe.id
+        )
+        self.assertFalse(payload["is_accepting_orders"])
+        self.assertEqual(payload["status_label"], "مغلق للطلبات")
+
+        open_response = self.client.post(
+            reverse("core:cafe_accepting_orders_web_api"),
+            data=json.dumps({"is_accepting_orders": True}),
+            content_type="application/json",
+        )
+
+        self.assertEqual(open_response.status_code, 200, open_response.content)
+        self.cafe.refresh_from_db()
+        self.assertTrue(self.cafe.is_accepting_orders)
 
     def test_cafe_operator_can_deposit_and_withdraw_student_wallet(self):
         self.client.force_login(self.cashier)

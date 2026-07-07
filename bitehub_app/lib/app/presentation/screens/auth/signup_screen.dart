@@ -372,33 +372,65 @@ class _SignupScreenState extends State<SignupScreen> {
             const SizedBox(height: 24),
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(14),
+              padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                color: const Color(0xFFEAF6F2),
-                borderRadius: BorderRadius.circular(14),
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFEAF6F2), Color(0xFFFFFFFF)],
+                  begin: Alignment.topRight,
+                  end: Alignment.bottomLeft,
+                ),
+                borderRadius: BorderRadius.circular(22),
                 border: Border.all(color: const Color(0xFFB9DDD2)),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.brandBlue.withValues(alpha: .08),
+                    blurRadius: 22,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
               ),
               child: Column(
                 children: [
-                  const Icon(
-                    Icons.mark_email_read_outlined,
-                    color: AppColors.brandBlue,
-                    size: 30,
-                  ),
-                  const SizedBox(height: 7),
-                  const Text(
-                    'تم إرسال رمز التأكيد إلى',
-                    style: TextStyle(
-                      color: AppColors.textSecondary,
-                      fontWeight: FontWeight.w700,
+                  Container(
+                    width: 54,
+                    height: 54,
+                    decoration: BoxDecoration(
+                      color: AppColors.brandBlue.withValues(alpha: .10),
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: const Icon(
+                      Icons.mark_email_read_outlined,
+                      color: AppColors.brandBlue,
+                      size: 30,
                     ),
                   ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    'أدخل رمز التأكيد المرسل إلى بريدك',
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
                   Text(
                     challenge.maskedEmail,
                     textDirection: TextDirection.ltr,
                     style: const TextStyle(
                       color: AppColors.textPrimary,
                       fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'إن لم يظهر الرمز، راجع الرسائل غير المرغوب فيها ثم أعد الإرسال.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      height: 1.45,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ],
@@ -419,6 +451,12 @@ class _SignupScreenState extends State<SignupScreen> {
                       color: AppColors.brandBlue,
                       width: 1.5,
                     ),
+                  ),
+                ),
+                submittedPinTheme: pinTheme.copyWith(
+                  decoration: pinTheme.decoration!.copyWith(
+                    color: const Color(0xFFEAF6F2),
+                    border: Border.all(color: AppColors.brandBlue),
                   ),
                 ),
                 onCompleted: (_) {

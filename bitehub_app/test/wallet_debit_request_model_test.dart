@@ -10,8 +10,6 @@ void main() {
       'college': 'كلية العلوم',
       'link_code': 'WALLET12',
       'user_full_name': 'طالب تجريبي',
-      'has_nfc_card': false,
-      'nfc_card_last4': '',
       'transactions': <dynamic>[],
       'pending_debit_requests': [
         {

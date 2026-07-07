@@ -6,7 +6,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:bitehub_app/app/data/models/college_model.dart';
 import 'package:bitehub_app/app/data/models/notification_model.dart';
-import 'package:bitehub_app/app/data/models/nfc_card_model.dart';
 import 'package:bitehub_app/app/data/models/order_model.dart';
 import 'package:bitehub_app/app/data/models/product_model.dart';
 import 'package:bitehub_app/app/data/models/user_model.dart' as app_user;
@@ -844,90 +843,6 @@ class ApiService {
     }
   }
 
-  Future<bool> linkNfcCard(String cardUid) async {
-    final url = Uri.parse('$baseUrl/api/v2/app/wallet/nfc/link/');
-
-    try {
-      final response = await _sendWithAuthRetry(
-        (headers) => http.post(
-          url,
-          headers: headers,
-          body: json.encode({'card_uid': cardUid}),
-        ),
-      );
-      final data = _decodeBody(response);
-      if (response.statusCode == 200 &&
-          data is Map &&
-          data['success'] == true) {
-        return true;
-      }
-      throw _buildException(response, data);
-    } on ApiException {
-      rethrow;
-    } catch (e) {
-      throw _networkException(e);
-    }
-  }
-
-  Future<NfcCardModel> lookupNfcCard(String cardUid) async {
-    final url = Uri.parse('$baseUrl/api/v2/app/wallet/nfc/lookup/');
-
-    try {
-      final response = await _sendWithAuthRetry(
-        (headers) => http.post(
-          url,
-          headers: headers,
-          body: json.encode({'card_uid': cardUid}),
-        ),
-      );
-      final data = _decodeBody(response);
-      if (response.statusCode == 200 && data is Map) {
-        final card = data['card'];
-        if (card is Map) {
-          return NfcCardModel.fromJson(Map<String, dynamic>.from(card));
-        }
-      }
-      throw _buildException(response, data);
-    } on ApiException {
-      rethrow;
-    } catch (e) {
-      throw _networkException(e);
-    }
-  }
-
-  Future<bool> transferWalletToNfc({
-    required String cardUid,
-    required double amount,
-    String? note,
-  }) async {
-    final url = Uri.parse('$baseUrl/api/v2/app/wallet/nfc/transfer/');
-
-    try {
-      final response = await _sendWithAuthRetry(
-        (headers) => http.post(
-          url,
-          headers: headers,
-          body: json.encode({
-            'card_uid': cardUid,
-            'amount': amount,
-            if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
-          }),
-        ),
-      );
-      final data = _decodeBody(response);
-      if (response.statusCode == 200 &&
-          data is Map &&
-          data['success'] == true) {
-        return true;
-      }
-      throw _buildException(response, data);
-    } on ApiException {
-      rethrow;
-    } catch (e) {
-      throw _networkException(e);
-    }
-  }
-
   // ???? ???? updateUserProfile ???? ??????? ?? ????? ???? ?????? ?????.
   Future<app_user.User> updateUserProfile({
     required String fullName,
@@ -1139,8 +1054,7 @@ class ApiService {
   Future<OrderModel> createOrder(
       double totalPrice, List<Map<String, dynamic>> items, String collegeId,
       {String paymentMethod = 'WALLET',
-      String? orderNote,
-      String? nfcCardUid}) async {
+      String? orderNote}) async {
     final url = Uri.parse('$baseUrl/api/v2/app/orders/');
 
     try {
@@ -1153,8 +1067,6 @@ class ApiService {
             'cafe_id': collegeId,
             'items': items,
             'payment_method': paymentMethod,
-            if (nfcCardUid != null && nfcCardUid.trim().isNotEmpty)
-              'nfc_card_uid': nfcCardUid.trim(),
             if (orderNote != null && orderNote.trim().isNotEmpty)
               'order_note': orderNote.trim(),
             if (orderNote != null && orderNote.trim().isNotEmpty)

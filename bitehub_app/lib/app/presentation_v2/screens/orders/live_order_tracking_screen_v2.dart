@@ -126,22 +126,22 @@ class _LiveOrderTrackingScreenV2State extends State<LiveOrderTrackingScreenV2> {
             ),
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 36),
+              padding: const EdgeInsets.fromLTRB(14, 6, 14, 28),
               children: [
                 _OrderIdentityCard(order: order, status: status),
-                const SizedBox(height: BhSpacing.md),
+                const SizedBox(height: BhSpacing.sm),
                 _CurrentStatusCard(
                   status: status,
                   orderCode: order.displayOrderCode,
                   state: _controller.syncState,
                   lastUpdatedAt: _controller.lastUpdatedAt,
                 ),
-                const SizedBox(height: BhSpacing.md),
+                const SizedBox(height: BhSpacing.sm),
                 if (status.isCancelled)
                   _CancelledOrderPanel(order: order)
                 else
                   _OrderTimeline(status: status),
-                const SizedBox(height: BhSpacing.md),
+                const SizedBox(height: BhSpacing.sm),
                 _CancellationPolicyCard(
                   order: order,
                   canCancel: _canCancel(order.status),
@@ -149,7 +149,7 @@ class _LiveOrderTrackingScreenV2State extends State<LiveOrderTrackingScreenV2> {
                   onCancel: () => _confirmCancelOrder(order),
                   onOpenPolicy: _openUsagePolicy,
                 ),
-                const SizedBox(height: BhSpacing.md),
+                const SizedBox(height: BhSpacing.sm),
                 _OrderDetailsCard(order: order),
               ],
             ),
@@ -282,20 +282,21 @@ class _OrderIdentityCard extends StatelessWidget {
         order.displayCafeName.isEmpty ? 'Bite Hub' : order.displayCafeName;
 
     return BhSurface(
-      padding: const EdgeInsets.all(BhSpacing.md),
+      padding: const EdgeInsets.all(BhSpacing.sm),
+      radius: BhRadius.sm,
       child: Row(
         children: [
           ClipRRect(
-            borderRadius: BorderRadius.circular(BhRadius.md),
+            borderRadius: BorderRadius.circular(12),
             child: SizedBox.square(
-              dimension: 64,
+              dimension: 46,
               child: ProductImageView(
                 imagePath: order.cafeLogo ?? '',
                 fit: BoxFit.cover,
               ),
             ),
           ),
-          const SizedBox(width: BhSpacing.md),
+          const SizedBox(width: BhSpacing.sm),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -306,15 +307,16 @@ class _OrderIdentityCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: AppColors.textPrimary,
-                    fontSize: 17,
+                    fontSize: 15,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
-                const SizedBox(height: 5),
+                const SizedBox(height: 2),
                 Text(
-                  'رقم الاستلام: ${order.displayOrderCode}',
+                  'رقم الاستلام ${order.displayOrderCode}',
                   style: const TextStyle(
                     color: AppColors.textSecondary,
+                    fontSize: 12,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -353,16 +355,16 @@ class _CurrentStatusCard extends StatelessWidget {
     final nextStep = _nextStepLabel(status);
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(26),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: AppColors.border),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: .04),
-            blurRadius: 24,
-            offset: const Offset(0, 10),
+            color: Colors.black.withValues(alpha: .025),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
@@ -372,8 +374,8 @@ class _CurrentStatusCard extends StatelessWidget {
           Row(
             children: [
               Container(
-                width: 52,
-                height: 52,
+                width: 42,
+                height: 42,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: status.backgroundColor,
@@ -382,10 +384,10 @@ class _CurrentStatusCard extends StatelessWidget {
                 child: Icon(
                   status.icon,
                   color: status.foregroundColor,
-                  size: 26,
+                  size: 22,
                 ),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 11),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -398,12 +400,12 @@ class _CurrentStatusCard extends StatelessWidget {
                         fontWeight: FontWeight.w800,
                       ),
                     ),
-                    const SizedBox(height: 3),
+                    const SizedBox(height: 1),
                     Text(
                       status.title,
                       style: const TextStyle(
                         color: AppColors.textPrimary,
-                        fontSize: 21,
+                        fontSize: 18,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
@@ -412,57 +414,45 @@ class _CurrentStatusCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
           Text(
             status.description,
             style: const TextStyle(
               color: AppColors.textSecondary,
+              fontSize: 13,
               fontWeight: FontWeight.w600,
-              height: 1.55,
+              height: 1.4,
             ),
           ),
           if (nextStep != null) ...[
-            const SizedBox(height: 16),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              decoration: BoxDecoration(
-                color: AppColors.neutral50,
-                borderRadius: BorderRadius.circular(15),
-              ),
-              child: Row(
-                children: [
-                  const Text(
-                    'التالي',
-                    style: TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                    ),
+            const SizedBox(height: 9),
+            Row(
+              children: [
+                const Icon(
+                  Icons.arrow_back_rounded,
+                  size: 16,
+                  color: AppColors.brandBlue,
+                ),
+                const SizedBox(width: 5),
+                Text(
+                  'التالي: $nextStep',
+                  style: const TextStyle(
+                    color: AppColors.brandBlue,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      nextStep,
-                      textAlign: TextAlign.end,
-                      style: const TextStyle(
-                        color: AppColors.textPrimary,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ],
           if (!status.isCancelled) ...[
-            const SizedBox(height: 18),
+            const SizedBox(height: 12),
             Row(
               children: List.generate(bhTrackingSteps.length, (index) {
                 final active = index <= status.trackingIndex;
                 return Expanded(
                   child: Container(
-                    height: 5,
+                    height: 4,
                     margin: EdgeInsetsDirectional.only(
                       end: index == bhTrackingSteps.length - 1 ? 0 : 5,
                     ),
@@ -475,7 +465,7 @@ class _CurrentStatusCard extends StatelessWidget {
               }),
             ),
           ],
-          const SizedBox(height: 16),
+          const SizedBox(height: 11),
           Row(
             children: [
               Icon(sync.icon, size: 16, color: sync.foreground),
@@ -515,36 +505,44 @@ class _OrderTimeline extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BhSurface(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
+      radius: BhRadius.sm,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'مراحل الطلب',
+            'مسار الطلب',
             style: TextStyle(
               color: AppColors.textPrimary,
-              fontSize: 18,
+              fontSize: 14,
               fontWeight: FontWeight.w900,
             ),
           ),
-          const SizedBox(height: BhSpacing.lg),
-          ...List.generate(bhTrackingSteps.length, (index) {
-            final step = bhTrackingSteps[index];
-            final reached = index <= status.trackingIndex;
-            final current = index == status.trackingIndex;
-            final isLast = index == bhTrackingSteps.length - 1;
-
-            return IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  SizedBox(
-                    width: 42,
-                    child: Column(
+          const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: List.generate(bhTrackingSteps.length, (index) {
+              final step = bhTrackingSteps[index];
+              final reached = index <= status.trackingIndex;
+              final current = index == status.trackingIndex;
+              return Expanded(
+                child: Column(
+                  children: [
+                    Row(
                       children: [
+                        if (index > 0)
+                          Expanded(
+                            child: Container(
+                              height: 2,
+                              color: index <= status.trackingIndex
+                                  ? status.foregroundColor
+                                  : AppColors.border,
+                            ),
+                          ),
                         AnimatedContainer(
                           duration: const Duration(milliseconds: 220),
-                          width: 34,
-                          height: 34,
+                          width: current ? 30 : 26,
+                          height: current ? 30 : 26,
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
                             color: reached
@@ -559,17 +557,16 @@ class _OrderTimeline extends StatelessWidget {
                           ),
                           child: Icon(
                             reached ? Icons.check_rounded : step.icon,
-                            size: 17,
+                            size: current ? 16 : 14,
                             color: reached
                                 ? Colors.white
                                 : AppColors.textSecondary,
                           ),
                         ),
-                        if (!isLast)
+                        if (index < bhTrackingSteps.length - 1)
                           Expanded(
                             child: Container(
-                              width: 2,
-                              margin: const EdgeInsets.symmetric(vertical: 5),
+                              height: 2,
                               color: index < status.trackingIndex
                                   ? status.foregroundColor
                                   : AppColors.border,
@@ -577,56 +574,28 @@ class _OrderTimeline extends StatelessWidget {
                           ),
                       ],
                     ),
-                  ),
-                  const SizedBox(width: BhSpacing.sm),
-                  Expanded(
-                    child: Container(
-                      margin: EdgeInsets.only(
-                        bottom: isLast ? 0 : BhSpacing.md,
-                      ),
-                      padding: const EdgeInsets.all(BhSpacing.md),
-                      decoration: BoxDecoration(
+                    const SizedBox(height: 6),
+                    Text(
+                      step.label,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
                         color: current
-                            ? status.backgroundColor
-                            : AppColors.neutral50,
-                        borderRadius: BorderRadius.circular(BhRadius.sm),
-                        border: Border.all(
-                          color: current
-                              ? status.foregroundColor.withValues(alpha: .24)
-                              : AppColors.border,
-                        ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            step.label,
-                            style: TextStyle(
-                              color: reached
-                                  ? AppColors.textPrimary
-                                  : AppColors.textSecondary,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            current ? 'المرحلة الحالية' : step.caption,
-                            style: TextStyle(
-                              color: current
-                                  ? status.foregroundColor
-                                  : AppColors.textSecondary,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
+                            ? status.foregroundColor
+                            : reached
+                                ? AppColors.textPrimary
+                                : AppColors.textSecondary,
+                        fontSize: 9.5,
+                        fontWeight: current ? FontWeight.w900 : FontWeight.w700,
+                        height: 1.2,
                       ),
                     ),
-                  ),
-                ],
-              ),
-            );
-          }),
+                  ],
+                ),
+              );
+            }),
+          ),
         ],
       ),
     );
@@ -643,18 +612,20 @@ class _CancelledOrderPanel extends StatelessWidget {
     return BhSurface(
       color: const Color(0xFFFFF8F7),
       borderColor: const Color(0xFFF1D0CC),
+      padding: const EdgeInsets.all(14),
+      radius: BhRadius.sm,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Row(
             children: [
-              Icon(Icons.block_rounded, color: AppColors.danger, size: 25),
+              Icon(Icons.block_rounded, color: AppColors.danger, size: 21),
               SizedBox(width: BhSpacing.sm),
               Text(
                 'توقف تنفيذ الطلب',
                 style: TextStyle(
                   color: AppColors.textPrimary,
-                  fontSize: 17,
+                  fontSize: 15,
                   fontWeight: FontWeight.w900,
                 ),
               ),
@@ -667,8 +638,9 @@ class _CancelledOrderPanel extends StatelessWidget {
                 : 'تم إلغاء الطلب ولن ينتقل إلى التجهيز أو الاستلام. لا يوجد استرداد إلكتروني لهذا الطلب.',
             style: const TextStyle(
               color: AppColors.textSecondary,
+              fontSize: 13,
               fontWeight: FontWeight.w700,
-              height: 1.5,
+              height: 1.4,
             ),
           ),
         ],
@@ -688,6 +660,8 @@ class _OrderDetailsCard extends StatelessWidget {
         order.items.fold<int>(0, (total, item) => total + item.quantity);
 
     return BhSurface(
+      padding: const EdgeInsets.all(14),
+      radius: BhRadius.sm,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -695,11 +669,11 @@ class _OrderDetailsCard extends StatelessWidget {
             'تفاصيل الطلب',
             style: TextStyle(
               color: AppColors.textPrimary,
-              fontSize: 18,
+              fontSize: 16,
               fontWeight: FontWeight.w900,
             ),
           ),
-          const SizedBox(height: BhSpacing.md),
+          const SizedBox(height: BhSpacing.sm),
           Row(
             children: [
               _OrderMetric(
@@ -722,10 +696,10 @@ class _OrderDetailsCard extends StatelessWidget {
             ],
           ),
           if (order.notes.trim().isNotEmpty) ...[
-            const SizedBox(height: BhSpacing.md),
+            const SizedBox(height: BhSpacing.sm),
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(BhSpacing.md),
+              padding: const EdgeInsets.all(BhSpacing.sm),
               decoration: BoxDecoration(
                 color: const Color(0xFFFFFBEB),
                 borderRadius: BorderRadius.circular(BhRadius.sm),
@@ -756,9 +730,9 @@ class _OrderDetailsCard extends StatelessWidget {
             ),
           ],
           if (order.items.isNotEmpty) ...[
-            const SizedBox(height: BhSpacing.lg),
+            const SizedBox(height: BhSpacing.md),
             const Divider(height: 1, color: AppColors.border),
-            const SizedBox(height: BhSpacing.sm),
+            const SizedBox(height: 4),
             ...order.items.map(
               (item) => Padding(
                 padding: const EdgeInsets.only(top: BhSpacing.sm),
@@ -767,7 +741,7 @@ class _OrderDetailsCard extends StatelessWidget {
                     ClipRRect(
                       borderRadius: BorderRadius.circular(BhRadius.sm),
                       child: SizedBox.square(
-                        dimension: 48,
+                        dimension: 40,
                         child: ProductImageView(
                           imagePath: item.productImage ?? '',
                           fit: BoxFit.cover,
@@ -906,10 +880,10 @@ class _CancellationPolicyCard extends StatelessWidget {
             : 'بعد قبول المقهى لا يمكن الإلغاء ذاتياً من التطبيق. تواصل مع المقهى أو الإدارة عند وجود مشكلة.';
 
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: canCancel ? const Color(0xFFFFFBF5) : Colors.white,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: canCancel ? const Color(0xFFF1D9B4) : AppColors.border,
         ),
@@ -920,8 +894,8 @@ class _CancellationPolicyCard extends StatelessWidget {
           Row(
             children: [
               Container(
-                width: 40,
-                height: 40,
+                width: 34,
+                height: 34,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: canCancel
@@ -935,7 +909,7 @@ class _CancellationPolicyCard extends StatelessWidget {
                       : Icons.policy_outlined,
                   color:
                       canCancel ? AppColors.warning : AppColors.textSecondary,
-                  size: 21,
+                  size: 18,
                 ),
               ),
               const SizedBox(width: 11),
@@ -944,7 +918,7 @@ class _CancellationPolicyCard extends StatelessWidget {
                   title,
                   style: const TextStyle(
                     color: AppColors.textPrimary,
-                    fontSize: 16,
+                    fontSize: 14,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
@@ -956,11 +930,12 @@ class _CancellationPolicyCard extends StatelessWidget {
             message,
             style: const TextStyle(
               color: AppColors.textSecondary,
+              fontSize: 12.5,
               fontWeight: FontWeight.w600,
-              height: 1.55,
+              height: 1.4,
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 8),
           Row(
             children: [
               TextButton(
@@ -1115,7 +1090,7 @@ String? _nextStepLabel(BhOrderStatusSpec status) {
 
 bool _isWalletPayment(OrderModel order) {
   final paymentMethod = order.paymentMethod.trim().toUpperCase();
-  return paymentMethod == 'WALLET' || paymentMethod == 'NFC';
+  return paymentMethod == 'WALLET';
 }
 
 String _formatTime(DateTime value) {

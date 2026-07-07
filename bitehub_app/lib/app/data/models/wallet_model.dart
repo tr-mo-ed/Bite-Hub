@@ -15,8 +15,6 @@ class WalletModel {
   final String linkCode;
   // ??? ??????? userFullName ??? ?????? ???? ????? ????.
   final String userFullName;
-  final bool hasNfcCard;
-  final String nfcCardLast4;
   // ??? ??????? transactions ??? ?????? ???? ????? ????.
   final List<TransactionModel> transactions;
   final List<WalletDebitRequestModel> pendingDebitRequests;
@@ -28,8 +26,6 @@ class WalletModel {
     required this.college,
     required this.linkCode,
     required this.userFullName,
-    required this.hasNfcCard,
-    required this.nfcCardLast4,
     required this.transactions,
     this.pendingDebitRequests = const <WalletDebitRequestModel>[],
   });
@@ -77,8 +73,6 @@ class WalletModel {
       linkCode: (json['link_code'] ?? '').toString(),
       userFullName:
           (json['user_full_name'] ?? json['full_name'] ?? '').toString(),
-      hasNfcCard: json['has_nfc_card'] == true,
-      nfcCardLast4: (json['nfc_card_last4'] ?? '').toString(),
       transactions: transactions,
       pendingDebitRequests: pendingDebitRequests,
     );

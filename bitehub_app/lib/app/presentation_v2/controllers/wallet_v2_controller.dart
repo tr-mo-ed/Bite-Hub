@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:bitehub_app/app/data/models/nfc_card_model.dart';
 import 'package:bitehub_app/app/data/models/wallet_model.dart';
 import 'package:bitehub_app/app/data/services/api_service.dart';
 
@@ -60,17 +59,6 @@ class WalletV2Controller extends ChangeNotifier {
     );
   }
 
-  Future<bool> linkNfcCard(String cardUid) {
-    return _runAction(
-      () => _apiService.linkNfcCard(cardUid),
-      successMessage: 'تم ربط بطاقة NFC بمحفظتك بنجاح.',
-    );
-  }
-
-  Future<NfcCardModel> lookupNfcCard(String cardUid) {
-    return _apiService.lookupNfcCard(cardUid);
-  }
-
   Future<bool> respondToDebitRequest({
     required String requestId,
     required bool approve,
@@ -83,21 +71,6 @@ class WalletV2Controller extends ChangeNotifier {
       successMessage: approve
           ? 'تمت الموافقة وخصم المبلغ من محفظتك.'
           : 'تم رفض طلب الخصم ولن يتغير رصيدك.',
-    );
-  }
-
-  Future<bool> transferToNfcCard({
-    required String cardUid,
-    required double amount,
-    String? note,
-  }) {
-    return _runAction(
-      () => _apiService.transferWalletToNfc(
-        cardUid: cardUid,
-        amount: amount,
-        note: note,
-      ),
-      successMessage: 'تم تحويل الرصيد إلى بطاقة NFC بنجاح.',
     );
   }
 

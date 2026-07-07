@@ -1196,7 +1196,7 @@
       "cafeId": "{{ cafe.id }}",
       "wsPath": "{{ ws_path }}",
       "snapshotEndpoint": "{% url 'core:cafe_panel_snapshot_api' %}",
-      "acceptingOrdersEndpoint": "{% url 'v2_cafe_accepting_orders' %}",
+      "acceptingOrdersEndpoint": "{% url 'core:cafe_accepting_orders_web_api' %}",
       "statusEndpointTemplate": "{% url 'core:update_order_status_api' 0 %}",
       "stockEndpointTemplate": "{% url 'core:toggle_product_stock_api' 0 %}",
       "walletOperationEndpoint": "{% url 'core:cafe_wallet_operation_api' %}",
@@ -1245,5 +1245,5 @@
 {% endblock %}
 
 {% block extra_scripts %}
-  <script src="{% static 'admin_v2/cafe_panel.js' %}?v=20260619-1"></script>
+  <script src="{% static 'admin_v2/cafe_panel.js' %}?v=20260707-2"></script>
 {% endblock %}

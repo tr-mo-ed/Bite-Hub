@@ -961,6 +961,50 @@ def cafe_accepting_orders_api(request):
     )
 
 
+@login_required(login_url="core:cafe_login")
+@user_passes_test(_is_cafe_operator, login_url="core:route_after_login")
+@require_POST
+def cafe_accepting_orders_web_api(request: HttpRequest) -> JsonResponse:
+    cafe = resolve_backoffice_cafe(request.user)
+    if cafe is None:
+        return JsonResponse(
+            {"success": False, "message": "No active cafe is linked to this account."},
+            status=403,
+        )
+
+    try:
+        payload = json.loads(request.body.decode("utf-8") or "{}")
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        payload = request.POST
+
+    desired_status = _parse_bool_flag(payload.get("is_accepting_orders"))
+    if desired_status is None:
+        return JsonResponse(
+            {
+                "success": False,
+                "message": "is_accepting_orders must be true or false.",
+            },
+            status=400,
+        )
+
+    try:
+        cafe = set_cafe_accepting_orders(
+            cafe_id=cafe.id,
+            is_accepting_orders=desired_status,
+            user=request.user,
+        )
+    except ValidationServiceError as exc:
+        return JsonResponse({"success": False, "message": str(exc)}, status=400)
+
+    return JsonResponse(
+        {
+            "success": True,
+            "message": "تم فتح استقبال الطلبات." if cafe.is_accepting_orders else "تم إغلاق استقبال الطلبات.",
+            "cafe": _cafe_status_payload(cafe),
+        }
+    )
+
+
 # ???? ???? toggle_product_stock_api ?????? ????? ?????? ?? ????? ????.
 @login_required(login_url="core:cafe_login")
 @user_passes_test(_is_cafe_operator, login_url="core:route_after_login")
