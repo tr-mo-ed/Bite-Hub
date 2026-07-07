@@ -427,213 +427,6 @@
       font-weight: 900;
       white-space: nowrap;
     }
-    .nfc-reader-field {
-      direction: ltr;
-      text-align: left;
-      font-weight: 800;
-      letter-spacing: 0;
-    }
-    .nfc-command-center {
-      display: grid;
-      grid-template-columns: minmax(320px, .95fr) minmax(0, 1.05fr);
-      gap: 18px;
-      align-items: stretch;
-    }
-    .nfc-identity-card {
-      position: relative;
-      overflow: hidden;
-      min-height: 420px;
-      padding: 26px;
-      color: #fff;
-      background:
-        linear-gradient(135deg, rgba(67, 87, 184, .92) 0%, rgba(74, 166, 220, .82) 32%, rgba(112, 52, 121, .84) 58%, rgba(245, 31, 46, .92) 100%),
-        #111827;
-      border: 0;
-    }
-    .nfc-identity-card::before {
-      content: "";
-      position: absolute;
-      inset: -90px auto auto -70px;
-      width: 260px;
-      height: 260px;
-      border-radius: 50%;
-      background: rgba(255, 241, 0, .22);
-    }
-    .nfc-identity-card::after {
-      content: "";
-      position: absolute;
-      right: -120px;
-      bottom: -120px;
-      width: 310px;
-      height: 310px;
-      border-radius: 50%;
-      border: 44px solid rgba(255,255,255,.12);
-    }
-    .nfc-visual-content {
-      position: relative;
-      z-index: 1;
-      display: flex;
-      flex-direction: column;
-      min-height: 368px;
-    }
-    .nfc-system-label {
-      color: rgba(255,255,255,.72);
-      font-size: .78rem;
-      font-weight: 900;
-      letter-spacing: 0;
-      text-transform: uppercase;
-    }
-    .nfc-visual-title {
-      max-width: 430px;
-      margin: 16px 0 10px;
-      font-size: clamp(1.8rem, 3vw, 2.7rem);
-      font-weight: 950;
-      line-height: 1.08;
-    }
-    .nfc-visual-subtitle {
-      max-width: 420px;
-      margin: 0;
-      color: rgba(255,255,255,.78);
-    }
-    .nfc-device-row {
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 18px;
-      align-items: end;
-      margin-top: auto;
-    }
-    .nfc-device-card {
-      min-height: 150px;
-      border-radius: 14px;
-      padding: 18px;
-      background: rgba(255,255,255,.16);
-      border: 1px solid rgba(255,255,255,.24);
-      box-shadow: 0 22px 54px rgba(0,0,0,.20);
-      backdrop-filter: blur(16px);
-    }
-    .nfc-device-card .code {
-      direction: ltr;
-      margin-top: 30px;
-      color: rgba(255,255,255,.88);
-      font-size: 1.1rem;
-      font-weight: 900;
-      letter-spacing: 0;
-    }
-    .nfc-reader-orbit {
-      position: relative;
-      width: 118px;
-      height: 118px;
-      border-radius: 50%;
-      display: grid;
-      place-items: center;
-      background: rgba(255,255,255,.12);
-      border: 1px solid rgba(255,255,255,.24);
-    }
-    .nfc-reader-orbit span {
-      position: absolute;
-      inset: 16px;
-      border-radius: 50%;
-      border: 1px solid rgba(255,255,255,.36);
-    }
-    .nfc-reader-orbit span:nth-child(2) {
-      inset: 30px;
-    }
-    .nfc-reader-core {
-      width: 42px;
-      height: 42px;
-      border-radius: 50%;
-      background: #fff;
-      box-shadow: 0 0 0 10px rgba(255,255,255,.18);
-    }
-    .nfc-workflow-card {
-      padding: 24px;
-    }
-    .nfc-status-strip {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 10px;
-      margin-bottom: 18px;
-    }
-    .nfc-status-chip {
-      min-height: 76px;
-      border-radius: 8px;
-      padding: 12px;
-      border: 1px solid rgba(67, 87, 184, .14);
-      background: linear-gradient(135deg, #fff, rgba(74, 166, 220, .08));
-    }
-    .nfc-status-chip .label {
-      color: #667085;
-      font-size: .74rem;
-      font-weight: 900;
-    }
-    .nfc-status-chip .value {
-      color: #08111f;
-      font-size: 1.2rem;
-      font-weight: 950;
-      margin-top: 8px;
-    }
-    .nfc-form-shell {
-      display: grid;
-      gap: 14px;
-      padding: 18px;
-      border-radius: 8px;
-      border: 1px solid rgba(67, 87, 184, .14);
-      background: linear-gradient(135deg, rgba(255,255,255,.98), rgba(74, 166, 220, .06));
-    }
-    .nfc-form-grid {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-      gap: 14px;
-    }
-    .nfc-scan-input {
-      min-height: 54px;
-      border-color: rgba(67, 87, 184, .20);
-      background:
-        linear-gradient(90deg, rgba(67, 87, 184, .04), rgba(255, 241, 0, .08), rgba(245, 31, 46, .04)),
-        #fff;
-      font-size: 1rem;
-    }
-    .nfc-result-panel {
-      min-height: 64px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-    }
-    .nfc-flow-steps {
-      display: grid;
-      gap: 10px;
-      margin-top: 18px;
-    }
-    .nfc-flow-step {
-      display: grid;
-      grid-template-columns: auto minmax(0, 1fr);
-      gap: 12px;
-      align-items: center;
-      padding: 12px;
-      border-radius: 8px;
-      border: 1px solid rgba(67, 87, 184, .12);
-      background: #fff;
-    }
-    .nfc-step-index {
-      width: 34px;
-      height: 34px;
-      border-radius: 8px;
-      display: grid;
-      place-items: center;
-      color: #fff;
-      font-weight: 950;
-      background: var(--bh-brand-gradient);
-    }
-    .nfc-step-title {
-      font-weight: 900;
-      color: #08111f;
-    }
-    .nfc-step-copy {
-      color: #667085;
-      font-size: .82rem;
-      margin-top: 2px;
-    }
     [data-cafe-section-panel][hidden] {
       display: none !important;
     }
@@ -887,11 +680,7 @@
       .order-ops-toolbar,
       .wallet-summary-grid,
       .wallet-workbench,
-      .wallet-two-fields,
-      .nfc-command-center,
-      .nfc-status-strip,
-      .nfc-form-grid,
-      .nfc-device-row {
+      .wallet-two-fields {
         grid-template-columns: 1fr;
       }
       .section-command-bar {
@@ -904,33 +693,26 @@
 
 {% block content %}
   <div class="ops-command-strip" data-cafe-section-panel="overview">
-    <a class="ops-command" href="#orders" data-cafe-section-link data-section="orders">
+    <a class="ops-command" href="{% url 'core:cafe_panel' %}" data-cafe-section-link data-section="orders">
       <div>
         <strong>الطلبات الحية</strong>
         <span>قبول، تجهيز، جاهز، إغلاق</span>
       </div>
       <div class="ops-index">01</div>
     </a>
-    <a class="ops-command" href="#wallets" data-cafe-section-link data-section="wallets">
+    <a class="ops-command" href="{% url 'core:cafe_panel' %}" data-cafe-section-link data-section="wallets">
       <div>
         <strong>المحافظ والدفع</strong>
         <span>شحن مباشر وخصم بموافقة الطالب</span>
       </div>
       <div class="ops-index">02</div>
     </a>
-    <a class="ops-command" href="#nfc" data-cafe-section-link data-section="nfc">
-      <div>
-        <strong>بطاقات NFC</strong>
-        <span>تعريف بطاقة طالب</span>
-      </div>
-      <div class="ops-index">03</div>
-    </a>
-    <a class="ops-command" href="#menu" data-cafe-section-link data-section="menu">
+    <a class="ops-command" href="{% url 'core:cafe_panel' %}" data-cafe-section-link data-section="menu">
       <div>
         <strong>القائمة والمخزون</strong>
         <span>منتجات وتوفر فوري</span>
       </div>
-      <div class="ops-index">04</div>
+      <div class="ops-index">03</div>
     </a>
   </div>
 
@@ -994,7 +776,7 @@
   </div>
 
   <div class="row g-4 mb-4">
-    <div class="col-12" id="wallets" data-cafe-section-panel="wallets">
+    <div class="col-12" data-cafe-section-panel="wallets">
       <div class="section-command-bar">
         <div>
           <h2 class="section-command-title">محطة المحافظ والدفع</h2>
@@ -1012,10 +794,6 @@
           <span>عدد المحافظ</span>
           <strong>{{ wallet_kpis.wallets }}</strong>
         </div>
-        <div class="wallet-summary-tile">
-          <span>بطاقات NFC مرتبطة</span>
-          <strong>{{ wallet_kpis.linked_cards }}</strong>
-        </div>
       </div>
 
       <div class="wallet-workbench">
@@ -1023,14 +801,14 @@
           <div class="wallet-card-header">
             <div>
               <h3 class="wallet-card-title">تنفيذ عملية مالية</h3>
-              <p class="wallet-card-subtitle">استخدم البريد أو الهاتف أو كود البطاقة. الشحن فوري، والخصم يرسل طلب موافقة للطالب.</p>
+              <p class="wallet-card-subtitle">استخدم البريد أو الهاتف أو كود المحفظة. الشحن فوري، والخصم يرسل طلب موافقة للطالب.</p>
             </div>
             <span class="bh-pill">Secure</span>
           </div>
           <div class="wallet-form-grid">
             <div>
-              <label class="form-label">الطالب أو البطاقة</label>
-              <input class="form-control" name="identifier" placeholder="email / phone / card code" required>
+              <label class="form-label">الطالب أو كود المحفظة</label>
+              <input class="form-control" name="identifier" placeholder="email / phone / wallet code" required>
             </div>
             <div class="wallet-two-fields">
               <div>
@@ -1130,111 +908,11 @@
 
     </div>
 
-    <div class="col-12" id="nfc" data-cafe-section-panel="nfc">
-      <div class="section-command-bar">
-        <div>
-          <h2 class="section-command-title">تعريف بطاقات NFC</h2>
-          <p class="section-command-subtitle">ربط بطاقة الطالب بمحفظته من نقطة تشغيل رقمية واضحة ومباشرة.</p>
-        </div>
-        <span class="bh-pill">{{ wallet_kpis.linked_cards }} بطاقة مرتبطة</span>
-      </div>
-
-      <div class="nfc-command-center">
-        <section class="bh-card nfc-identity-card">
-          <div class="nfc-visual-content">
-            <div class="nfc-system-label">Bite Hub Card Identity</div>
-            <h3 class="nfc-visual-title">بطاقة طالب رقمية جاهزة للدفع داخل الحرم.</h3>
-            <p class="nfc-visual-subtitle">كل بطاقة NFC ترتبط بمحفظة واحدة، وتتحول إلى وسيلة دفع وتشغيل داخل نقاط المقاهي.</p>
-            <div class="nfc-device-row">
-              <div class="nfc-device-card">
-                <div class="d-flex align-items-center justify-content-between">
-                  <strong>Bite Hub</strong>
-                  <span>NFC</span>
-                </div>
-                <div class="code">SCAN-CARD-HERE</div>
-              </div>
-              <div class="nfc-reader-orbit" aria-hidden="true">
-                <span></span>
-                <span></span>
-                <div class="nfc-reader-core"></div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section class="bh-card nfc-workflow-card">
-          <div class="wallet-card-header">
-            <div>
-              <h3 class="wallet-card-title">محطة ربط البطاقة</h3>
-              <p class="wallet-card-subtitle">أدخل هوية الطالب ثم امسح البطاقة من القارئ.</p>
-            </div>
-            <span class="bh-pill">Reader Online</span>
-          </div>
-
-          <div class="nfc-status-strip">
-            <div class="nfc-status-chip">
-              <div class="label">المحافظ</div>
-              <div class="value">{{ wallet_kpis.wallets }}</div>
-            </div>
-            <div class="nfc-status-chip">
-              <div class="label">البطاقات</div>
-              <div class="value">{{ wallet_kpis.linked_cards }}</div>
-            </div>
-            <div class="nfc-status-chip">
-              <div class="label">الحالة</div>
-              <div class="value">نشط</div>
-            </div>
-          </div>
-
-          <form id="cardBindForm" class="nfc-form-shell">
-            <div class="nfc-form-grid">
-              <div>
-                <label class="form-label">الطالب</label>
-                <input class="form-control" name="identifier" placeholder="email / phone / wallet code / NFC card" required>
-              </div>
-              <div>
-                <label class="form-label">كود البطاقة</label>
-                <input class="form-control nfc-reader-field nfc-scan-input" name="card_code" placeholder="SCAN-CARD-HERE" required>
-              </div>
-            </div>
-            <button class="btn btn-dark bh-command-btn" type="submit">ربط البطاقة بالمحفظة</button>
-            <div id="cardBindResult" class="result-panel nfc-result-panel">
-              <span>جاهز لتعريف بطاقة طالب.</span>
-              <span class="bh-pill">Secure Link</span>
-            </div>
-          </form>
-
-          <div class="nfc-flow-steps">
-            <div class="nfc-flow-step">
-              <div class="nfc-step-index">01</div>
-              <div>
-                <div class="nfc-step-title">تحقق من المحفظة</div>
-                <div class="nfc-step-copy">النظام يرفض أي كود غير مربوط بمحفظة موجودة.</div>
-              </div>
-            </div>
-            <div class="nfc-flow-step">
-              <div class="nfc-step-index">02</div>
-              <div>
-                <div class="nfc-step-title">قراءة البطاقة</div>
-                <div class="nfc-step-copy">القارئ يكتب كود البطاقة مباشرة داخل حقل التشغيل.</div>
-              </div>
-            </div>
-            <div class="nfc-flow-step">
-              <div class="nfc-step-index">03</div>
-              <div>
-                <div class="nfc-step-title">تفعيل الدفع</div>
-                <div class="nfc-step-copy">بعد الربط تصبح البطاقة جاهزة لعمليات الشحن والخصم.</div>
-              </div>
-            </div>
-          </div>
-        </section>
-      </div>
-    </div>
   </div>
 
   <div class="row g-4">
     <div class="col-12">
-      <div class="bh-card p-4 mb-4" id="menu" data-cafe-section-panel="menu">
+      <div class="bh-card p-4 mb-4" data-cafe-section-panel="menu">
         <div class="d-flex align-items-center justify-content-between mb-3">
           <div class="bh-section-title mb-0">إضافة / تعديل منتج</div>
           <span class="bh-pill">Menu</span>
@@ -1290,7 +968,7 @@
         </form>
       </div>
 
-      <div class="bh-card p-4" id="orders" data-cafe-section-panel="orders">
+      <div class="bh-card p-4" data-cafe-section-panel="orders">
         <div class="section-command-bar">
           <div>
             <h2 class="section-command-title">مركز تنفيذ الطلبات</h2>
@@ -1476,7 +1154,6 @@
       "stockEndpointTemplate": "{% url 'core:toggle_product_stock_api' 0 %}",
       "walletOperationEndpoint": "{% url 'core:cafe_wallet_operation_api' %}",
       "debitRequestsEndpoint": "{% url 'core:cafe_wallet_debit_requests_api' %}",
-      "cardBindEndpoint": "{% url 'core:cafe_bind_wallet_card_api' %}",
       "walletHistoryEndpointTemplate": "{% url 'core:cafe_wallet_history_api' 0 %}",
       "createProductEndpoint": "{% url 'core:create_product_api' %}",
       "saveProductEndpointTemplate": "{% url 'core:save_product_api' 0 %}",

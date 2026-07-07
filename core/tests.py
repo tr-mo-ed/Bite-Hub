@@ -1554,7 +1554,9 @@ class DashboardRenderSmokeTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "confirmCafePanelActionModal")
         self.assertContains(response, "محطة المحافظ والدفع")
-        self.assertContains(response, "تعريف بطاقات NFC")
+        self.assertNotContains(response, "تعريف بطاقات NFC")
+        self.assertNotContains(response, "#nfc")
+        self.assertNotContains(response, "cardBindEndpoint")
 
     def test_cafe_operator_can_deposit_and_withdraw_student_wallet(self):
         self.client.force_login(self.cashier)
@@ -1858,25 +1860,28 @@ class DashboardRenderSmokeTests(TestCase):
         self.assertEqual(response.status_code, 404, response.content)
         self.assertFalse(Transaction.objects.filter(amount=Decimal("10.00")).exists())
 
-    def test_cafe_operator_can_bind_nfc_card_code_to_wallet(self):
+    def test_cafe_panel_does_not_expose_nfc_card_binding(self):
         self.client.force_login(self.cashier)
 
         response = self.client.post(
-            reverse("core:cafe_bind_wallet_card_api"),
+            "/hub/cafe-panel/wallets/bind-card/",
             data={"identifier": self.student.email, "card_code": "CARD-001"},
         )
 
-        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.status_code, 404, response.content)
         wallet = Wallet.objects.get(user=self.student)
-        self.assertEqual(wallet.nfc_card_uid, "CARD-001")
+        self.assertFalse(wallet.nfc_card_uid)
+
+        wallet.nfc_card_uid = "CARD-001"
+        wallet.save(update_fields=["nfc_card_uid", "updated_at"])
 
         deposit_response = self.client.post(
             reverse("core:cafe_wallet_operation_api"),
             data={"identifier": "CARD-001", "operation": "DEPOSIT", "amount": "10.00"},
         )
-        self.assertEqual(deposit_response.status_code, 200, deposit_response.content)
+        self.assertEqual(deposit_response.status_code, 404, deposit_response.content)
         wallet.refresh_from_db()
-        self.assertEqual(wallet.balance, Decimal("10.00"))
+        self.assertEqual(wallet.balance, Decimal("0.00"))
 
     def test_cafe_panel_snapshot_returns_current_live_orders(self):
         category = Category.objects.create(cafe=self.cafe, name="Coffee")

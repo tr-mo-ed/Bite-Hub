@@ -277,25 +277,21 @@
           </a>
         {% else %}
           <div class="bh-nav-kicker">Cafe Operations</div>
-          <a href="{% url 'core:cafe_panel' %}#overview" class="bh-nav-link {% if request.resolver_match.url_name == 'cafe_panel' %}active{% endif %}" data-cafe-section-link data-section="overview">
+          <a href="{% url 'core:cafe_panel' %}" class="bh-nav-link {% if request.resolver_match.url_name == 'cafe_panel' %}active{% endif %}" data-cafe-section-link data-section="overview">
             <span>نظرة عامة</span>
             <span class="bh-nav-code">01</span>
           </a>
-          <a href="{% url 'core:cafe_panel' %}#orders" class="bh-nav-link" data-cafe-section-link data-section="orders">
+          <a href="{% url 'core:cafe_panel' %}" class="bh-nav-link" data-cafe-section-link data-section="orders">
             <span>الطلبات</span>
             <span class="bh-nav-code">02</span>
           </a>
-          <a href="{% url 'core:cafe_panel' %}#wallets" class="bh-nav-link" data-cafe-section-link data-section="wallets">
+          <a href="{% url 'core:cafe_panel' %}" class="bh-nav-link" data-cafe-section-link data-section="wallets">
             <span>المحافظ والدفع</span>
             <span class="bh-nav-code">03</span>
           </a>
-          <a href="{% url 'core:cafe_panel' %}#nfc" class="bh-nav-link" data-cafe-section-link data-section="nfc">
-            <span>بطاقات NFC</span>
-            <span class="bh-nav-code">04</span>
-          </a>
-          <a href="{% url 'core:cafe_panel' %}#menu" class="bh-nav-link" data-cafe-section-link data-section="menu">
+          <a href="{% url 'core:cafe_panel' %}" class="bh-nav-link" data-cafe-section-link data-section="menu">
             <span>القائمة والمخزون</span>
-            <span class="bh-nav-code">05</span>
+            <span class="bh-nav-code">04</span>
           </a>
         {% endif %}
       </nav>

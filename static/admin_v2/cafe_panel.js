@@ -171,9 +171,10 @@
     walletHistoryContent.appendChild(list);
   }
 
-  function showCafeSection(sectionName, { updateUrl = true } = {}) {
-    const allowedSections = ["overview", "orders", "wallets", "nfc", "menu"];
-    const activeSection = allowedSections.includes(sectionName) ? sectionName : "overview";
+  const allowedCafeSections = ["overview", "orders", "wallets", "menu"];
+
+  function showCafeSection(sectionName) {
+    const activeSection = allowedCafeSections.includes(sectionName) ? sectionName : "overview";
     document.querySelectorAll("[data-cafe-section-panel]").forEach((panel) => {
       panel.hidden = panel.dataset.cafeSectionPanel !== activeSection;
     });
@@ -184,17 +185,15 @@
       link.setAttribute("aria-current", isActive ? "page" : "false");
     });
     window.localStorage.setItem("bitehub:cafe-section", activeSection);
-    if (updateUrl) {
-      const nextHash = `#${activeSection}`;
-      if (window.location.hash !== nextHash) {
-        window.history.replaceState(null, "", nextHash);
-      }
-    }
   }
 
   function initialCafeSection() {
-    const hash = window.location.hash.replace("#", "");
-    return hash || window.localStorage.getItem("bitehub:cafe-section") || "overview";
+    const savedSection = window.localStorage.getItem("bitehub:cafe-section") || "overview";
+    return allowedCafeSections.includes(savedSection) ? savedSection : "overview";
+  }
+
+  if (window.location.hash) {
+    window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
   }
 
   document.addEventListener("click", (event) => {
@@ -256,11 +255,7 @@
     window.scrollTo({ top: 0, behavior: "smooth" });
   });
 
-  window.addEventListener("hashchange", () => {
-    showCafeSection(initialCafeSection(), { updateUrl: false });
-  });
-
-  showCafeSection(initialCafeSection(), { updateUrl: false });
+  showCafeSection(initialCafeSection());
 
   function escapeHtml(value) {
     const span = document.createElement("span");
@@ -445,8 +440,6 @@
   const walletOpsForm = document.getElementById("walletOpsForm");
   const walletOpsResult = document.getElementById("walletOpsResult");
   const debitRequestList = document.getElementById("debitRequestList");
-  const cardBindForm = document.getElementById("cardBindForm");
-  const cardBindResult = document.getElementById("cardBindResult");
 
   function resetProductEditor() {
     if (!productForm) {
@@ -565,7 +558,7 @@
         } else {
           writeResult(
             walletOpsResult,
-            `تم الشحن: ${wallet.user || ""} | الرصيد الحالي ${wallet.balance || "0.00"} د.ل | البطاقة ${wallet.nfc_card_uid || "-"} | كود المحفظة ${wallet.link_code || "-"}`,
+            `تم الشحن: ${wallet.user || ""} | الرصيد الحالي ${wallet.balance || "0.00"} د.ل | كود المحفظة ${wallet.link_code || "-"}`,
             "success",
           );
           showToast("تم شحن المحفظة.", "success");
@@ -574,27 +567,6 @@
       } catch (error) {
         writeResult(walletOpsResult, error.message || "تعذر تنفيذ عملية المحفظة.", "danger");
         showToast(error.message || "تعذر تنفيذ عملية المحفظة.", "danger");
-      }
-    });
-  }
-
-  if (cardBindForm) {
-    cardBindForm.addEventListener("submit", async (event) => {
-      event.preventDefault();
-      writeResult(cardBindResult, "جاري ربط البطاقة...");
-      try {
-        const payload = await postForm(config.cardBindEndpoint, new FormData(cardBindForm));
-        const wallet = payload.wallet || {};
-        writeResult(
-          cardBindResult,
-          `تم ربط البطاقة ${wallet.nfc_card_uid || "-"} بمحفظة ${wallet.user || ""}.`,
-          "success",
-        );
-        showToast("تم تعريف بطاقة الطالب.", "success");
-        cardBindForm.reset();
-      } catch (error) {
-        writeResult(cardBindResult, error.message || "تعذر تعريف البطاقة.", "danger");
-        showToast(error.message || "تعذر تعريف البطاقة.", "danger");
       }
     });
   }
