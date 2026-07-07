@@ -1557,6 +1557,10 @@ class DashboardRenderSmokeTests(TestCase):
         self.assertNotContains(response, "تعريف بطاقات NFC")
         self.assertNotContains(response, "#nfc")
         self.assertNotContains(response, "cardBindEndpoint")
+        self.assertNotContains(response, "Cafe Operations")
+        self.assertNotContains(response, "Operations OS")
+        self.assertNotContains(response, "Live Ops")
+        self.assertNotContains(response, "WebSocket")
 
     def test_cafe_operator_can_deposit_and_withdraw_student_wallet(self):
         self.client.force_login(self.cashier)

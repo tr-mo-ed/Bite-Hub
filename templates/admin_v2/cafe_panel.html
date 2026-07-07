@@ -1,9 +1,9 @@
 ﻿{% extends "admin_v2/base.html" %}
 {% load static %}
 
-{% block title %}Cafe Operations | Bite Hub{% endblock %}
+{% block title %}لوحة المقهى | Bite Hub{% endblock %}
 {% block page_title %}مركز عمليات المقهى{% endblock %}
-{% block page_subtitle %}تشغيل الطلبات، الدفع، بطاقات الطلاب، والقائمة من واجهة واحدة.{% endblock %}
+{% block page_subtitle %}تشغيل الطلبات، الدفع، والقائمة من واجهة واحدة منظمة وواضحة.{% endblock %}
 
 {% block extra_head %}
   <style>
@@ -14,17 +14,19 @@
     }
     .ops-command-strip {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 12px;
-      margin-bottom: 24px;
+      grid-template-columns: repeat(3, minmax(240px, 1fr));
+      gap: 16px;
+      width: min(100%, 1130px);
+      margin: 0 auto 30px;
     }
     .ops-command {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      min-height: 68px;
-      padding: 14px 16px;
-      border-radius: 8px;
+      gap: 16px;
+      min-height: 92px;
+      padding: 18px 20px;
+      border-radius: 14px;
       text-decoration: none;
       color: #111827;
       background: linear-gradient(135deg, rgba(255,255,255,.96), rgba(74, 166, 220, .10));
@@ -37,16 +39,22 @@
       background: linear-gradient(135deg, rgba(255,255,255,.98), rgba(255, 241, 0, .16), rgba(245, 31, 46, .08));
     }
     .ops-command strong {
-      font-size: .95rem;
+      display: block;
+      font-size: 1.03rem;
+      font-weight: 900;
+      line-height: 1.45;
     }
     .ops-command span {
       color: #667085;
-      font-size: .78rem;
+      display: block;
+      margin-top: 4px;
+      font-size: .84rem;
+      line-height: 1.65;
     }
     .ops-index {
       width: 34px;
       height: 34px;
-      border-radius: 8px;
+      border-radius: 10px;
       display: grid;
       place-items: center;
       color: #fff;
@@ -108,8 +116,8 @@
     }
     .product-toggle {
       border: 1px solid rgba(67, 87, 184, .14);
-      border-radius: 8px;
-      padding: 14px;
+      border-radius: 14px;
+      padding: 16px;
       background: rgba(255,255,255,.92);
       box-shadow: 0 12px 24px rgba(67, 87, 184, .08);
     }
@@ -132,6 +140,21 @@
       object-fit: cover;
       display: block;
     }
+    .menu-product-form {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .menu-product-form > input[type="hidden"] {
+      display: none;
+    }
+    .menu-product-form > .form-check,
+    .menu-product-form > .d-flex,
+    .menu-product-form > div:has(textarea),
+    .menu-product-form > div:has(input[type="file"]),
+    .menu-product-form > div:has(input[name="stock_quantity"]) {
+      grid-column: 1 / -1;
+    }
     .ws-indicator {
       width: 10px;
       height: 10px;
@@ -151,6 +174,23 @@
       display: grid;
       grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
       gap: 18px;
+    }
+    .cafe-section-shell {
+      border-radius: 16px;
+      overflow: hidden;
+    }
+    .cafe-order-state-card {
+      padding: 24px;
+      border-radius: 14px;
+      border-top: 4px solid var(--bh-byte-yellow);
+    }
+    .cafe-order-state-card .h4 {
+      margin-top: 6px;
+      line-height: 1.35;
+      font-weight: 900;
+    }
+    .cafe-order-state-card .text-muted {
+      line-height: 1.75;
     }
     .operation-card {
       border: 1px solid rgba(67, 87, 184, .14);
@@ -179,14 +219,14 @@
     }
     .wallet-summary-grid {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 12px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
       margin-bottom: 18px;
     }
     .wallet-summary-tile {
-      min-height: 104px;
-      border-radius: 8px;
-      padding: 16px;
+      min-height: 118px;
+      border-radius: 14px;
+      padding: 18px;
       border: 1px solid rgba(67, 87, 184, .14);
       background: linear-gradient(135deg, #fff, rgba(74, 166, 220, .10));
       box-shadow: 0 12px 28px rgba(67, 87, 184, .08);
@@ -213,6 +253,7 @@
     .wallet-command-card,
     .wallet-ledger-card {
       padding: 22px;
+      border-radius: 14px;
     }
     .wallet-card-header {
       display: flex;
@@ -331,6 +372,7 @@
     .debit-request-board {
       margin-top: 18px;
       padding: 22px;
+      border-radius: 14px;
     }
     .debit-request-list {
       display: grid;
@@ -460,7 +502,7 @@
     .cafe-identity-name {
       color: #08111f;
       font-size: clamp(1.12rem, 1.2vw, 1.38rem);
-      font-weight: 950;
+      font-weight: 900;
       line-height: 1.28;
       overflow-wrap: anywhere;
     }
@@ -487,7 +529,7 @@
       place-items: center;
       flex: 0 0 auto;
       color: #fff;
-      font-weight: 950;
+      font-weight: 900;
       letter-spacing: 0;
       background: var(--bh-brand-gradient);
       box-shadow: 0 14px 28px rgba(67, 87, 184, .20);
@@ -499,20 +541,23 @@
     }
     .section-command-bar {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: space-between;
       gap: 14px;
-      margin-bottom: 18px;
+      margin-bottom: 22px;
     }
     .section-command-title {
-      font-size: 1.45rem;
+      font-size: clamp(1.45rem, 1.7vw, 1.85rem);
       font-weight: 900;
       color: #08111f;
       margin: 0;
+      line-height: 1.35;
     }
     .section-command-subtitle {
       color: #667085;
-      margin: 4px 0 0;
+      margin: 8px 0 0;
+      line-height: 1.8;
+      font-weight: 600;
     }
     .order-ops-toolbar {
       display: grid;
@@ -680,7 +725,8 @@
       .order-ops-toolbar,
       .wallet-summary-grid,
       .wallet-workbench,
-      .wallet-two-fields {
+      .wallet-two-fields,
+      .menu-product-form {
         grid-template-columns: 1fr;
       }
       .section-command-bar {
@@ -747,7 +793,7 @@
     </div>
     <div class="col-12">
       <div
-        class="bh-card d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3"
+        class="bh-card cafe-order-state-card d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3"
         id="cafeOrderStateCard"
         data-accepting-orders="{% if cafe.is_accepting_orders %}true{% else %}false{% endif %}"
       >
@@ -777,12 +823,13 @@
 
   <div class="row g-4 mb-4">
     <div class="col-12" data-cafe-section-panel="wallets">
+      <div class="bh-card p-4 cafe-section-shell">
       <div class="section-command-bar">
         <div>
           <h2 class="section-command-title">محطة المحافظ والدفع</h2>
           <p class="section-command-subtitle">الشحن متاح لأي طالب من كل الكليات. الخصم لا ينفذ إلا بعد موافقة صاحب المحفظة.</p>
         </div>
-        <span class="bh-pill">Finance Desk</span>
+        <span class="bh-pill">محطة مالية</span>
       </div>
 
       <div class="wallet-summary-grid">
@@ -803,7 +850,7 @@
               <h3 class="wallet-card-title">تنفيذ عملية مالية</h3>
               <p class="wallet-card-subtitle">استخدم البريد أو الهاتف أو كود المحفظة. الشحن فوري، والخصم يرسل طلب موافقة للطالب.</p>
             </div>
-            <span class="bh-pill">Secure</span>
+            <span class="bh-pill">محمي</span>
           </div>
           <div class="wallet-form-grid">
             <div>
@@ -838,7 +885,7 @@
               <h3 class="wallet-card-title">سجل عمليات المحافظ</h3>
               <p class="wallet-card-subtitle">آخر عملية لكل طالب داخل هذا المقهى فقط. اضغط على الاسم لعرض السجل الكامل.</p>
             </div>
-            <span class="bh-pill">Ledger</span>
+            <span class="bh-pill">السجل</span>
           </div>
           <div class="wallet-ledger-list">
             {% for transaction in recent_wallet_activity %}
@@ -876,7 +923,7 @@
             <h3 class="wallet-card-title">طلبات الخصم وموافقة الطلاب</h3>
             <p class="wallet-card-subtitle">يعرض هذا المقهى فقط، مع حالة موافقة أو رفض الطالب ووقت الرد.</p>
           </div>
-          <span class="bh-pill">Approval</span>
+          <span class="bh-pill">موافقات</span>
         </div>
         <div class="debit-request-list" id="debitRequestList">
           {% for debit_request in debit_requests %}
@@ -906,18 +953,19 @@
         </div>
       </section>
 
+      </div>
     </div>
 
   </div>
 
   <div class="row g-4">
     <div class="col-12">
-      <div class="bh-card p-4 mb-4" data-cafe-section-panel="menu">
+      <div class="bh-card p-4 mb-4 cafe-section-shell" data-cafe-section-panel="menu">
         <div class="d-flex align-items-center justify-content-between mb-3">
           <div class="bh-section-title mb-0">إضافة / تعديل منتج</div>
-          <span class="bh-pill">Menu</span>
+          <span class="bh-pill">إدارة</span>
         </div>
-        <form id="productForm" enctype="multipart/form-data" class="d-grid gap-3">
+        <form id="productForm" enctype="multipart/form-data" class="menu-product-form">
           <input type="hidden" name="cafe_id" value="{{ cafe.id }}">
           <input type="hidden" name="product_id" value="">
           <div>
@@ -968,7 +1016,7 @@
         </form>
       </div>
 
-      <div class="bh-card p-4" data-cafe-section-panel="orders">
+      <div class="bh-card p-4 cafe-section-shell" data-cafe-section-panel="orders">
         <div class="section-command-bar">
           <div>
             <h2 class="section-command-title">مركز تنفيذ الطلبات</h2>
@@ -976,7 +1024,6 @@
           </div>
           <div class="d-flex align-items-center gap-2">
             <div id="wsIndicator" class="ws-indicator"></div>
-            <span class="small text-muted">WebSocket</span>
           </div>
         </div>
         <div class="order-ops-toolbar">
@@ -1012,7 +1059,7 @@
               {% empty %}
                 <div class="kanban-empty-state">
                   <div>
-                    <div class="fw-bold mb-2 text-uppercase">New</div>
+                    <div class="fw-bold mb-2">جديد</div>
                     <div class="fw-bold mb-1">لا توجد طلبات جديدة الآن</div>
                     <div class="small">أي طلب جديد سيظهر هنا عبر التحديث الدوري.</div>
                   </div>
@@ -1034,7 +1081,7 @@
               {% empty %}
                 <div class="kanban-empty-state">
                   <div>
-                    <div class="fw-bold mb-2 text-uppercase">Prep</div>
+                    <div class="fw-bold mb-2">تجهيز</div>
                     <div class="fw-bold mb-1">لا توجد طلبات قيد التجهيز</div>
                     <div class="small">بمجرد اعتماد أي طلب سينتقل إلى هذا العمود تلقائياً.</div>
                   </div>
@@ -1056,7 +1103,7 @@
               {% empty %}
                 <div class="kanban-empty-state">
                   <div>
-                    <div class="fw-bold mb-2 text-uppercase">Ready</div>
+                    <div class="fw-bold mb-2">جاهز</div>
                     <div class="fw-bold mb-1">لا توجد طلبات جاهزة الآن</div>
                     <div class="small">عند اكتمال التحضير ستظهر الطلبات هنا بانتظار التسليم.</div>
                   </div>
@@ -1069,7 +1116,7 @@
     </div>
 
     <div class="col-12">
-      <div class="bh-card p-4 mb-4" data-cafe-section-panel="overview">
+      <div class="bh-card p-4 mb-4 cafe-section-shell" data-cafe-section-panel="overview">
         <div class="d-flex align-items-center justify-content-between mb-3">
           <div class="bh-section-title mb-0">مؤشرات سريعة</div>
           <span class="bh-pill">{{ kpis.today_sales|floatformat:2 }} د.ل اليوم</span>
@@ -1077,10 +1124,10 @@
         <p class="text-muted mb-0">أي طلب جديد سيظهر فوراً هنا مع تنبيه صوتي، وأي تغيير حالة سيدفع إلى تطبيق الطالب في نفس الدورة.</p>
       </div>
 
-      <div class="bh-card p-4" data-cafe-section-panel="menu">
+      <div class="bh-card p-4 cafe-section-shell" data-cafe-section-panel="menu">
         <div class="d-flex align-items-center justify-content-between mb-3">
           <div class="bh-section-title mb-0">إدارة المخزون السريعة</div>
-          <span class="bh-pill">Out of Stock</span>
+          <span class="bh-pill">المخزون</span>
         </div>
         <div class="d-grid gap-3">
           {% for product in products %}
@@ -1091,7 +1138,7 @@
                     {% if product.image %}
                       <img src="{{ product.image.url }}" alt="{{ product.name }}">
                     {% else %}
-                      IMG
+                      صورة
                     {% endif %}
                   </div>
                   <div>
@@ -1133,7 +1180,7 @@
           {% empty %}
             <div class="kanban-empty-state">
               <div>
-                <div class="fw-bold mb-2 text-uppercase">Menu</div>
+                <div class="fw-bold mb-2">القائمة</div>
                 <div class="fw-bold mb-1">لا توجد منتجات بعد</div>
                 <div class="small">أضف المنتجات من لوحة الإدارة لتبدأ إدارة المخزون السريع.</div>
               </div>
