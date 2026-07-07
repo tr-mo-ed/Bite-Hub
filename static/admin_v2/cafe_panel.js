@@ -91,6 +91,30 @@
     return template.replace(/\/0(?=\/)/, `/${id}`);
   }
 
+  function applyCafeOrderState(isAcceptingOrders) {
+    const card = document.getElementById("cafeOrderStateCard");
+    const value = document.getElementById("cafeOrderStateValue");
+    const hint = document.getElementById("cafeOrderStateHint");
+    const button = document.querySelector(".js-cafe-order-toggle");
+    if (card) {
+      card.dataset.acceptingOrders = isAcceptingOrders ? "true" : "false";
+    }
+    if (value) {
+      value.textContent = isAcceptingOrders ? "مفتوح للطلبات" : "مغلق للطلبات";
+    }
+    if (hint) {
+      hint.textContent = isAcceptingOrders
+        ? "الطلاب يستطيعون إنشاء طلبات جديدة من التطبيق."
+        : "المقهى يظهر للطلاب كمغلق ولا يقبل السيرفر أي طلب جديد.";
+    }
+    if (button) {
+      button.dataset.nextState = isAcceptingOrders ? "false" : "true";
+      button.textContent = isAcceptingOrders ? "إغلاق استقبال الطلبات" : "فتح استقبال الطلبات";
+      button.classList.toggle("btn-outline-danger", isAcceptingOrders);
+      button.classList.toggle("btn-outline-success", !isAcceptingOrders);
+    }
+  }
+
   function appendTextElement(parent, tagName, text, className = "") {
     const element = document.createElement(tagName);
     element.textContent = text;
@@ -174,6 +198,51 @@
   }
 
   document.addEventListener("click", (event) => {
+    const cafeOrderToggle = event.target.closest(".js-cafe-order-toggle");
+    if (cafeOrderToggle) {
+      event.preventDefault();
+      if (!config.acceptingOrdersEndpoint) {
+        showToast("مسار تحديث حالة استقبال الطلبات غير مضبوط.", "danger");
+        return;
+      }
+
+      const nextState = cafeOrderToggle.dataset.nextState === "true";
+      confirmAction({
+        title: nextState ? "فتح استقبال الطلبات" : "إغلاق استقبال الطلبات",
+        text: nextState
+          ? "سيستطيع الطلاب إنشاء طلبات جديدة من هذا المقهى."
+          : "سيظهر المقهى كمغلق للطلاب وسيتم رفض أي طلب جديد من السيرفر.",
+      }).then(async (confirmed) => {
+        if (!confirmed) {
+          return;
+        }
+
+        cafeOrderToggle.disabled = true;
+        try {
+          const response = await fetch(config.acceptingOrdersEndpoint, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Accept": "application/json",
+              "X-CSRFToken": getCsrfToken(),
+            },
+            body: JSON.stringify({ is_accepting_orders: nextState }),
+          });
+          const payload = await response.json();
+          if (!response.ok || payload.success === false) {
+            throw new Error(payload.message || "تعذر تحديث حالة استقبال الطلبات.");
+          }
+          applyCafeOrderState(Boolean(payload.cafe && payload.cafe.is_accepting_orders));
+          showToast(payload.message || "تم تحديث حالة استقبال الطلبات.", "success");
+        } catch (error) {
+          showToast(error.message || "تعذر تحديث حالة استقبال الطلبات.", "danger");
+        } finally {
+          cafeOrderToggle.disabled = false;
+        }
+      });
+      return;
+    }
+
     const sectionLink = event.target.closest("[data-cafe-section-link]");
     if (!sectionLink || !sectionLink.dataset.section) {
       return;

@@ -151,7 +151,11 @@ class CafeSerializer(CleanTextSerializerMixin, serializers.ModelSerializer):
         return _build_image_url(obj.image, request)
 
     def get_status_label(self, obj):
-        return "فعال" if obj.is_active else "غير فعال"
+        if not obj.is_active:
+            return "موقوف من الإدارة"
+        if not obj.is_accepting_orders:
+            return "مغلق للطلبات"
+        return "مفتوح للطلبات"
 
 
 # ???? ???? CategorySerializer ???? ?????? ????????? ???? ???? ?????.

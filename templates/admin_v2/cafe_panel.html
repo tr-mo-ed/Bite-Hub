@@ -963,6 +963,34 @@
         <div class="value">{{ kpis.out_of_stock }}</div>
       </div>
     </div>
+    <div class="col-12">
+      <div
+        class="bh-card d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3"
+        id="cafeOrderStateCard"
+        data-accepting-orders="{% if cafe.is_accepting_orders %}true{% else %}false{% endif %}"
+      >
+        <div>
+          <div class="text-muted small fw-bold mb-1">حالة استقبال طلبات الطلاب</div>
+          <div class="h4 fw-black mb-1" id="cafeOrderStateValue">
+            {% if cafe.is_accepting_orders %}مفتوح للطلبات{% else %}مغلق للطلبات{% endif %}
+          </div>
+          <div class="text-muted small" id="cafeOrderStateHint">
+            {% if cafe.is_accepting_orders %}
+              الطلاب يستطيعون إنشاء طلبات جديدة من التطبيق.
+            {% else %}
+              المقهى يظهر للطلاب كمغلق ولا يقبل السيرفر أي طلب جديد.
+            {% endif %}
+          </div>
+        </div>
+        <button
+          type="button"
+          class="btn {% if cafe.is_accepting_orders %}btn-outline-danger{% else %}btn-outline-success{% endif %} rounded-pill px-4 js-cafe-order-toggle"
+          data-next-state="{% if cafe.is_accepting_orders %}false{% else %}true{% endif %}"
+        >
+          {% if cafe.is_accepting_orders %}إغلاق استقبال الطلبات{% else %}فتح استقبال الطلبات{% endif %}
+        </button>
+      </div>
+    </div>
   </div>
 
   <div class="row g-4 mb-4">
@@ -1253,7 +1281,7 @@
           </div>
           <div class="form-check form-switch">
             <input class="form-check-input" name="is_available" value="on" type="checkbox" role="switch" checked>
-            <label class="form-check-label">متاح للطلب</label>
+            <label class="form-check-label">الصنف متاح للطلب</label>
           </div>
           <div class="d-flex gap-2">
             <button class="btn btn-primary flex-fill" type="submit">حفظ المنتج</button>
@@ -1443,6 +1471,7 @@
       "cafeId": "{{ cafe.id }}",
       "wsPath": "{{ ws_path }}",
       "snapshotEndpoint": "{% url 'core:cafe_panel_snapshot_api' %}",
+      "acceptingOrdersEndpoint": "{% url 'v2_cafe_accepting_orders' %}",
       "statusEndpointTemplate": "{% url 'core:update_order_status_api' 0 %}",
       "stockEndpointTemplate": "{% url 'core:toggle_product_stock_api' 0 %}",
       "walletOperationEndpoint": "{% url 'core:cafe_wallet_operation_api' %}",

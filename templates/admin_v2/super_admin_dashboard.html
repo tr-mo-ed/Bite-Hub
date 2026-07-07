@@ -200,7 +200,7 @@
     </div>
     <div class="col-12 col-md-6 col-xl-3">
       <div class="bh-card bh-kpi is-green">
-        <div class="label">المقاهي الفعالة</div>
+        <div class="label">المقاهي المفتوحة للطلبات</div>
         <div class="value">{{ kpis.active_cafes }}</div>
       </div>
     </div>
@@ -401,13 +401,18 @@
                     {% endif %}
                   </td>
                   <td>
-                    {% if cafe.is_active %}
-                      <span class="badge text-bg-success"><span class="status-dot active"></span>نشط</span>
-                    {% else %}
+                    {% if not cafe.is_active %}
                       <span class="badge text-bg-danger"><span class="status-dot"></span>موقوف مؤقتاً</span>
                       <div class="cafe-status-detail">
                         {{ cafe.suspension_reason|default:"موقوف من السوبر أدمن" }}
                         {% if cafe.suspended_at %}<br>{{ cafe.suspended_at|date:"Y/m/d - H:i" }}{% endif %}
+                      </div>
+                    {% elif cafe.is_accepting_orders %}
+                      <span class="badge text-bg-success"><span class="status-dot active"></span>مفتوح للطلبات</span>
+                    {% else %}
+                      <span class="badge text-bg-warning"><span class="status-dot"></span>مغلق للطلبات</span>
+                      <div class="cafe-status-detail">
+                        المقهى مفعل إدارياً، لكنه لا يستقبل طلبات الطلاب حالياً.
                       </div>
                     {% endif %}
                   </td>

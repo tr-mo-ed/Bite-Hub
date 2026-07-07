@@ -297,7 +297,7 @@
               <img
                 class="cafe-login-logo"
                 id="selectedCafeLogo"
-                src="{% if target_cafe and target_cafe.image %}{{ target_cafe.image.url }}{% else %}{% static 'brand/bitehub-logo.png' %}{% endif %}"
+                src="{% static 'brand/bitehub-logo.png' %}"
                 alt="صورة المقهى المحدد"
               >
               <div>
@@ -315,7 +315,7 @@
                   <option
                     value="{{ cafe.id }}"
                     data-name="{{ cafe.name }}"
-                    data-image="{% if cafe.image %}{{ cafe.image.url }}{% else %}{% static 'brand/bitehub-logo.png' %}{% endif %}"
+                    data-image="{% static 'brand/bitehub-logo.png' %}"
                     {% if selected_cafe_id == cafe.id|stringformat:"s" %}selected{% endif %}
                   >
                     {{ cafe.faculty.name|default:cafe.name }}

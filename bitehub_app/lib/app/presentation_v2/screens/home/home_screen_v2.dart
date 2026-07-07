@@ -1059,11 +1059,14 @@ class _ProductCard extends StatelessWidget {
                   top: 9,
                   start: 9,
                   child: _SmallBadge(
-                    label: product.isAvailable ? 'متاح' : 'غير متاح',
-                    foreground: product.isAvailable
-                        ? AppColors.success
-                        : AppColors.danger,
-                    background: product.isAvailable
+                    label: !canAcceptOrders
+                        ? 'المقهى مغلق'
+                        : product.isAvailable
+                            ? 'متاح'
+                            : 'غير متاح',
+                    foreground:
+                        canAddToCart ? AppColors.success : AppColors.danger,
+                    background: canAddToCart
                         ? const Color(0xFFE6F4F1)
                         : const Color(0xFFFEE2E2),
                   ),

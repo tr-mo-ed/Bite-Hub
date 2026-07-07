@@ -63,7 +63,10 @@ def get_super_admin_kpis():
         "total_orders": sales["total_orders"] or 0,
         "live_orders": Order.objects.filter(status__in=LIVE_ORDER_STATUSES).count(),
         "active_students": User.objects.filter(orders__created_at__gte=last_30_days).distinct().count(),
-        "active_cafes": Cafe.objects.filter(is_active=True).count(),
+        "active_cafes": Cafe.objects.filter(
+            is_active=True,
+            is_accepting_orders=True,
+        ).count(),
     }
 
 

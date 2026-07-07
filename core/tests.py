@@ -810,6 +810,18 @@ class OrderWorkflowTests(TestCase):
         self.assertEqual(len(response.json()), 1)
         self.assertEqual(response.json()[0]["category_id"], self.category.id)
 
+    def test_cafes_api_marks_closed_cafe_as_closed_for_orders(self):
+        self.cafe.is_accepting_orders = False
+        self.cafe.save(update_fields=["is_accepting_orders", "updated_at"])
+
+        response = self.client.get(reverse("v2_app_cafes"))
+
+        self.assertEqual(response.status_code, 200, response.content)
+        payload = next(item for item in response.json() if item["id"] == self.cafe.id)
+        self.assertTrue(payload["is_active"])
+        self.assertFalse(payload["is_accepting_orders"])
+        self.assertEqual(payload["status_label"], "مغلق للطلبات")
+
     def test_products_api_rejects_inactive_cafe(self):
         self.cafe.is_active = False
         self.cafe.save(update_fields=["is_active", "updated_at"])
