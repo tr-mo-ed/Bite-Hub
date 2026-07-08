@@ -43,7 +43,7 @@ from .serializers import (
 )
 from users.models import EmailLoginCode, EmailSignupCode, User
 from wallet.models import Wallet
-from .utils import normalize_libyan_phone
+from .utils import normalize_ascii_digits, normalize_libyan_phone
 
 # --- Caching Setup ---
 PRODUCTS_CACHE_KEY = "products:list:v3"
@@ -268,7 +268,7 @@ def request_email_login_code(request):
 def verify_email_login_code(request):
     email = (request.data.get("email") or "").strip().lower()
     request_id = (request.data.get("request_id") or "").strip()
-    code = (request.data.get("code") or "").strip()
+    code = normalize_ascii_digits(request.data.get("code")).strip()
     if not email or not request_id or not re.fullmatch(r"\d{6}", code):
         return Response(
             {"error": "Email and a valid 6-digit code are required."},
@@ -344,7 +344,8 @@ def api_login(request):
         or request.data.get('phone_number')
     )
     # ??? ??????? password ??? ????? ??? ???? ???? ???? ????? ????.
-    password = request.data.get('password')
+    raw_password = request.data.get('password') or ''
+    password = str(raw_password).strip()
     if not raw_identifier or not password:
         return Response({'error': 'Phone/email and password are required.'}, status=400)
 
@@ -368,6 +369,8 @@ def api_login(request):
 
     # ??? ??????? user ??? ????? ??? ???? ???? ???? ????? ????.
     user = authenticate(request, username=user_obj.email, password=password)
+    if user is None and password != str(raw_password):
+        user = authenticate(request, username=user_obj.email, password=str(raw_password))
     if user:
         return Response(_build_auth_payload(user))
 
@@ -380,7 +383,7 @@ def api_login(request):
 @permission_classes([AllowAny])
 def api_signup(request):
     raw_phone = request.data.get('phone_number')
-    password = request.data.get('password') or ''
+    password = str(request.data.get('password') or '').strip()
     full_name = (request.data.get('full_name') or request.data.get('name') or '').strip()
     email = (request.data.get('email') or '').strip().lower()
 
@@ -502,7 +505,7 @@ def api_signup(request):
 def verify_email_signup_code(request):
     email = (request.data.get("email") or "").strip().lower()
     request_id = (request.data.get("request_id") or "").strip()
-    code = (request.data.get("code") or "").strip()
+    code = normalize_ascii_digits(request.data.get("code")).strip()
     if not email or not request_id or not re.fullmatch(r"\d{6}", code):
         return Response(
             {"error": "Email and a valid 6-digit code are required."},

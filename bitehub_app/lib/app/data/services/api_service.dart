@@ -483,6 +483,35 @@ class ApiService {
     return '$baseUrl$normalized';
   }
 
+  String _normalizeAsciiDigits(String value) {
+    const digits = {
+      '٠': '0',
+      '١': '1',
+      '٢': '2',
+      '٣': '3',
+      '٤': '4',
+      '٥': '5',
+      '٦': '6',
+      '٧': '7',
+      '٨': '8',
+      '٩': '9',
+      '۰': '0',
+      '۱': '1',
+      '۲': '2',
+      '۳': '3',
+      '۴': '4',
+      '۵': '5',
+      '۶': '6',
+      '۷': '7',
+      '۸': '8',
+      '۹': '9',
+    };
+    return value.replaceAllMapped(
+      RegExp('[٠-٩۰-۹]'),
+      (match) => digits[match.group(0)] ?? match.group(0)!,
+    );
+  }
+
   Map<String, dynamic> _normalizeProductPayload(Map<String, dynamic> map) {
     map['image_url'] = _absoluteMediaUrl(
       (map['image_url'] ?? map['image'] ?? map['imageUrl'])?.toString(),
@@ -514,13 +543,14 @@ class ApiService {
   // ???? ???? login ???? ??????? ?? ????? ???? ?????? ?????.
   Future<Map<String, dynamic>> login(String identifier, String password) async {
     final url = Uri.parse('$baseUrl/api/v2/app/auth/login/');
-    final normalizedIdentifier = identifier.trim();
+    final normalizedIdentifier = _normalizeAsciiDigits(identifier).trim();
+    final normalizedPassword = password.trim();
     final payload = <String, dynamic>{
       'identifier': normalizedIdentifier,
       if (normalizedIdentifier.contains('@')) 'email': normalizedIdentifier,
       if (!normalizedIdentifier.contains('@'))
         'phone_number': normalizedIdentifier,
-      'password': password,
+      'password': normalizedPassword,
     };
 
     try {
@@ -601,7 +631,7 @@ class ApiService {
         body: json.encode({
           'email': email.trim().toLowerCase(),
           'request_id': requestId,
-          'code': code.trim(),
+          'code': _normalizeAsciiDigits(code).trim(),
         }),
       );
       final data = _decodeBody(response);
@@ -645,8 +675,8 @@ class ApiService {
         body: json.encode({
           'full_name': fullName,
           'email': email,
-          'phone_number': phone,
-          'password': password,
+          'phone_number': _normalizeAsciiDigits(phone).trim(),
+          'password': password.trim(),
         }),
       );
       final data = _decodeBody(response);
@@ -682,7 +712,7 @@ class ApiService {
         body: json.encode({
           'email': email.trim().toLowerCase(),
           'request_id': requestId,
-          'code': code.trim(),
+          'code': _normalizeAsciiDigits(code).trim(),
         }),
       );
       final data = _decodeBody(response);

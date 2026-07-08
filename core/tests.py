@@ -27,6 +27,10 @@ TEST_CHANNEL_LAYERS = {
 }
 
 
+def _to_arabic_indic_digits(value):
+    return str(value).translate(str.maketrans("0123456789", "٠١٢٣٤٥٦٧٨٩"))
+
+
 class AppLoginApiTests(TestCase):
     def test_student_can_login_with_email_identifier(self):
         user = get_user_model().objects.create_user(
@@ -41,6 +45,27 @@ class AppLoginApiTests(TestCase):
             data={
                 "identifier": "STUDENT-LOGIN@example.com",
                 "password": "StrongPass123",
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.json()["user"]["id"], user.id)
+        self.assertTrue(response.json()["access"])
+
+    def test_student_can_login_with_arabic_phone_digits_and_pasted_password(self):
+        user = get_user_model().objects.create_user(
+            email="student-phone-login@example.com",
+            password="StrongPass123",
+            full_name="Student Phone Login",
+            phone_number="0912345686",
+        )
+
+        response = self.client.post(
+            reverse("v2_app_login"),
+            data={
+                "identifier": _to_arabic_indic_digits("0912345686"),
+                "password": "  StrongPass123  ",
             },
             content_type="application/json",
         )
@@ -108,6 +133,38 @@ class AppLoginApiTests(TestCase):
         self.assertEqual(verify_response.status_code, 200, verify_response.content)
         self.assertEqual(verify_response.json()["user"]["id"], user.id)
         self.assertTrue(verify_response.json()["access"])
+
+    @override_settings(
+        DEBUG=True,
+        BREVO_API_KEY="",
+        BREVO_DEBUG_EMAIL_CODES=True,
+    )
+    def test_email_verification_accepts_arabic_indic_digits(self):
+        user = get_user_model().objects.create_user(
+            email="arabic-code@example.com",
+            password="StrongPass123",
+            full_name="Arabic Code Student",
+            phone_number="0912345687",
+        )
+
+        challenge = self.client.post(
+            reverse("v2_app_email_code_request"),
+            data={"email": "arabic-code@example.com"},
+            content_type="application/json",
+        ).json()
+
+        verify_response = self.client.post(
+            reverse("v2_app_email_code_verify"),
+            data={
+                "email": "arabic-code@example.com",
+                "request_id": challenge["request_id"],
+                "code": _to_arabic_indic_digits(challenge["debug_code"]),
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(verify_response.status_code, 200, verify_response.content)
+        self.assertEqual(verify_response.json()["user"]["id"], user.id)
 
     @override_settings(
         DEBUG=True,
@@ -222,6 +279,41 @@ class AppLoginApiTests(TestCase):
         self.assertTrue(user.check_password("StrongPass123"))
         self.assertTrue(hasattr(user, "wallet"))
         self.assertTrue(verify_response.json()["access"])
+
+    @override_settings(
+        DEBUG=True,
+        BREVO_API_KEY="",
+        BREVO_DEBUG_EMAIL_CODES=True,
+    )
+    def test_signup_accepts_arabic_digits_and_trims_pasted_password(self):
+        signup_response = self.client.post(
+            reverse("v2_app_signup"),
+            data={
+                "full_name": "Arabic Signup Student",
+                "email": "arabic-signup@example.com",
+                "phone_number": _to_arabic_indic_digits("0912345688"),
+                "password": "  StrongPass123  ",
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(signup_response.status_code, 202, signup_response.content)
+        challenge = signup_response.json()
+
+        verify_response = self.client.post(
+            reverse("v2_app_signup_verify"),
+            data={
+                "email": "arabic-signup@example.com",
+                "request_id": challenge["request_id"],
+                "code": _to_arabic_indic_digits(challenge["debug_code"]),
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(verify_response.status_code, 201, verify_response.content)
+        user = get_user_model().objects.get(email="arabic-signup@example.com")
+        self.assertEqual(user.phone_number, "0912345688")
+        self.assertTrue(user.check_password("StrongPass123"))
 
     @override_settings(
         DEBUG=True,
@@ -1286,6 +1378,9 @@ class OrderWorkflowTests(TestCase):
 
     def test_cafe_panel_creates_product_with_image_discount_and_app_order_uses_current_price(self):
         self.client.force_login(self.cashier)
+        cached_products = get_products_cached(self.cafe.id)
+        self.assertEqual([product.name for product in cached_products], ["Espresso"])
+
         image = SimpleUploadedFile(
             "latte.jpg",
             b"GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\xff\xff!\xf9\x04\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;",
@@ -1365,6 +1460,30 @@ class OrderWorkflowTests(TestCase):
             "http://testserver/media/products/",
             orders_response.json()[0]["items"][0]["product_image"],
         )
+
+        self.client.force_login(self.cashier)
+        snapshot_response = self.client.get(
+            reverse("core:cafe_panel_snapshot_api"),
+            data={"cafe_id": self.cafe.id},
+        )
+        self.assertEqual(snapshot_response.status_code, 200, snapshot_response.content)
+        self.assertEqual(snapshot_response.json()["orders"][0]["id"], order.id)
+
+        status_response = self.client.post(
+            reverse("core:update_order_status_api", args=[order.id]),
+            data={"cafe_id": self.cafe.id, "status": "ACCEPTED"},
+        )
+        self.assertEqual(status_response.status_code, 200, status_response.content)
+
+        self.client.force_login(self.customer)
+        tracked_orders_response = self.client.get(reverse("v2_app_orders"))
+        self.assertEqual(
+            tracked_orders_response.status_code,
+            200,
+            tracked_orders_response.content,
+        )
+        self.assertEqual(tracked_orders_response.json()[0]["id"], order.id)
+        self.assertEqual(tracked_orders_response.json()[0]["status"], "ACCEPTED")
 
 
 # ???? ???? DashboardRenderSmokeTests ???? ?????? ????????? ???? ???? ?????.

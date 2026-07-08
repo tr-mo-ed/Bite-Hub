@@ -1,6 +1,39 @@
 import re
 
 
+_DIGIT_TRANSLATION = str.maketrans(
+    {
+        "٠": "0",
+        "١": "1",
+        "٢": "2",
+        "٣": "3",
+        "٤": "4",
+        "٥": "5",
+        "٦": "6",
+        "٧": "7",
+        "٨": "8",
+        "٩": "9",
+        "۰": "0",
+        "۱": "1",
+        "۲": "2",
+        "۳": "3",
+        "۴": "4",
+        "۵": "5",
+        "۶": "6",
+        "۷": "7",
+        "۸": "8",
+        "۹": "9",
+    }
+)
+
+
+def normalize_ascii_digits(value):
+    """
+    Convert Arabic/Persian numerals to ASCII numerals before validation.
+    """
+    return str(value or "").translate(_DIGIT_TRANSLATION)
+
+
 def send_real_notification(user, title, body, *, event_type="SYSTEM", order=None):
     """
     Store an in-app notification without depending on Firebase or external push.
@@ -54,7 +87,7 @@ def normalize_libyan_phone(raw_phone):
     if not raw_phone:
         return ""
 
-    digits = re.sub(r"\D", "", str(raw_phone))
+    digits = re.sub(r"\D", "", normalize_ascii_digits(raw_phone))
 
     if digits.startswith("218"):
         digits = digits[3:]
