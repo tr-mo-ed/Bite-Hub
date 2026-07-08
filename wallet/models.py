@@ -1,3 +1,4 @@
+import re
 import secrets
 import string
 
@@ -9,9 +10,9 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 
 # ???? ???? Wallet ???? ?????? ????????? ???? ???? ?????.
-WALLET_LINK_CODE_ALPHABET = string.ascii_uppercase + string.digits
-WALLET_LINK_CODE_ALLOWED_CHARS = set(WALLET_LINK_CODE_ALPHABET + "_-")
-WALLET_LINK_CODE_LENGTH = 16
+WALLET_LINK_CODE_ALPHABET = string.digits
+WALLET_LINK_CODE_ALLOWED_CHARS = set(string.ascii_uppercase + string.digits + "_-")
+WALLET_LINK_CODE_LENGTH = 5
 
 
 def generate_wallet_link_code():
@@ -23,9 +24,10 @@ def generate_wallet_link_code():
 
 def normalize_wallet_link_code(raw_code):
     code = str(raw_code or "").strip().upper()
-    if (
-        12 <= len(code) <= 32
-        and all(char in WALLET_LINK_CODE_ALLOWED_CHARS for char in code)
+    if re.fullmatch(r"\d{4,5}", code):
+        return code
+    if 12 <= len(code) <= 32 and all(
+        char in WALLET_LINK_CODE_ALLOWED_CHARS for char in code
     ):
         return code
     return ""

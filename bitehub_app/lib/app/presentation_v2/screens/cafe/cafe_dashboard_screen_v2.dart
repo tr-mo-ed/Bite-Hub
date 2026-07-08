@@ -16,6 +16,7 @@ class _CafeDashboardScreenV2State extends State<CafeDashboardScreenV2> {
   final ApiService _apiService = ApiService();
 
   CafeOrderStatus? _status;
+  CafeOperationsSummary? _summary;
   bool _isLoadingStatus = true;
   bool _isSavingStatus = false;
   String? _errorMessage;
@@ -34,8 +35,17 @@ class _CafeDashboardScreenV2State extends State<CafeDashboardScreenV2> {
 
     try {
       final status = await _apiService.getManagedCafeOrderStatus();
+      CafeOperationsSummary? summary;
+      try {
+        summary = await _apiService.getManagedCafeOperationsSummary();
+      } catch (_) {
+        summary = _summary;
+      }
       if (!mounted) return;
-      setState(() => _status = status);
+      setState(() {
+        _status = status;
+        _summary = summary;
+      });
     } catch (error) {
       if (!mounted) return;
       setState(() => _errorMessage = error.toString());
@@ -127,6 +137,10 @@ class _CafeDashboardScreenV2State extends State<CafeDashboardScreenV2> {
                 onRefresh: _loadCafeStatus,
                 onChanged: _setAcceptingOrders,
               ),
+              if (_summary != null) ...[
+                const SizedBox(height: 20),
+                _OperationsSummaryCard(summary: _summary!),
+              ],
               const SizedBox(height: 20),
               const _ActionCard(
                 icon: Icons.receipt_long_rounded,
@@ -347,6 +361,166 @@ class _OrderAcceptanceCard extends StatelessWidget {
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+class _OperationsSummaryCard extends StatelessWidget {
+  const _OperationsSummaryCard({required this.summary});
+
+  final CafeOperationsSummary summary;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE5EAF0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.045),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.analytics_outlined, color: AppColors.brandBlue),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'ملخص الجرد',
+                  style: TextStyle(
+                    color: AppColors.brandNavy,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'أرقام تساعد صاحب المقهى على مراجعة اليوم أو الأسبوع أو الشهر.',
+            style: TextStyle(
+              color: Colors.blueGrey.shade700,
+              height: 1.45,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 16),
+          _PeriodSummaryTile(label: 'اليوم', summary: summary.today),
+          const SizedBox(height: 10),
+          _PeriodSummaryTile(label: 'الأسبوع', summary: summary.week),
+          const SizedBox(height: 10),
+          _PeriodSummaryTile(label: 'الشهر', summary: summary.month),
+        ],
+      ),
+    );
+  }
+}
+
+class _PeriodSummaryTile extends StatelessWidget {
+  const _PeriodSummaryTile({
+    required this.label,
+    required this.summary,
+  });
+
+  final String label;
+  final CafePeriodSummary summary;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE5EAF0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  color: AppColors.brandNavy,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '${summary.sales.toStringAsFixed(2)} د.ل',
+                style: const TextStyle(
+                  color: AppColors.success,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _MiniMetric(label: 'الطلبات', value: '${summary.orders}'),
+              _MiniMetric(
+                label: 'المكتملة',
+                value: '${summary.completedOrders}',
+              ),
+              _MiniMetric(
+                label: 'الملغية',
+                value: '${summary.cancelledOrders}',
+              ),
+              _MiniMetric(
+                label: 'المحفظة',
+                value:
+                    '${summary.walletOut.toStringAsFixed(2)} د.ل / ${summary.walletOperations}',
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MiniMetric extends StatelessWidget {
+  const _MiniMetric({
+    required this.label,
+    required this.value,
+  });
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0xFFE5EAF0)),
+      ),
+      child: Text(
+        '$label: $value',
+        style: const TextStyle(
+          color: AppColors.brandNavy,
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
+        ),
       ),
     );
   }

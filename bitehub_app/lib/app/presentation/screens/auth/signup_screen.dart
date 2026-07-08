@@ -574,7 +574,11 @@ class _AuthHeader extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: AppColors.border),
           ),
-          child: Image.asset('assets/images/bitehub_app_icon.png'),
+          child: Image.asset(
+            'assets/images/bitehub_app_icon.png',
+            fit: BoxFit.contain,
+            filterQuality: FilterQuality.high,
+          ),
         ),
         const SizedBox(height: 18),
         Text(

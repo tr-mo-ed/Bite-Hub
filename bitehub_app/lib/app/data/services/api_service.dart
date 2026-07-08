@@ -96,6 +96,71 @@ class CafeOrderStatus {
   }
 }
 
+class CafePeriodSummary {
+  const CafePeriodSummary({
+    required this.sales,
+    required this.orders,
+    required this.completedOrders,
+    required this.cancelledOrders,
+    required this.liveOrders,
+    required this.walletIn,
+    required this.walletOut,
+    required this.walletOperations,
+  });
+
+  final double sales;
+  final int orders;
+  final int completedOrders;
+  final int cancelledOrders;
+  final int liveOrders;
+  final double walletIn;
+  final double walletOut;
+  final int walletOperations;
+
+  factory CafePeriodSummary.fromJson(Map<String, dynamic> json) {
+    return CafePeriodSummary(
+      sales: double.tryParse('${json['sales'] ?? 0}') ?? 0,
+      orders: int.tryParse('${json['orders'] ?? 0}') ?? 0,
+      completedOrders: int.tryParse('${json['completed_orders'] ?? 0}') ?? 0,
+      cancelledOrders: int.tryParse('${json['cancelled_orders'] ?? 0}') ?? 0,
+      liveOrders: int.tryParse('${json['live_orders'] ?? 0}') ?? 0,
+      walletIn: double.tryParse('${json['wallet_in'] ?? 0}') ?? 0,
+      walletOut: double.tryParse('${json['wallet_out'] ?? 0}') ?? 0,
+      walletOperations: int.tryParse('${json['wallet_operations'] ?? 0}') ?? 0,
+    );
+  }
+}
+
+class CafeOperationsSummary {
+  const CafeOperationsSummary({
+    required this.today,
+    required this.week,
+    required this.month,
+    required this.generatedAt,
+  });
+
+  final CafePeriodSummary today;
+  final CafePeriodSummary week;
+  final CafePeriodSummary month;
+  final String generatedAt;
+
+  factory CafeOperationsSummary.fromJson(Map<String, dynamic> json) {
+    final summary = json['summary'];
+    final map = summary is Map<String, dynamic> ? summary : json;
+    Map<String, dynamic> readMap(String key) {
+      final value = map[key];
+      return value is Map<String, dynamic> ? value : <String, dynamic>{};
+    }
+
+    return CafeOperationsSummary(
+      today: CafePeriodSummary.fromJson(readMap('today')),
+      week: CafePeriodSummary.fromJson(readMap('week')),
+      month: CafePeriodSummary.fromJson(readMap('month')),
+      generatedAt: (map['generated_at'] ?? '').toString(),
+    );
+  }
+}
+
 // ???? ???? ApiService ???? ???? ????? ???? ?? ???? ????.
 class ApiService {
   // ??? ??????? baseUrl ??? ?????? ???? ????? ????.
@@ -713,6 +778,27 @@ class ApiService {
     }
   }
 
+  Future<CafeOperationsSummary> getManagedCafeOperationsSummary() async {
+    final url = Uri.parse('$baseUrl/api/v2/cafe/summary/');
+
+    try {
+      final response = await _sendWithAuthRetry(
+        (headers) => http.get(url, headers: headers),
+      );
+      final data = _decodeBody(response);
+
+      if (response.statusCode == 200 && data is Map<String, dynamic>) {
+        return CafeOperationsSummary.fromJson(data);
+      }
+
+      throw _buildException(response, data);
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      throw _networkException(e);
+    }
+  }
+
   // ???? ???? getCafes ???? ??????? ?? ????? ???? ?????? ?????.
   Future<List<CollegeModel>> getCafes() async {
     final url = Uri.parse('$baseUrl/api/v2/app/cafes/');
@@ -1053,8 +1139,7 @@ class ApiService {
   // ???? ???? createOrder ???? ??????? ?? ????? ???? ?????? ?????.
   Future<OrderModel> createOrder(
       double totalPrice, List<Map<String, dynamic>> items, String collegeId,
-      {String paymentMethod = 'WALLET',
-      String? orderNote}) async {
+      {String paymentMethod = 'WALLET', String? orderNote}) async {
     final url = Uri.parse('$baseUrl/api/v2/app/orders/');
 
     try {

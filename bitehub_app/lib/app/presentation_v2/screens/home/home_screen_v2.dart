@@ -386,7 +386,7 @@ class _HomeHero extends StatelessWidget {
                 children: [
                   Expanded(
                     child: _HeroMetric(
-                            icon: Icons.storefront_outlined,
+                      icon: Icons.storefront_outlined,
                       value: '$cafeCount',
                       label: 'مقهى',
                     ),
@@ -394,7 +394,7 @@ class _HomeHero extends StatelessWidget {
                   const SizedBox(width: 8),
                   Expanded(
                     child: _HeroMetric(
-                            icon: Icons.restaurant_menu_outlined,
+                      icon: Icons.restaurant_menu_outlined,
                       value: '$productCount',
                       label: 'منتج',
                     ),
@@ -402,7 +402,7 @@ class _HomeHero extends StatelessWidget {
                   const SizedBox(width: 8),
                   const Expanded(
                     child: _HeroMetric(
-                            icon: Icons.bolt_outlined,
+                      icon: Icons.bolt_outlined,
                       value: 'سريع',
                       label: 'طلبك',
                     ),
@@ -828,7 +828,6 @@ class _CafeAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final imageUrl = cafe?.image?.trim() ?? '';
-    final initials = _cafeInitials(cafe?.name ?? 'Bite Hub');
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 220),
@@ -852,56 +851,47 @@ class _CafeAvatar extends StatelessWidget {
       ),
       child: ClipOval(
         child: imageUrl.isEmpty
-            ? _CafeInitials(initials: initials)
+            ? const _CafeImagePlaceholder()
             : Image.network(
                 imageUrl,
                 fit: BoxFit.cover,
                 filterQuality: FilterQuality.high,
                 isAntiAlias: true,
                 gaplessPlayback: true,
-                errorBuilder: (_, __, ___) => _CafeInitials(initials: initials),
+                cacheWidth:
+                    (size * MediaQuery.devicePixelRatioOf(context)).round(),
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) {
+                    return child;
+                  }
+                  return const _CafeImagePlaceholder(isLoading: true);
+                },
+                errorBuilder: (_, __, ___) => const _CafeImagePlaceholder(),
               ),
       ),
     );
   }
 }
 
-class _CafeInitials extends StatelessWidget {
-  const _CafeInitials({required this.initials});
+class _CafeImagePlaceholder extends StatelessWidget {
+  const _CafeImagePlaceholder({this.isLoading = false});
 
-  final String initials;
+  final bool isLoading;
 
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: const Color(0xFFEFF4FF),
+      color: Colors.white,
       child: Center(
-        child: Text(
-          initials,
-          style: const TextStyle(
-            color: AppColors.brandBlue,
-            fontSize: 18,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
+        child: isLoading
+            ? const SizedBox.square(
+                dimension: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const SizedBox.shrink(),
       ),
     );
   }
-}
-
-String _cafeInitials(String name) {
-  final words = name
-      .split(RegExp(r'\s+'))
-      .where((word) => word.trim().isNotEmpty && word != 'مقهى')
-      .toList();
-  if (words.isEmpty) {
-    return 'BH';
-  }
-  if (words.length == 1) {
-    final word = words.first;
-    return word.substring(0, word.length >= 2 ? 2 : 1);
-  }
-  return '${words.first[0]}${words.last[0]}';
 }
 
 class _SearchField extends StatelessWidget {
@@ -925,6 +915,8 @@ class _SearchField extends StatelessWidget {
       controller: controller,
       onChanged: onChanged,
       textInputAction: TextInputAction.search,
+      textAlign: TextAlign.center,
+      textAlignVertical: TextAlignVertical.center,
       decoration: InputDecoration(
         filled: true,
         fillColor: Colors.white,
@@ -1051,6 +1043,7 @@ class _ProductCard extends StatelessWidget {
                       child: ProductImageView(
                         imagePath: product.getImageUrl(),
                         fit: BoxFit.cover,
+                        fallback: const _FoodImageFallback(),
                       ),
                     ),
                   ),
@@ -1172,6 +1165,33 @@ class _ProductCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _FoodImageFallback extends StatelessWidget {
+  const _FoodImageFallback();
+
+  @override
+  Widget build(BuildContext context) {
+    return const DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topRight,
+          end: Alignment.bottomLeft,
+          colors: [
+            Color(0xFFFFFBEB),
+            Color(0xFFEAF4EF),
+          ],
+        ),
+      ),
+      child: Center(
+        child: Icon(
+          Icons.restaurant_menu_outlined,
+          color: AppColors.brandBlue,
+          size: 32,
+        ),
       ),
     );
   }

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 import json
 import logging
@@ -8,10 +9,11 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required, user_passes_test
-from django.db.models import OuterRef, Q, Subquery, Sum
+from django.db.models import Count, OuterRef, Q, Subquery, Sum
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 from rest_framework.decorators import api_view, permission_classes
@@ -41,7 +43,7 @@ from .backoffice_services import (
     update_cafe_image,
 )
 from .credential_vault import decrypt_cafe_password
-from .models import Cafe, Category
+from .models import Cafe, Category, Order, OrderStatus
 from .serializers import OrderSerializer, ProductSerializer
 from .services import NotFoundServiceError, ValidationServiceError, update_order_status
 from .utils import normalize_libyan_phone
@@ -71,6 +73,67 @@ def _cafe_status_payload(cafe: Cafe) -> dict:
         "code": cafe.code,
         "is_active": cafe.is_active,
         "is_accepting_orders": cafe.is_accepting_orders,
+    }
+
+
+def _money(value) -> str:
+    return str((value or Decimal("0.00")).quantize(Decimal("0.01")))
+
+
+def _cafe_period_summary(cafe: Cafe, start_at, end_at) -> dict:
+    orders = Order.objects.for_cafe(cafe.id).filter(
+        created_at__gte=start_at,
+        created_at__lt=end_at,
+    )
+    payable_orders = orders.exclude(status=OrderStatus.CANCELLED)
+    order_stats = orders.aggregate(
+        total_orders=Count("id"),
+        completed_orders=Count("id", filter=Q(status=OrderStatus.COMPLETED)),
+        cancelled_orders=Count("id", filter=Q(status=OrderStatus.CANCELLED)),
+        live_orders=Count(
+            "id",
+            filter=Q(
+                status__in=[
+                    OrderStatus.PENDING,
+                    OrderStatus.ACCEPTED,
+                    OrderStatus.PREPARING,
+                    OrderStatus.READY,
+                ]
+            ),
+        ),
+    )
+    wallet_stats = Transaction.objects.filter(
+        cafe=cafe,
+        created_at__gte=start_at,
+        created_at__lt=end_at,
+    ).aggregate(
+        wallet_in=Sum("amount", filter=Q(transaction_type="DEPOSIT")),
+        wallet_out=Sum("amount", filter=Q(transaction_type="WITHDRAWAL")),
+        wallet_operations=Count("id"),
+    )
+    return {
+        "sales": _money(payable_orders.aggregate(total=Sum("total_price"))["total"]),
+        "orders": order_stats["total_orders"] or 0,
+        "completed_orders": order_stats["completed_orders"] or 0,
+        "cancelled_orders": order_stats["cancelled_orders"] or 0,
+        "live_orders": order_stats["live_orders"] or 0,
+        "wallet_in": _money(wallet_stats["wallet_in"]),
+        "wallet_out": _money(wallet_stats["wallet_out"]),
+        "wallet_operations": wallet_stats["wallet_operations"] or 0,
+    }
+
+
+def _cafe_operations_summary_payload(cafe: Cafe) -> dict:
+    now = timezone.localtime()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    week_start = today_start - timedelta(days=today_start.weekday())
+    month_start = today_start.replace(day=1)
+    return {
+        "cafe": _cafe_status_payload(cafe),
+        "generated_at": now.isoformat(),
+        "today": _cafe_period_summary(cafe, today_start, now),
+        "week": _cafe_period_summary(cafe, week_start, now),
+        "month": _cafe_period_summary(cafe, month_start, now),
     }
 
 
@@ -957,6 +1020,24 @@ def cafe_accepting_orders_api(request):
             "success": True,
             "message": "تم فتح استقبال الطلبات." if cafe.is_accepting_orders else "تم إغلاق استقبال الطلبات.",
             "cafe": _cafe_status_payload(cafe),
+        }
+    )
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def cafe_operations_summary_api(request):
+    cafe = resolve_backoffice_cafe(request.user)
+    if cafe is None:
+        return Response(
+            {"success": False, "message": "No active cafe is linked to this account."},
+            status=403,
+        )
+
+    return Response(
+        {
+            "success": True,
+            "summary": _cafe_operations_summary_payload(cafe),
         }
     )
 

@@ -18,6 +18,26 @@ class WalletScreenV2 extends StatefulWidget {
   State<WalletScreenV2> createState() => _WalletScreenV2State();
 }
 
+String _displayWalletOwnerName(String value) {
+  final normalized = value.trim();
+  if (normalized.toLowerCase().contains('super admin')) {
+    return '';
+  }
+  return normalized;
+}
+
+String _displayWalletCode(String value) {
+  final normalized = value.trim();
+  final digits = normalized.replaceAll(RegExp(r'\D'), '');
+  if (digits.length >= 5) {
+    return digits.substring(digits.length - 5);
+  }
+  if (digits.length >= 4) {
+    return digits;
+  }
+  return normalized;
+}
+
 class _WalletScreenV2State extends State<WalletScreenV2> {
   late final WalletV2Controller _controller;
 
@@ -209,8 +229,13 @@ class _WalletScreenV2State extends State<WalletScreenV2> {
             if (showWalletCode) ...[
               TextField(
                 controller: codeController,
+                keyboardType: TextInputType.number,
+                maxLength: 5,
                 textInputAction: TextInputAction.next,
-                decoration: const InputDecoration(labelText: 'كود المحفظة'),
+                decoration: const InputDecoration(
+                  labelText: 'كود المحفظة',
+                  counterText: '',
+                ),
               ),
               const SizedBox(height: BhSpacing.md),
             ],
@@ -407,6 +432,9 @@ class _BalancePanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ownerName = _displayWalletOwnerName(wallet.userFullName);
+    final walletCode = _displayWalletCode(wallet.linkCode);
+
     return BhSurface(
       padding: const EdgeInsets.all(BhSpacing.xl),
       child: Column(
@@ -433,9 +461,7 @@ class _BalancePanel extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      wallet.userFullName.isEmpty
-                          ? 'محفظة الطالب'
-                          : wallet.userFullName,
+                      ownerName.isEmpty ? 'محفظة الطالب' : ownerName,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -509,7 +535,7 @@ class _BalancePanel extends StatelessWidget {
                 ),
                 const Spacer(),
                 SelectableText(
-                  wallet.linkCode.isEmpty ? '---' : wallet.linkCode,
+                  walletCode.isEmpty ? '---' : walletCode,
                   style: const TextStyle(
                     color: AppColors.textPrimary,
                     fontWeight: FontWeight.w900,

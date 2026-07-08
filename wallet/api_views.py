@@ -63,6 +63,8 @@ def _normalize_card_uid(raw_uid):
 
 def _normalize_wallet_link_code(raw_code):
     code = str(raw_code or "").strip().upper()
+    if re.fullmatch(r"\d{4,5}", code):
+        return code
     if not 12 <= len(code) <= 32 or not re.fullmatch(r"[A-Z0-9_-]+", code):
         raise ValueError("كود المحفظة غير صحيح.")
     return code

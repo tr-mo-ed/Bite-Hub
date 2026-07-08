@@ -184,9 +184,9 @@ class _BaseScreenState extends State<BaseScreen> {
                 tooltip: 'رجوع',
               )
             : widget.drawer != null
-                ? IconButton(
+                ? _HeaderIconButton(
+                    icon: Icons.menu_rounded,
                     onPressed: () => _scaffoldKey.currentState?.openDrawer(),
-                    icon: const Icon(Icons.menu_rounded),
                     tooltip: 'القائمة',
                   )
                 : null,
@@ -249,18 +249,23 @@ class _NotificationBellButton extends StatelessWidget {
               onTap: onPressed,
               borderRadius: BorderRadius.circular(14),
               child: Ink(
-                width: 40,
-                height: 40,
+                width: 42,
+                height: 42,
                 decoration: BoxDecoration(
-                  color: unreadCount > 0
-                      ? const Color(0xFFE8F4EF)
-                      : AppColors.neutral50,
+                  color: Colors.white.withValues(alpha: .92),
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(
                     color: unreadCount > 0
                         ? const Color(0xFFB9DDD2)
                         : AppColors.border,
                   ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: .05),
+                      blurRadius: 14,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
                 ),
                 child: Icon(
                   unreadCount > 0
@@ -299,6 +304,48 @@ class _NotificationBellButton extends StatelessWidget {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+class _HeaderIconButton extends StatelessWidget {
+  const _HeaderIconButton({
+    required this.icon,
+    required this.onPressed,
+    required this.tooltip,
+  });
+
+  final IconData icon;
+  final VoidCallback onPressed;
+  final String tooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      tooltip: tooltip,
+      onPressed: onPressed,
+      icon: Container(
+        width: 42,
+        height: 42,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: .92),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.border),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: .05),
+              blurRadius: 14,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Icon(
+          icon,
+          size: 21,
+          color: AppColors.textPrimary,
+        ),
       ),
     );
   }

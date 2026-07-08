@@ -22,7 +22,6 @@ class MainShellV2 extends StatefulWidget {
 
 class _MainShellV2State extends State<MainShellV2> {
   late final ShellV2Controller _controller;
-  final GlobalKey<HomeScreenV2State> _homeKey = GlobalKey<HomeScreenV2State>();
 
   @override
   void initState() {
@@ -50,7 +49,7 @@ class _MainShellV2State extends State<MainShellV2> {
         title: strings.home,
         icon: Icons.home_outlined,
         activeIcon: Icons.home_outlined,
-        screen: HomeScreenV2(key: _homeKey),
+        screen: const HomeScreenV2(),
       ),
       BaseScreenTab(
         title: strings.orders,
@@ -86,27 +85,15 @@ class _MainShellV2State extends State<MainShellV2> {
       builder: (context, _) {
         return Consumer<NavigationProvider>(
           builder: (context, navigation, __) {
-            final currentIndex = navigation.currentIndex;
             return BaseScreen(
               tabs: _buildTabs(),
-              currentIndex: currentIndex,
+              currentIndex: navigation.currentIndex,
               onTabChanged: navigation.setIndex,
               drawer: ShellDrawerV2(
                 controller: _controller,
                 onSelectIndex: navigation.setIndex,
                 onOpenCafeDashboard: _openCafeDashboard,
               ),
-              actions: [
-                if (currentIndex == 0)
-                  IconButton(
-                    onPressed: () => _homeKey.currentState?.refresh(),
-                    icon: const Icon(
-                      Icons.refresh_rounded,
-                      color: Color(0xFFE0B42C),
-                    ),
-                    tooltip: 'تحديث المقاهي',
-                  ),
-              ],
             );
           },
         );

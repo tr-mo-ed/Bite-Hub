@@ -1594,6 +1594,41 @@ class DashboardRenderSmokeTests(TestCase):
         self.cafe.refresh_from_db()
         self.assertTrue(self.cafe.is_accepting_orders)
 
+    def test_cafe_operator_summary_api_returns_period_totals(self):
+        category = Category.objects.create(cafe=self.cafe, name="Meals")
+        product = Product.objects.create(
+            cafe=self.cafe,
+            category=category,
+            name="Lunch Box",
+            price=Decimal("10.00"),
+            stock_quantity=4,
+        )
+        order = create_order(
+            user=self.student,
+            cafe_id=self.cafe.id,
+            payment_method="CASH",
+            total_price=Decimal("20.00"),
+            items_data=[
+                {
+                    "product_id": product.id,
+                    "quantity": 2,
+                }
+            ],
+        )
+        order.status = OrderStatus.COMPLETED
+        order.save(update_fields=["status"])
+        self.client.force_login(self.cashier)
+
+        response = self.client.get(reverse("v2_cafe_operations_summary"))
+
+        self.assertEqual(response.status_code, 200, response.content)
+        payload = response.json()["summary"]
+        self.assertEqual(payload["today"]["orders"], 1)
+        self.assertEqual(payload["today"]["completed_orders"], 1)
+        self.assertEqual(payload["today"]["sales"], "20.00")
+        self.assertEqual(payload["week"]["sales"], "20.00")
+        self.assertEqual(payload["month"]["sales"], "20.00")
+
     def test_cafe_operator_can_deposit_and_withdraw_student_wallet(self):
         self.client.force_login(self.cashier)
 

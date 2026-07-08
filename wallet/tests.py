@@ -111,9 +111,9 @@ class WalletTopupPermissionTests(TestCase):
         self.assertEqual(self.student.wallet.balance, Decimal("7.00"))
         self.assertEqual(self.receiver.wallet.balance, Decimal("5.00"))
 
-    def test_wallet_link_codes_are_generated_with_stronger_length(self):
+    def test_wallet_link_codes_are_generated_as_short_numeric_codes(self):
         self.student.wallet.refresh_from_db()
-        self.assertGreaterEqual(len(self.student.wallet.link_code), 12)
+        self.assertRegex(self.student.wallet.link_code, r"^\d{5}$")
 
     def test_transfer_rejects_malformed_wallet_code(self):
         Transaction.objects.create(
