@@ -114,8 +114,6 @@ class HomeScreenV2State extends State<HomeScreenV2> {
             ? 3
             : 2;
     final productCardExtent = screenWidth < 390 ? 268.0 : 278.0;
-    final cartCount = context.watch<CartProvider>().itemCount;
-
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, _) {
@@ -147,10 +145,6 @@ class HomeScreenV2State extends State<HomeScreenV2> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _HomeHero(
-                          cafe: selectedCafe,
-                          productCount: _controller.products.length,
-                          cafeCount: _controller.colleges.length,
-                          cartCount: cartCount,
                           searchController: _searchController,
                           hasSearchText:
                               _searchController.text.trim().isNotEmpty,
@@ -168,7 +162,7 @@ class HomeScreenV2State extends State<HomeScreenV2> {
                           trailing: BhStatusPill(
                             label: '${_controller.colleges.length}',
                             foreground: AppColors.brandBlue,
-                            background: const Color(0xFFEAF4EF),
+                            background: const Color(0xFFEFF6FF),
                             icon: Icons.storefront_outlined,
                           ),
                         ),
@@ -254,20 +248,12 @@ class HomeScreenV2State extends State<HomeScreenV2> {
 
 class _HomeHero extends StatelessWidget {
   const _HomeHero({
-    required this.cafe,
-    required this.productCount,
-    required this.cafeCount,
-    required this.cartCount,
     required this.searchController,
     required this.hasSearchText,
     required this.onSearchChanged,
     required this.onClearSearch,
   });
 
-  final CollegeModel? cafe;
-  final int productCount;
-  final int cafeCount;
-  final int cartCount;
   final TextEditingController searchController;
   final bool hasSearchText;
   final ValueChanged<String> onSearchChanged;
@@ -275,248 +261,12 @@ class _HomeHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cafeName = cafe?.name ?? 'اختر المقهى';
-    final subtitle = cafe == null
-        ? 'حدد المقهى وشوف المنيو مباشرة'
-        : 'منيو سريع، واضح، وجاهز للطلب';
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topRight,
-          end: Alignment.bottomLeft,
-          colors: [
-            Color(0xFF123E36),
-            Color(0xFF167C68),
-            Color(0xFF42A88F),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(30),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.brandBlue.withValues(alpha: .24),
-            blurRadius: 26,
-            offset: const Offset(0, 14),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          PositionedDirectional(
-            top: -34,
-            end: -26,
-            child: Container(
-              width: 128,
-              height: 128,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: .10),
-              ),
-            ),
-          ),
-          PositionedDirectional(
-            bottom: 18,
-            start: -42,
-            child: Container(
-              width: 96,
-              height: 96,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.brandGold.withValues(alpha: .16),
-              ),
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  _CafeAvatar(
-                    cafe: cafe,
-                    size: 56,
-                    selected: cafe != null,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Bite Hub',
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: .76),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          cafeName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 23,
-                            fontWeight: FontWeight.w900,
-                            height: 1.08,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          subtitle,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: .82),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  _HeroCartBadge(cartCount: cartCount),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: _HeroMetric(
-                      icon: Icons.storefront_outlined,
-                      value: '$cafeCount',
-                      label: 'مقهى',
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _HeroMetric(
-                      icon: Icons.restaurant_menu_outlined,
-                      value: '$productCount',
-                      label: 'منتج',
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  const Expanded(
-                    child: _HeroMetric(
-                      icon: Icons.bolt_outlined,
-                      value: 'سريع',
-                      label: 'طلبك',
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              _SearchField(
-                controller: searchController,
-                hasText: hasSearchText,
-                onChanged: onSearchChanged,
-                onClear: onClearSearch,
-                compact: true,
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _HeroCartBadge extends StatelessWidget {
-  const _HeroCartBadge({required this.cartCount});
-
-  final int cartCount;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 48,
-      height: 48,
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: .16),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withValues(alpha: .20)),
-      ),
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          const Center(
-            child: Icon(
-              Icons.shopping_bag_outlined,
-              color: Colors.white,
-              size: 23,
-            ),
-          ),
-          if (cartCount > 0)
-            PositionedDirectional(
-              top: -5,
-              end: -5,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                decoration: BoxDecoration(
-                  color: AppColors.brandGold,
-                  borderRadius: BorderRadius.circular(99),
-                  border: Border.all(color: Colors.white, width: 1.5),
-                ),
-                child: Text(
-                  '$cartCount',
-                  style: const TextStyle(
-                    color: AppColors.brandNavy,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w900,
-                    height: 1,
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _HeroMetric extends StatelessWidget {
-  const _HeroMetric({
-    required this.icon,
-    required this.value,
-    required this.label,
-  });
-
-  final IconData icon;
-  final String value;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 9),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: .14),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: .14)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, size: 15, color: Colors.white),
-          const SizedBox(width: 5),
-          Flexible(
-            child: Text(
-              '$value $label',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 11,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ),
-        ],
-      ),
+    return _SearchField(
+      controller: searchController,
+      hasText: hasSearchText,
+      onChanged: onSearchChanged,
+      onClear: onClearSearch,
+      compact: true,
     );
   }
 }
@@ -588,7 +338,7 @@ class _SelectedCafeHeader extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
             decoration: BoxDecoration(
               color: cartCount > 0
-                  ? const Color(0xFFEAF4EF)
+                  ? const Color(0xFFEFF6FF)
                   : AppColors.neutral100,
               borderRadius: BorderRadius.circular(BhRadius.md),
             ),
@@ -744,7 +494,7 @@ class _CafeCard extends StatelessWidget {
             duration: const Duration(milliseconds: 180),
             padding: const EdgeInsets.all(9),
             decoration: BoxDecoration(
-              color: selected ? const Color(0xFFE9F7F3) : Colors.white,
+              color: selected ? const Color(0xFFEFF6FF) : Colors.white,
               borderRadius: BorderRadius.circular(24),
               border: Border.all(
                 color: selected ? AppColors.brandBlue : AppColors.border,
@@ -986,7 +736,7 @@ class _CategoryStrip extends StatelessWidget {
             showCheckmark: false,
             label: Text(category),
             onSelected: (_) => onSelect(category),
-            selectedColor: const Color(0xFFE9F7F3),
+            selectedColor: const Color(0xFFEFF6FF),
             backgroundColor: AppColors.surface,
             side: BorderSide(
               color: selected ? AppColors.brandBlue : AppColors.border,
@@ -1182,7 +932,7 @@ class _FoodImageFallback extends StatelessWidget {
           end: Alignment.bottomLeft,
           colors: [
             Color(0xFFFFFBEB),
-            Color(0xFFEAF4EF),
+            Color(0xFFEFF6FF),
           ],
         ),
       ),
@@ -1338,7 +1088,7 @@ class _EmptyProductsState extends StatelessWidget {
                 height: 54,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEAF4EF),
+                  color: const Color(0xFFEFF6FF),
                   borderRadius: BorderRadius.circular(BhRadius.md),
                 ),
                 child: const Icon(

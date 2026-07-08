@@ -33,12 +33,18 @@ class AuthProvider with ChangeNotifier {
 
   // ???? ???? _checkLoginStatus ???? ??????? ?? ????? ???? ?????? ?????.
   Future<void> _checkLoginStatus() async {
-    final token = await _apiService.getToken();
-    if (token != null) {
-      _status = AuthStatus.authenticated;
-      notifyListeners();
-      await fetchUserProfile();
-    } else {
+    try {
+      final token =
+          await _apiService.getToken().timeout(const Duration(seconds: 4));
+      if (token != null) {
+        _status = AuthStatus.authenticated;
+        notifyListeners();
+        await fetchUserProfile();
+      } else {
+        _status = AuthStatus.unauthenticated;
+        notifyListeners();
+      }
+    } catch (_) {
       _status = AuthStatus.unauthenticated;
       notifyListeners();
     }

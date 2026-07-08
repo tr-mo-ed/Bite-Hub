@@ -335,9 +335,6 @@ class _ProfileIdentity extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final image = _resolveImage();
-    final initial =
-        user.fullName.trim().isEmpty ? 'B' : user.fullName.trim()[0];
-
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -361,16 +358,13 @@ class _ProfileIdentity extends StatelessWidget {
                 children: [
                   CircleAvatar(
                     radius: 38,
-                    backgroundColor: const Color(0xFFE8F4EF),
+                    backgroundColor: const Color(0xFFEFF6FF),
                     backgroundImage: image,
                     child: image == null
-                        ? Text(
-                            initial,
-                            style: const TextStyle(
-                              color: AppColors.brandBlue,
-                              fontSize: 28,
-                              fontWeight: FontWeight.w900,
-                            ),
+                        ? const Icon(
+                            Ionicons.person_outline,
+                            color: AppColors.brandBlue,
+                            size: 34,
                           )
                         : null,
                   ),
@@ -440,7 +434,7 @@ class _ProfileIdentity extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
-              color: const Color(0xFFF2F6F3),
+              color: const Color(0xFFEFF6FF),
               borderRadius: BorderRadius.circular(18),
             ),
             child: Row(

@@ -18,6 +18,7 @@ class ShellDrawerV2 extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final currentUser = controller.authProvider.currentUser;
+    final profileImage = _profileImage(currentUser?.profileImage);
 
     return Drawer(
       child: SafeArea(
@@ -68,13 +69,14 @@ class ShellDrawerV2 extends StatelessWidget {
                               radius: 26,
                               backgroundColor:
                                   Colors.white.withValues(alpha: 0.16),
-                              child: Text(
-                                _initials(currentUser?.fullName ?? 'Bite Hub'),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
+                              backgroundImage: profileImage,
+                              child: profileImage == null
+                                  ? const Icon(
+                                      Icons.person_rounded,
+                                      color: Colors.white,
+                                      size: 28,
+                                    )
+                                  : null,
                             ),
                             const SizedBox(width: 12),
                             Expanded(
@@ -201,21 +203,12 @@ class ShellDrawerV2 extends StatelessWidget {
     );
   }
 
-  String _initials(String name) {
-    final words = name
-        .split(RegExp(r'\s+'))
-        .map((value) => value.trim())
-        .where((value) => value.isNotEmpty)
-        .toList();
-    if (words.isEmpty) {
-      return 'BH';
+  ImageProvider<Object>? _profileImage(String? imageUrl) {
+    final trimmed = imageUrl?.trim() ?? '';
+    if (trimmed.isEmpty) {
+      return null;
     }
-    if (words.length == 1) {
-      return words.first
-          .substring(0, words.first.length >= 2 ? 2 : 1)
-          .toUpperCase();
-    }
-    return '${words.first[0]}${words.last[0]}'.toUpperCase();
+    return NetworkImage(trimmed);
   }
 }
 

@@ -133,7 +133,7 @@ class _BaseScreenState extends State<BaseScreen> {
           title: tab.title,
           activeForegroundColor: AppColors.brandBlue,
           inactiveForegroundColor: AppColors.textSecondary,
-          activeColorSecondary: const Color(0xFFE8F4EF),
+          activeColorSecondary: const Color(0xFFEFF6FF),
           textStyle: const TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.w700,
@@ -256,7 +256,7 @@ class _NotificationBellButton extends StatelessWidget {
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(
                     color: unreadCount > 0
-                        ? const Color(0xFFB9DDD2)
+                        ? const Color(0xFFBFDBFE)
                         : AppColors.border,
                   ),
                   boxShadow: [

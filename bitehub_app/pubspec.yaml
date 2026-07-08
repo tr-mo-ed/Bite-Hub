@@ -62,7 +62,7 @@ flutter_launcher_icons:
     generate: true
     image_path: "assets/images/bitehub_app_icon.png"
     background_color: "#F7F7F3"
-    theme_color: "#167C68"
+    theme_color: "#2563EB"
   windows:
     generate: true
     image_path: "assets/images/bitehub_app_icon.png"

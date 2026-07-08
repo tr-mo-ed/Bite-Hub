@@ -1031,8 +1031,8 @@ _SyncVisualSpec _syncSpec(LiveOrderSyncState state) {
         label: 'جاري ربط التحديث المباشر',
         icon: Icons.sync_rounded,
         foreground: AppColors.brandBlue,
-        background: Color(0xFFEAF4EF),
-        border: Color(0xFFB9DDD2),
+        background: Color(0xFFEFF6FF),
+        border: Color(0xFFBFDBFE),
       );
     case LiveOrderSyncState.offline:
       return const _SyncVisualSpec(

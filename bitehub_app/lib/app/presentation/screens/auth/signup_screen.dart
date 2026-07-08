@@ -375,12 +375,16 @@ class _SignupScreenState extends State<SignupScreen> {
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFFEAF6F2), Color(0xFFFFFFFF)],
+                  colors: [
+                    Color(0xFFEFF6FF),
+                    Color(0xFFFFFFFF),
+                    Color(0xFFFFF7D6)
+                  ],
                   begin: Alignment.topRight,
                   end: Alignment.bottomLeft,
                 ),
                 borderRadius: BorderRadius.circular(22),
-                border: Border.all(color: const Color(0xFFB9DDD2)),
+                border: Border.all(color: const Color(0xFFBFDBFE)),
                 boxShadow: [
                   BoxShadow(
                     color: AppColors.brandBlue.withValues(alpha: .08),
@@ -455,7 +459,7 @@ class _SignupScreenState extends State<SignupScreen> {
                 ),
                 submittedPinTheme: pinTheme.copyWith(
                   decoration: pinTheme.decoration!.copyWith(
-                    color: const Color(0xFFEAF6F2),
+                    color: const Color(0xFFEFF6FF),
                     border: Border.all(color: AppColors.brandBlue),
                   ),
                 ),

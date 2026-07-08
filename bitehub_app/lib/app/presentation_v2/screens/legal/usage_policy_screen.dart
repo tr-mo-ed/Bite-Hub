@@ -79,7 +79,7 @@ class _PolicyIntro extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        color: const Color(0xFFEAF4EF),
+        color: const Color(0xFFEFF6FF),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: const Color(0xFFC9E2D8)),
       ),

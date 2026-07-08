@@ -9,6 +9,7 @@ import 'package:bitehub_app/app/presentation_v2/screens/orders/live_order_tracki
 import 'package:bitehub_app/app/presentation_v2/widgets/bh_design.dart';
 import 'package:bitehub_app/app/presentation_v2/widgets/network_state_panel.dart';
 import 'package:bitehub_app/app/presentation_v2/widgets/order_status_ui.dart';
+import 'package:bitehub_app/app/presentation_v2/widgets/product_image_view.dart';
 
 class OrdersScreenV2 extends StatefulWidget {
   const OrdersScreenV2({super.key});
@@ -120,34 +121,26 @@ class _OrdersSummary extends StatelessWidget {
         .length;
 
     return BhSurface(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      padding: const EdgeInsets.all(BhSpacing.sm),
+      radius: BhRadius.sm,
+      child: Row(
         children: [
-          const BhSectionHeader(
-            title: 'الطلبات',
-            subtitle: 'نظرة مختصرة على نشاطك داخل Bite Hub',
+          _CompactOrderMetric(
+            label: 'الإجمالي',
+            value: '${orders.length}',
+            icon: Icons.receipt_long_outlined,
           ),
-          const SizedBox(height: BhSpacing.lg),
-          Row(
-            children: [
-              BhMetric(
-                label: 'الإجمالي',
-                value: '${orders.length}',
-                icon: Icons.receipt_long_outlined,
-              ),
-              const SizedBox(width: BhSpacing.sm),
-              BhMetric(
-                label: 'قيد التنفيذ',
-                value: '$live',
-                icon: Icons.timelapse_rounded,
-              ),
-              const SizedBox(width: BhSpacing.sm),
-              BhMetric(
-                label: 'مكتمل',
-                value: '$done',
-                icon: Icons.check_circle_outline_rounded,
-              ),
-            ],
+          const SizedBox(width: BhSpacing.xs),
+          _CompactOrderMetric(
+            label: 'قيد التنفيذ',
+            value: '$live',
+            icon: Icons.timelapse_rounded,
+          ),
+          const SizedBox(width: BhSpacing.xs),
+          _CompactOrderMetric(
+            label: 'مكتمل',
+            value: '$done',
+            icon: Icons.check_circle_outline_rounded,
           ),
         ],
       ),
@@ -166,23 +159,15 @@ class _OrderRow extends StatelessWidget {
     final isLive = _isLiveStatus(order.status);
 
     return BhSurface(
-      padding: const EdgeInsets.all(BhSpacing.md),
+      padding: const EdgeInsets.all(BhSpacing.sm),
+      radius: BhRadius.sm,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Container(
-                width: 44,
-                height: 44,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: visual.backgroundColor,
-                  borderRadius: BorderRadius.circular(BhRadius.sm),
-                ),
-                child: Icon(visual.icon, color: visual.foregroundColor),
-              ),
-              const SizedBox(width: BhSpacing.md),
+              _OrderPreviewImage(order: order),
+              const SizedBox(width: BhSpacing.sm),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -193,7 +178,7 @@ class _OrderRow extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: AppColors.textPrimary,
-                        fontSize: 16,
+                        fontSize: 15,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
@@ -219,57 +204,49 @@ class _OrderRow extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: BhSpacing.md),
-          Container(
-            padding: const EdgeInsets.all(BhSpacing.md),
-            decoration: BoxDecoration(
-              color: AppColors.neutral50,
-              borderRadius: BorderRadius.circular(BhRadius.sm),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Row(
-              children: [
-                _MetaItem(
-                  label: 'الإجمالي',
-                  value: '${order.totalPrice.toStringAsFixed(2)} د.ل',
+          const SizedBox(height: BhSpacing.sm),
+          Row(
+            children: [
+              _InlineMeta(
+                icon: Icons.payments_outlined,
+                value: '${order.totalPrice.toStringAsFixed(2)} د.ل',
+              ),
+              const SizedBox(width: 12),
+              _InlineMeta(
+                icon: Icons.shopping_bag_outlined,
+                value: '${order.items.length} عناصر',
+              ),
+              const Spacer(),
+              Text(
+                _formatDate(order.dateObject),
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
                 ),
-                _MetaDivider(),
-                _MetaItem(label: 'العناصر', value: '${order.items.length}'),
-                _MetaDivider(),
-                _MetaItem(
-                    label: 'التاريخ', value: _formatDate(order.dateObject)),
-              ],
-            ),
+              ),
+            ],
           ),
           if (order.items.isNotEmpty) ...[
-            const SizedBox(height: BhSpacing.md),
+            const SizedBox(height: BhSpacing.sm),
             Text(
               order.items
                   .take(3)
                   .map((item) => '${item.quantity}x ${item.productName}')
                   .join('  •  '),
-              maxLines: 2,
+              maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 color: AppColors.textSecondary,
                 fontWeight: FontWeight.w700,
-                height: 1.4,
+                fontSize: 12,
               ),
             ),
           ],
-          const SizedBox(height: BhSpacing.md),
+          const SizedBox(height: BhSpacing.sm),
           Row(
             children: [
-              Expanded(
-                child: Text(
-                  _formatDateTime(order.dateObject),
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
+              const Spacer(),
               FilledButton.icon(
                 onPressed: () {
                   Navigator.of(context).push(
@@ -293,10 +270,8 @@ class _OrderRow extends StatelessWidget {
                   backgroundColor:
                       isLive ? AppColors.brandBlue : const Color(0xFFEFF4FF),
                   foregroundColor: isLive ? Colors.white : AppColors.brandBlue,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 11,
-                  ),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(BhRadius.sm),
                   ),
@@ -310,36 +285,90 @@ class _OrderRow extends StatelessWidget {
   }
 }
 
-class _MetaItem extends StatelessWidget {
-  const _MetaItem({required this.label, required this.value});
+class _OrderPreviewImage extends StatelessWidget {
+  const _OrderPreviewImage({required this.order});
 
-  final String label;
-  final String value;
+  final OrderModel order;
+
+  String get _imagePath {
+    for (final item in order.items) {
+      final image = item.productImage?.trim() ?? '';
+      if (image.isNotEmpty) {
+        return image;
+      }
+    }
+    return order.cafeLogo?.trim() ?? '';
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    final visual = BhOrderStatusSpec.fromStatus(order.status);
+
+    return SizedBox(
+      width: 62,
+      height: 62,
+      child: Stack(
+        clipBehavior: Clip.none,
         children: [
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppColors.border),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.brandBlue.withValues(alpha: .08),
+                    blurRadius: 16,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(19),
+                child: ProductImageView(
+                  imagePath: _imagePath,
+                  fit: BoxFit.cover,
+                  fallback: const DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topRight,
+                        end: Alignment.bottomLeft,
+                        colors: [
+                          Color(0xFFEFF6FF),
+                          Colors.white,
+                          Color(0xFFFFF7D6),
+                        ],
+                      ),
+                    ),
+                    child: Center(
+                      child: Icon(
+                        Icons.restaurant_menu_rounded,
+                        color: AppColors.brandBlue,
+                        size: 28,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
-          const SizedBox(height: 3),
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: AppColors.textPrimary,
-              fontWeight: FontWeight.w900,
+          PositionedDirectional(
+            end: -3,
+            bottom: -3,
+            child: Container(
+              width: 26,
+              height: 26,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: visual.backgroundColor,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 2),
+              ),
+              child: Icon(
+                visual.icon,
+                color: visual.foregroundColor,
+                size: 15,
+              ),
             ),
           ),
         ],
@@ -348,14 +377,85 @@ class _MetaItem extends StatelessWidget {
   }
 }
 
-class _MetaDivider extends StatelessWidget {
+class _InlineMeta extends StatelessWidget {
+  const _InlineMeta({required this.icon, required this.value});
+
+  final IconData icon;
+  final String value;
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 1,
-      height: 34,
-      margin: const EdgeInsets.symmetric(horizontal: BhSpacing.sm),
-      color: AppColors.border,
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 14, color: AppColors.textSecondary),
+        const SizedBox(width: 4),
+        Text(
+          value,
+          style: const TextStyle(
+            color: AppColors.textPrimary,
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _CompactOrderMetric extends StatelessWidget {
+  const _CompactOrderMetric({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
+        decoration: BoxDecoration(
+          color: AppColors.neutral50,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 16, color: AppColors.brandBlue),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    value,
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -443,11 +543,6 @@ String _statusLabel(String status) {
 String _formatDate(DateTime value) {
   final local = value.toLocal();
   return '${local.year}-${_two(local.month)}-${_two(local.day)}';
-}
-
-String _formatDateTime(DateTime value) {
-  final local = value.toLocal();
-  return '${_formatDate(local)}  ${_two(local.hour)}:${_two(local.minute)}';
 }
 
 String _two(int value) => value.toString().padLeft(2, '0');
