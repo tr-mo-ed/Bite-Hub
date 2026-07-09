@@ -11,6 +11,7 @@ from django.utils.text import slugify
 
 from .credential_vault import encrypt_cafe_password
 from .forms import CafeImageForm, ProductForm
+from .image_utils import optimize_uploaded_image
 from .models import Cafe, Category, Faculty, Product
 from .services import ValidationServiceError, ensure_default_categories_for_cafe
 from wallet.models import Wallet
@@ -29,7 +30,7 @@ def _validate_cafe_image(image):
     if not form.is_valid():
         first_error = next(iter(form.errors.values()))[0]
         raise ValidationServiceError(str(first_error))
-    return form.cleaned_data["image"]
+    return optimize_uploaded_image(form.cleaned_data["image"], max_dimension=900)
 
 
 # ???? ???? _build_unique_cafe_code ?????? ????? ?????? ?? ????? ????.
@@ -332,7 +333,15 @@ def save_cafe_product(*, cafe_id: int, user, data, files=None, product_id: int |
     elif not Category.objects.for_cafe(cafe.id).filter(pk=category_id, is_active=True).exists():
         raise ValidationServiceError("Selected category does not belong to this cafe.")
 
-    form = ProductForm(mutable_data, files or None, instance=product)
+    form_files = files
+    if form_files is not None and form_files.get("image"):
+        form_files = form_files.copy()
+        form_files["image"] = optimize_uploaded_image(
+            form_files.get("image"),
+            max_dimension=1000,
+        )
+
+    form = ProductForm(mutable_data, form_files or None, instance=product)
     form.fields["category"].queryset = Category.objects.for_cafe(cafe.id).filter(is_active=True)
     if not form.is_valid():
         first_error = next(iter(form.errors.values()))[0]

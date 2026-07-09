@@ -208,7 +208,11 @@ class ShellDrawerV2 extends StatelessWidget {
     if (trimmed.isEmpty) {
       return null;
     }
-    return NetworkImage(trimmed);
+    return ResizeImage(
+      NetworkImage(trimmed),
+      width: 120,
+      height: 120,
+    );
   }
 }
 

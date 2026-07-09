@@ -329,7 +329,13 @@ class _ProfileIdentity extends StatelessWidget {
       return FileImage(File(localImagePath!));
     }
     final profileImage = user.profileImage?.trim() ?? '';
-    return profileImage.isEmpty ? null : NetworkImage(profileImage);
+    return profileImage.isEmpty
+        ? null
+        : ResizeImage(
+            NetworkImage(profileImage),
+            width: 180,
+            height: 180,
+          );
   }
 
   @override

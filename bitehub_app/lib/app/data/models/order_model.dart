@@ -10,6 +10,7 @@ class OrderModel {
   final String status;
   // ??? ??????? createdAt ??? ?????? ???? ????? ????.
   final String createdAt;
+  final String? updatedAt;
   // ??? ??????? items ??? ?????? ???? ????? ????.
   final List<OrderItem> items;
   // ??? ??????? cafeId ??? ?????? ???? ????? ????.
@@ -27,6 +28,7 @@ class OrderModel {
     required this.totalPrice,
     required this.status,
     required this.createdAt,
+    this.updatedAt,
     required this.items,
     this.cafeId,
     this.cafeName,
@@ -41,6 +43,7 @@ class OrderModel {
     double? totalPrice,
     String? status,
     String? createdAt,
+    String? updatedAt,
     List<OrderItem>? items,
     String? cafeId,
     String? cafeName,
@@ -54,6 +57,7 @@ class OrderModel {
       totalPrice: totalPrice ?? this.totalPrice,
       status: status ?? this.status,
       createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
       items: items ?? this.items,
       cafeId: cafeId ?? this.cafeId,
       cafeName: cafeName ?? this.cafeName,
@@ -72,6 +76,7 @@ class OrderModel {
       totalPrice: double.tryParse(json['total_price'].toString()) ?? 0.0,
       status: json['status'] ?? 'PENDING',
       createdAt: json['created_at'] ?? DateTime.now().toString(),
+      updatedAt: json['updated_at']?.toString(),
       items: (json['items'] as List?)
               ?.map((i) => OrderItem.fromJson(i))
               .toList() ??
@@ -89,6 +94,18 @@ class OrderModel {
       return DateTime.parse(createdAt);
     } catch (_) {
       return DateTime.now();
+    }
+  }
+
+  DateTime? get updatedDateObject {
+    final raw = updatedAt;
+    if (raw == null || raw.trim().isEmpty) {
+      return null;
+    }
+    try {
+      return DateTime.parse(raw);
+    } catch (_) {
+      return null;
     }
   }
 

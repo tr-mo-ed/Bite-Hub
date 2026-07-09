@@ -138,34 +138,35 @@ class _CartScreenV2State extends State<CartScreenV2> {
 
   Widget _buildCafeSummary() {
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [AppColors.brandBlue, AppColors.brandSky],
           begin: Alignment.topRight,
           end: Alignment.bottomLeft,
         ),
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(22),
         boxShadow: [
           BoxShadow(
-            color: AppColors.brandBlue.withValues(alpha: 0.18),
-            blurRadius: 24,
-            offset: const Offset(0, 12),
+            color: AppColors.brandBlue.withValues(alpha: 0.14),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
       child: Row(
         children: [
           Container(
-            width: 54,
-            height: 54,
+            width: 42,
+            height: 42,
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(15),
             ),
-            child: const Icon(Icons.storefront_rounded, color: Colors.white),
+            child: const Icon(Icons.shopping_cart_checkout_rounded,
+                color: Colors.white),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -176,12 +177,12 @@ class _CartScreenV2State extends State<CartScreenV2> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  _controller.cafeName ?? 'المقهى',
+                  '${_controller.itemCount} عناصر',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 20,
+                    fontSize: 18,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -190,12 +191,12 @@ class _CartScreenV2State extends State<CartScreenV2> {
           ),
           PressableScale(
             onTap: _showClearDialog,
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(16),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(18),
+                borderRadius: BorderRadius.circular(16),
               ),
               child: const Row(
                 mainAxisSize: MainAxisSize.min,
@@ -233,15 +234,6 @@ class _CartScreenV2State extends State<CartScreenV2> {
             label: 'المحفظة',
             selected: true,
             onTap: () => _controller.selectPaymentMethod('WALLET'),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            'سيتم الخصم مباشرة من رصيد محفظتك المحلية داخل Bite Hub.',
-            style: TextStyle(
-              color: Colors.grey.shade600,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
           ),
         ],
       ),
@@ -424,22 +416,13 @@ class _CartScreenV2State extends State<CartScreenV2> {
             'ملاحظات للمقهى',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
           ),
-          const SizedBox(height: 5),
-          const Text(
-            'اكتب طريقة التحضير المطلوبة، مثال: بدون لحم أو بدون صوص.',
-            style: TextStyle(
-              color: Colors.grey,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
           const SizedBox(height: 12),
           TextField(
             controller: _notesController,
             maxLines: 3,
             textInputAction: TextInputAction.newline,
             decoration: InputDecoration(
-              hintText: 'مثال: البرغر بدون لحم، وبدون صوص حار',
+              hintText: null,
               filled: true,
               fillColor: const Color(0xFFF8FAFC),
               contentPadding: const EdgeInsets.symmetric(

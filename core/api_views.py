@@ -22,6 +22,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 from .backoffice_services import CAFE_OWNER_GROUP_NAME
 from .email_delivery import EmailDeliveryError, send_login_code, send_signup_code
+from .image_utils import optimize_uploaded_image
 from .models import Cafe
 from .selectors import (
     get_active_cafes,
@@ -721,7 +722,10 @@ def get_user_profile(request):
         update_fields.append('profile_image_url')
 
     if uploaded_image is not None:
-        request.user.image = uploaded_image
+        request.user.image = optimize_uploaded_image(
+            uploaded_image,
+            max_dimension=900,
+        )
         request.user.profile_image_url = request.build_absolute_uri(request.user.image.url)
         update_fields.extend(['image', 'profile_image_url'])
 

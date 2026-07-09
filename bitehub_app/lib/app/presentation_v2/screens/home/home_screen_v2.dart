@@ -452,7 +452,7 @@ class _CafeSelector extends StatelessWidget {
     }
 
     return SizedBox(
-      height: 94,
+      height: 124,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: cafes.length,
@@ -484,18 +484,18 @@ class _CafeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 158,
+      width: 126,
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(26),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 180),
-            padding: const EdgeInsets.all(9),
+            padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
             decoration: BoxDecoration(
               color: selected ? const Color(0xFFEFF6FF) : Colors.white,
-              borderRadius: BorderRadius.circular(24),
+              borderRadius: BorderRadius.circular(26),
               border: Border.all(
                 color: selected ? AppColors.brandBlue : AppColors.border,
                 width: selected ? 1.4 : 1,
@@ -510,49 +510,55 @@ class _CafeCard extends StatelessWidget {
                 ),
               ],
             ),
-            child: Row(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                _CafeAvatar(
-                  cafe: cafe,
-                  size: 46,
-                  selected: selected,
-                ),
-                const SizedBox(width: 9),
-                Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        cafe.name,
-                        maxLines: cafe.canAcceptOrders ? 2 : 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: selected
-                              ? AppColors.brandBlue
-                              : AppColors.textPrimary,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w900,
-                          height: 1.2,
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    _CafeAvatar(
+                      cafe: cafe,
+                      size: 58,
+                      selected: selected,
+                    ),
+                    if (selected)
+                      const PositionedDirectional(
+                        top: -3,
+                        start: -3,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.check_circle_rounded,
+                            color: AppColors.brandBlue,
+                            size: 20,
+                          ),
                         ),
                       ),
-                      if (!cafe.canAcceptOrders) ...[
-                        const SizedBox(height: 5),
-                        const _SmallBadge(
-                          label: 'مغلق',
-                          foreground: AppColors.danger,
-                          background: Color(0xFFFEE2E2),
-                        ),
-                      ],
-                    ],
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  cafe.name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color:
+                        selected ? AppColors.brandBlue : AppColors.textPrimary,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w900,
+                    height: 1.18,
                   ),
                 ),
-                if (selected) ...[
-                  const SizedBox(width: 6),
-                  const Icon(
-                    Icons.check_circle_outline_rounded,
-                    color: AppColors.brandBlue,
-                    size: 18,
+                if (!cafe.canAcceptOrders) ...[
+                  const SizedBox(height: 5),
+                  const _SmallBadge(
+                    label: 'مغلق',
+                    foreground: AppColors.danger,
+                    background: Color(0xFFFEE2E2),
                   ),
                 ],
               ],
@@ -1065,16 +1071,21 @@ class _EmptyProductsState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hasSelectedCafe = (selectedCafeName ?? '').trim().isNotEmpty;
     final title = !hasCafes
         ? 'لا توجد مقاهٍ متاحة'
-        : isSearching
-            ? 'لا توجد نتائج مطابقة'
-            : 'لا توجد منتجات حالياً';
+        : !hasSelectedCafe
+            ? 'اختر مقهى أولاً'
+            : isSearching
+                ? 'لا توجد نتائج مطابقة'
+                : 'لا توجد منتجات حالياً';
     final message = !hasCafes
         ? 'ستظهر المقاهي هنا عند تفعيلها.'
-        : isSearching
-            ? 'جرب كلمة بحث أخرى أو اختر تصنيفاً مختلفاً.'
-            : 'لم يضف ${selectedCafeName ?? 'المقهى'} منتجات متاحة بعد.';
+        : !hasSelectedCafe
+            ? 'اختر صورة المقهى من الأعلى لعرض قائمته وأسعاره.'
+            : isSearching
+                ? 'جرب كلمة بحث أخرى أو اختر تصنيفاً مختلفاً.'
+                : 'لم يضف $selectedCafeName منتجات متاحة بعد.';
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),

@@ -116,7 +116,6 @@ class HomeV2Controller extends ChangeNotifier {
         }
       }
       _selectedCafe = refreshedSelection;
-      _selectedCafe ??= cafes.isNotEmpty ? cafes.first : null;
       if (_selectedCafe != null) {
         _products = await _apiService.getProducts(cafeId: _selectedCafe!.id);
       } else {

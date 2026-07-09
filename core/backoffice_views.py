@@ -55,6 +55,25 @@ from wallet.services import create_cafe_debit_request
 logger = logging.getLogger(__name__)
 
 
+def csrf_failure(request: HttpRequest, reason: str = "") -> HttpResponse:
+    retry_url = reverse("core:admin_login")
+    if request.user.is_authenticated:
+        retry_url = (
+            reverse("core:super_admin_dashboard")
+            if request.user.is_superuser
+            else reverse("core:cafe_panel")
+        )
+    return render(
+        request,
+        "admin_v2/csrf_failure.html",
+        {
+            "reason": reason,
+            "retry_url": retry_url,
+        },
+        status=403,
+    )
+
+
 def _parse_bool_flag(value) -> bool | None:
     if isinstance(value, bool):
         return value
@@ -427,29 +446,58 @@ def _parse_positive_amount(raw_value: str | None) -> Decimal:
     return amount
 
 
+def _sync_wallet_balance(wallet: Wallet) -> Wallet:
+    deposits = (
+        wallet.transactions.filter(transaction_type="DEPOSIT")
+        .aggregate(total=Sum("amount"))
+        .get("total")
+        or Decimal("0.00")
+    )
+    withdrawals = (
+        wallet.transactions.filter(transaction_type="WITHDRAWAL")
+        .aggregate(total=Sum("amount"))
+        .get("total")
+        or Decimal("0.00")
+    )
+    new_balance = deposits - withdrawals
+    if wallet.balance != new_balance:
+        wallet.balance = new_balance
+        wallet.save(update_fields=["balance"])
+    return wallet
+
+
 def _find_wallet_by_identifier(raw_identifier: str | None) -> Wallet | None:
     identifier = (raw_identifier or "").strip()
     if not identifier:
         return None
 
     phone = normalize_libyan_phone(identifier)
-    user = User.objects.filter(
-        Q(email__iexact=identifier)
-        | Q(phone_number=phone)
-        | Q(secondary_phone_number=phone)
-    ).first()
+    user_lookup = Q(email__iexact=identifier)
+    if phone:
+        user_lookup |= Q(phone_number=phone) | Q(secondary_phone_number=phone)
+
+    user = User.objects.filter(user_lookup).first()
+    if user is None:
+        user = User.objects.filter(full_name__iexact=identifier).first()
+    if user is None and len(identifier) >= 3:
+        name_matches = User.objects.filter(full_name__icontains=identifier)[:2]
+        if len(name_matches) == 1:
+            user = name_matches[0]
+
     if user:
         wallet, _ = Wallet.objects.get_or_create(user=user)
-        return wallet
+        return _sync_wallet_balance(wallet)
 
-    return (
+    wallet = (
         Wallet.objects.select_related("user")
         .filter(Q(link_code__iexact=identifier))
         .first()
     )
+    return _sync_wallet_balance(wallet) if wallet is not None else None
 
 
 def _wallet_payload(wallet: Wallet) -> dict:
+    wallet = _sync_wallet_balance(wallet)
     wallet.refresh_from_db()
     return {
         "user": wallet.user.full_name or wallet.user.email,

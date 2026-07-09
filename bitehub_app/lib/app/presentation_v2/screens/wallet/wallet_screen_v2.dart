@@ -470,16 +470,19 @@ class _BalancePanel extends StatelessWidget {
                         fontWeight: FontWeight.w900,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      wallet.college.isEmpty ? 'Bite Hub' : wallet.college,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppColors.textSecondary,
-                        fontWeight: FontWeight.w700,
+                    if (wallet.college.trim().isNotEmpty &&
+                        wallet.college.trim().toLowerCase() != 'bite hub') ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        wallet.college,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
@@ -520,12 +523,6 @@ class _BalancePanel extends StatelessWidget {
             ),
             child: Row(
               children: [
-                const Icon(
-                  Icons.qr_code_2_rounded,
-                  color: AppColors.textSecondary,
-                  size: 20,
-                ),
-                const SizedBox(width: BhSpacing.sm),
                 const Text(
                   'كود المحفظة',
                   style: TextStyle(

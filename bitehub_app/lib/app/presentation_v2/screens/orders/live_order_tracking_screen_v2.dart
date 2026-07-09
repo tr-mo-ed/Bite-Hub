@@ -99,24 +99,6 @@ class _LiveOrderTrackingScreenV2State extends State<LiveOrderTrackingScreenV2> {
           backgroundColor: AppColors.background,
           appBar: AppBar(
             title: const Text('تتبع الطلب'),
-            actions: [
-              IconButton(
-                onPressed: _controller.isRefreshing
-                    ? null
-                    : () => _controller.refresh(
-                          orderId: order.id,
-                          silent: true,
-                        ),
-                tooltip: 'تحديث الحالة',
-                icon: _controller.isRefreshing
-                    ? const SizedBox.square(
-                        dimension: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.refresh_rounded),
-              ),
-              const SizedBox(width: 6),
-            ],
           ),
           body: RefreshIndicator(
             color: AppColors.brandBlue,
@@ -658,6 +640,8 @@ class _OrderDetailsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final itemCount =
         order.items.fold<int>(0, (total, item) => total + item.quantity);
+    final executionStarted = _hasExecutionStarted(order.status);
+    final executionTime = order.updatedDateObject ?? order.dateObject;
 
     return BhSurface(
       padding: const EdgeInsets.all(14),
@@ -677,9 +661,13 @@ class _OrderDetailsCard extends StatelessWidget {
           Row(
             children: [
               _OrderMetric(
-                label: 'وقت الطلب',
-                value: _formatTime(order.dateObject),
-                icon: Icons.schedule_outlined,
+                label: executionStarted ? 'وقت بدء التنفيذ' : 'وقت الطلب',
+                value: _formatTime(
+                  executionStarted ? executionTime : order.dateObject,
+                ),
+                icon: executionStarted
+                    ? Icons.timer_outlined
+                    : Icons.schedule_outlined,
               ),
               const SizedBox(width: BhSpacing.sm),
               _OrderMetric(
@@ -1091,6 +1079,11 @@ String? _nextStepLabel(BhOrderStatusSpec status) {
 bool _isWalletPayment(OrderModel order) {
   final paymentMethod = order.paymentMethod.trim().toUpperCase();
   return paymentMethod == 'WALLET';
+}
+
+bool _hasExecutionStarted(String status) {
+  return const {'ACCEPTED', 'PREPARING', 'READY', 'COMPLETED'}
+      .contains(status.trim().toUpperCase());
 }
 
 String _formatTime(DateTime value) {

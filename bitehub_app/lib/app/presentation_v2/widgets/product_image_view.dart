@@ -25,6 +25,7 @@ class ProductImageView extends StatelessWidget {
       return Image.network(
         imagePath,
         fit: fit,
+        cacheWidth: 720,
         filterQuality: FilterQuality.high,
         isAntiAlias: true,
         gaplessPlayback: true,

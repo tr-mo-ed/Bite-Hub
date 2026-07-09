@@ -308,7 +308,7 @@ class OrderSerializer(CleanTextSerializerMixin, serializers.ModelSerializer):
         # ??? ??????? fields ??? ????? ??? ???? ???? ???? ????? ????.
         fields = [
             'id', 'order_number', 'total_price', 'status', 'status_display',
-            'payment_method', 'payment_method_display', 'created_at',
+            'payment_method', 'payment_method_display', 'created_at', 'updated_at',
             'user_name', 'cafe_name', 'cafe_id', 'notes', 'items',
         ]
 
