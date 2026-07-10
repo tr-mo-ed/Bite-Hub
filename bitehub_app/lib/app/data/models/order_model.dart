@@ -114,12 +114,21 @@ class OrderModel {
   }
 
   String get displayOrderCode {
-    final normalized = orderNumber.trim();
-    final digits = normalized.replaceAll(RegExp(r'\D'), '');
-    if (digits.length >= 4) {
-      return digits.substring(digits.length - 4);
+    final normalized = orderNumber.trim().toUpperCase();
+    if (normalized.isEmpty || normalized == '---') {
+      return id > 0 ? 'BH-${id.toString().padLeft(6, '0')}' : '---';
     }
-    return normalized;
+    final digits = normalized.replaceAll(RegExp(r'\D'), '');
+    if (digits.isEmpty) {
+      return normalized;
+    }
+    final serial = digits.length >= 6
+        ? digits.substring(digits.length - 6)
+        : digits.padLeft(6, '0');
+    if (normalized.startsWith('BH-')) {
+      return 'BH-$serial';
+    }
+    return 'BH-$serial';
   }
 
   String get statusText {

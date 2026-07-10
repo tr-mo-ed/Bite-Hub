@@ -82,7 +82,7 @@ class HomeScreenV2State extends State<HomeScreenV2> {
   void _addToCart(ProductModel product) {
     final selectedCafe = _controller.selectedCafe;
     if (selectedCafe != null && !selectedCafe.canAcceptOrders) {
-      _showMessage('المقهى مغلق حاليًا ولا يستقبل طلبات جديدة');
+      _showMessage('مغلق');
       return;
     }
 
@@ -172,11 +172,6 @@ class HomeScreenV2State extends State<HomeScreenV2> {
                           selectedCafe: selectedCafe,
                           onSelect: _controller.selectCafe,
                         ),
-                        if (selectedCafe != null &&
-                            !selectedCafe.canAcceptOrders) ...[
-                          const SizedBox(height: BhSpacing.md),
-                          _CafeClosedNotice(cafeName: selectedCafe.name),
-                        ],
                         const SizedBox(height: BhSpacing.lg),
                         BhSectionHeader(
                           title: selectedCafe?.name ?? 'قائمة المنتجات',
@@ -372,59 +367,6 @@ class _SelectedCafeHeader extends StatelessWidget {
   }
 }
 
-class _CafeClosedNotice extends StatelessWidget {
-  const _CafeClosedNotice({required this.cafeName});
-
-  final String cafeName;
-
-  @override
-  Widget build(BuildContext context) {
-    return BhSurface(
-      borderColor: const Color(0xFFFEE2E2),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: const Color(0xFFFEE2E2),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: const Icon(
-              Icons.lock_clock_outlined,
-              color: AppColors.danger,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '$cafeName مغلق حاليًا',
-                  style: const TextStyle(
-                    color: AppColors.danger,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  'يمكنك تصفح القائمة، لكن إنشاء الطلبات متوقف إلى أن يفتح المقهى استقبال الطلبات.',
-                  style: TextStyle(
-                    color: AppColors.textSecondary,
-                    height: 1.35,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _CafeSelector extends StatelessWidget {
   const _CafeSelector({
     required this.cafes,
@@ -484,47 +426,30 @@ class _CafeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 126,
+      width: 98,
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(26),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
-            decoration: BoxDecoration(
-              color: selected ? const Color(0xFFEFF6FF) : Colors.white,
-              borderRadius: BorderRadius.circular(26),
-              border: Border.all(
-                color: selected ? AppColors.brandBlue : AppColors.border,
-                width: selected ? 1.4 : 1,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.brandNavy.withValues(
-                    alpha: selected ? .12 : .055,
-                  ),
-                  blurRadius: selected ? 18 : 12,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
+          borderRadius: BorderRadius.circular(18),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisAlignment: MainAxisAlignment.start,
               children: [
                 Stack(
                   clipBehavior: Clip.none,
+                  alignment: Alignment.center,
                   children: [
                     _CafeAvatar(
                       cafe: cafe,
-                      size: 58,
+                      size: selected ? 70 : 66,
                       selected: selected,
                     ),
                     if (selected)
                       const PositionedDirectional(
-                        top: -3,
-                        start: -3,
+                        top: -2,
+                        start: -2,
                         child: DecoratedBox(
                           decoration: BoxDecoration(
                             color: Colors.white,
@@ -533,13 +458,26 @@ class _CafeCard extends StatelessWidget {
                           child: Icon(
                             Icons.check_circle_rounded,
                             color: AppColors.brandBlue,
-                            size: 20,
+                            size: 21,
+                          ),
+                        ),
+                      ),
+                    if (!cafe.canAcceptOrders)
+                      const PositionedDirectional(
+                        bottom: -5,
+                        start: 0,
+                        end: 0,
+                        child: Center(
+                          child: _SmallBadge(
+                            label: 'مغلق',
+                            foreground: AppColors.danger,
+                            background: Color(0xFFFEE2E2),
                           ),
                         ),
                       ),
                   ],
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 11),
                 Text(
                   cafe.name,
                   maxLines: 2,
@@ -553,14 +491,6 @@ class _CafeCard extends StatelessWidget {
                     height: 1.18,
                   ),
                 ),
-                if (!cafe.canAcceptOrders) ...[
-                  const SizedBox(height: 5),
-                  const _SmallBadge(
-                    label: 'مغلق',
-                    foreground: AppColors.danger,
-                    background: Color(0xFFFEE2E2),
-                  ),
-                ],
               ],
             ),
           ),
@@ -809,7 +739,7 @@ class _ProductCard extends StatelessWidget {
                   start: 9,
                   child: _SmallBadge(
                     label: !canAcceptOrders
-                        ? 'المقهى مغلق'
+                        ? 'مغلق'
                         : product.isAvailable
                             ? 'متاح'
                             : 'غير متاح',

@@ -20,26 +20,43 @@ class NotificationService {
   static const int _maxNotifications = 50;
   static const int _maxShownExternalNotifications = 200;
 
-  Future<void> initialize() async {
-    await AwesomeNotifications().initialize(
-      null,
-      [
-        NotificationChannel(
-          channelKey: _channelKey,
-          channelName: 'Bite Hub - تحديثات الطلبات',
-          channelDescription: 'حالة الطلب والمحفظة داخل Bite Hub',
-          importance: NotificationImportance.High,
-          defaultColor: const Color(0xFF2563EB),
-          ledColor: const Color(0xFF2563EB),
-          playSound: true,
-          enableVibration: true,
-        ),
-      ],
-      debug: false,
-    );
+  bool _isInitialized = false;
+  Future<void>? _initializeFuture;
+
+  Future<void> initialize() {
+    if (_isInitialized) {
+      return Future.value();
+    }
+    return _initializeFuture ??= _doInitialize();
+  }
+
+  Future<void> _doInitialize() async {
+    try {
+      await AwesomeNotifications().initialize(
+        null,
+        [
+          NotificationChannel(
+            channelKey: _channelKey,
+            channelName: 'Bite Hub - تحديثات الطلبات',
+            channelDescription: 'حالة الطلب والمحفظة داخل Bite Hub',
+            importance: NotificationImportance.High,
+            defaultColor: const Color(0xFF2563EB),
+            ledColor: const Color(0xFF2563EB),
+            playSound: true,
+            enableVibration: true,
+          ),
+        ],
+        debug: false,
+      );
+      _isInitialized = true;
+    } catch (_) {
+      _initializeFuture = null;
+      rethrow;
+    }
   }
 
   Future<void> requestPermissionIfNeeded() async {
+    await initialize();
     final isAllowed = await AwesomeNotifications().isNotificationAllowed();
     if (isAllowed) {
       return;
@@ -193,6 +210,7 @@ class NotificationService {
   }
 
   Future<void> _showSystemNotification(NotificationItem item) async {
+    await initialize();
     await requestPermissionIfNeeded();
 
     await AwesomeNotifications().createNotification(

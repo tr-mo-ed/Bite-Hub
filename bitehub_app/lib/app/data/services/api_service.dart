@@ -901,7 +901,7 @@ class ApiService {
     }
   }
 
-  Future<bool> respondWalletDebitRequest({
+  Future<WalletModel?> respondWalletDebitRequest({
     required String requestId,
     required bool approve,
   }) async {
@@ -923,7 +923,13 @@ class ApiService {
       if (response.statusCode == 200 &&
           data is Map &&
           data['success'] == true) {
-        return true;
+        final walletPayload = data['wallet'];
+        if (walletPayload is Map) {
+          return WalletModel.fromJson(
+            Map<String, dynamic>.from(walletPayload),
+          );
+        }
+        return null;
       }
       throw _buildException(response, data);
     } on ApiException {

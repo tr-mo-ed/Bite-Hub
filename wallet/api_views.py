@@ -12,7 +12,11 @@ from django.contrib.auth import get_user_model
 from core.utils import send_real_notification
 
 from .models import Transaction, Wallet, WalletDebitRequest
-from .serializers import WalletDebitRequestSerializer, WalletSerializer
+from .serializers import (
+    TransactionSerializer,
+    WalletDebitRequestSerializer,
+    WalletSerializer,
+)
 from .services import respond_to_debit_request
 
 # ??? ??????? User ??? ????? ??? ???? ???? ???? ????? ????.
@@ -37,6 +41,30 @@ def _sync_wallet_balance(wallet):
         wallet.balance = new_balance
         wallet.save(update_fields=['balance'])
     return wallet
+
+
+def _wallet_payload(wallet):
+    wallet = _sync_wallet_balance(wallet)
+    wallet.refresh_from_db()
+
+    recent_transactions = (
+        wallet.transactions.select_related('cafe').order_by('-created_at')[:20]
+    )
+    data = WalletSerializer(wallet).data
+    data['transactions'] = TransactionSerializer(
+        recent_transactions,
+        many=True,
+    ).data
+    debit_requests = (
+        wallet.debit_requests.select_related("cafe")
+        .filter(status=WalletDebitRequest.Status.PENDING)
+        .order_by("-created_at")
+    )
+    data["pending_debit_requests"] = WalletDebitRequestSerializer(
+        debit_requests,
+        many=True,
+    ).data
+    return data
 
 # ???? ???? verify_token_get_user ?????? ????? ?????? ?? ????? ????.
 def verify_token_get_user(request):
@@ -179,30 +207,7 @@ def get_wallet(request):
         return Response({'error': str(e)}, status=401)
 
     wallet, _ = Wallet.objects.get_or_create(user=user)
-    # ??? ??????? wallet ??? ????? ??? ???? ???? ???? ????? ????.
-    wallet = _sync_wallet_balance(wallet)
-    
-    # جلب آخر 20 معاملة فقط لتقليل الضغط على السيرفر
-    recent_transactions = wallet.transactions.select_related('cafe').order_by('-created_at')[:20]
-    
-    # نمرر المعاملات يدوياً للسيريالايزر
-    serializer = WalletSerializer(wallet)
-    # ??? ??????? data ??? ????? ??? ???? ???? ???? ????? ????.
-    data = serializer.data
-    # نستبدل المعاملات بالقائمة المحدثة (لضمان الترتيب والعدد)
-    from .serializers import TransactionSerializer
-    data['transactions'] = TransactionSerializer(recent_transactions, many=True).data
-    debit_requests = (
-        wallet.debit_requests.select_related("cafe")
-        .filter(status=WalletDebitRequest.Status.PENDING)
-        .order_by("-created_at")
-    )
-    data["pending_debit_requests"] = WalletDebitRequestSerializer(
-        debit_requests,
-        many=True,
-    ).data
-    
-    return Response(data)
+    return Response(_wallet_payload(wallet))
 
 
 @api_view(["POST"])
@@ -224,15 +229,16 @@ def respond_wallet_debit_request(request, request_id):
     except ValueError as exc:
         return Response({"error": str(exc)}, status=400)
 
-    request_item = WalletDebitRequest.objects.select_related("cafe").get(
+    request_item = WalletDebitRequest.objects.select_related("cafe", "wallet").get(
         pk=request_item.pk
     )
-    request_item.wallet.refresh_from_db()
+    wallet_payload = _wallet_payload(request_item.wallet)
     return Response(
         {
             "success": True,
             "request": WalletDebitRequestSerializer(request_item).data,
-            "balance": str(request_item.wallet.balance),
+            "balance": str(wallet_payload["balance"]),
+            "wallet": wallet_payload,
         }
     )
 

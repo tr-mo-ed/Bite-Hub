@@ -19,6 +19,7 @@ class NotificationProvider extends ChangeNotifier {
   bool _isLoading = false;
   NotificationItem? _pendingBanner;
   int _bannerSequence = 0;
+  bool _hasLoadedInitialSnapshot = false;
 
   List<NotificationItem> get items => _items;
   bool get isLoading => _isLoading;
@@ -31,6 +32,7 @@ class NotificationProvider extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
     _items = await _loadMergedNotifications();
+    _hasLoadedInitialSnapshot = true;
     _isLoading = false;
     notifyListeners();
   }
@@ -60,7 +62,13 @@ class NotificationProvider extends ChangeNotifier {
       notifyListeners();
     }
     try {
+      final previousIds = _items.map((item) => item.id).toSet();
+      final shouldShowBanner = _hasLoadedInitialSnapshot;
       _items = await _loadMergedNotifications();
+      if (shouldShowBanner) {
+        _queueNewestBanner(previousIds, _items);
+      }
+      _hasLoadedInitialSnapshot = true;
     } finally {
       _isRefreshingFromServer = false;
       if (!silent) {
@@ -81,6 +89,7 @@ class NotificationProvider extends ChangeNotifier {
       _pendingBanner = addedItems.first;
       _bannerSequence++;
     }
+    _hasLoadedInitialSnapshot = true;
     notifyListeners();
   }
 
@@ -131,5 +140,19 @@ class NotificationProvider extends ChangeNotifier {
     } catch (_) {
       return localItems;
     }
+  }
+
+  void _queueNewestBanner(
+    Set<String> previousIds,
+    List<NotificationItem> latestItems,
+  ) {
+    final addedItems = latestItems
+        .where((item) => item.id.isNotEmpty && !previousIds.contains(item.id))
+        .toList(growable: false);
+    if (addedItems.isEmpty) {
+      return;
+    }
+    _pendingBanner = addedItems.first;
+    _bannerSequence++;
   }
 }

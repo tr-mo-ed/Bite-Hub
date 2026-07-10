@@ -63,15 +63,49 @@ class WalletV2Controller extends ChangeNotifier {
     required String requestId,
     required bool approve,
   }) {
-    return _runAction(
-      () => _apiService.respondWalletDebitRequest(
-        requestId: requestId,
-        approve: approve,
-      ),
+    return _respondToDebitRequest(
+      requestId: requestId,
+      approve: approve,
       successMessage: approve
           ? 'تمت الموافقة وخصم المبلغ من محفظتك.'
           : 'تم رفض طلب الخصم ولن يتغير رصيدك.',
     );
+  }
+
+  Future<bool> _respondToDebitRequest({
+    required String requestId,
+    required bool approve,
+    required String successMessage,
+  }) async {
+    if (_isPerformingAction) {
+      return false;
+    }
+
+    _isPerformingAction = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final updatedWallet = await _apiService.respondWalletDebitRequest(
+        requestId: requestId,
+        approve: approve,
+      );
+      if (updatedWallet != null) {
+        _wallet = updatedWallet;
+        notifyListeners();
+      }
+      await refresh();
+      _errorMessage = successMessage;
+      notifyListeners();
+      return true;
+    } catch (error) {
+      _errorMessage = error.toString();
+      notifyListeners();
+      return false;
+    } finally {
+      _isPerformingAction = false;
+      notifyListeners();
+    }
   }
 
   // ???? ???? _runAction ???? ??????? ?? ????? ???? ?????? ?????.

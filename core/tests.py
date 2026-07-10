@@ -96,6 +96,35 @@ class AppLoginApiTests(TestCase):
         self.assertEqual(response.status_code, 400, response.content)
         self.assertEqual(response.json()["error"], "Email is already registered.")
 
+    def test_student_profile_update_persists_email_and_phone(self):
+        user = get_user_model().objects.create_user(
+            email="profile-before@example.com",
+            password="StrongPass123",
+            full_name="Profile Before",
+            phone_number="0912345604",
+        )
+        self.client.force_login(user)
+
+        response = self.client.patch(
+            reverse("v2_app_user_profile"),
+            data=json.dumps(
+                {
+                    "full_name": "Profile After",
+                    "email": "PROFILE-AFTER@example.com",
+                    "phone_number": "٠٩١٢٣٤٥٦٠٥",
+                }
+            ),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        user.refresh_from_db()
+        self.assertEqual(user.full_name, "Profile After")
+        self.assertEqual(user.email, "profile-after@example.com")
+        self.assertEqual(user.phone_number, "0912345605")
+        self.assertEqual(response.json()["email"], "profile-after@example.com")
+        self.assertEqual(response.json()["phone_number"], "0912345605")
+
     @override_settings(
         DEBUG=True,
         BREVO_API_KEY="",

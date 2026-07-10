@@ -703,6 +703,8 @@ def get_user_profile(request):
 
     # ??? ??????? full_name ??? ????? ??? ???? ???? ???? ????? ????.
     full_name = (request.data.get('full_name') or request.data.get('name') or '').strip()
+    email = (request.data.get('email') or '').strip().lower()
+    raw_phone = request.data.get('phone_number') or request.data.get('phone')
     # ??? ??????? profile_image_url ??? ????? ??? ???? ???? ???? ????? ????.
     profile_image_url = (request.data.get('profile_image_url') or '').strip()
     # ??? ??????? uploaded_image ??? ????? ??? ???? ???? ???? ????? ????.
@@ -716,6 +718,42 @@ def get_user_profile(request):
     if full_name and request.user.full_name != full_name:
         request.user.full_name = full_name
         update_fields.append('full_name')
+
+    if 'email' in request.data:
+        if not email:
+            return Response({'error': 'البريد الإلكتروني مطلوب.'}, status=400)
+        try:
+            validate_email(email)
+        except ValidationError:
+            return Response({'error': 'أدخل بريدًا إلكترونيًا صحيحًا.'}, status=400)
+        if (
+            User.objects.filter(email__iexact=email)
+            .exclude(id=request.user.id)
+            .exists()
+        ):
+            return Response({'error': 'البريد الإلكتروني مستخدم بالفعل.'}, status=400)
+        if request.user.email.lower() != email:
+            request.user.email = email
+            update_fields.append('email')
+
+    if 'phone_number' in request.data or 'phone' in request.data:
+        phone_number = normalize_libyan_phone(raw_phone)
+        if not phone_number or not re.fullmatch(r'09\d{8}', phone_number):
+            return Response(
+                {'error': 'رقم الهاتف غير صحيح. استخدم 09XXXXXXXX.'},
+                status=400,
+            )
+        if (
+            User.objects.filter(
+                Q(phone_number=phone_number) | Q(secondary_phone_number=phone_number)
+            )
+            .exclude(id=request.user.id)
+            .exists()
+        ):
+            return Response({'error': 'رقم الهاتف مستخدم بالفعل.'}, status=400)
+        if request.user.phone_number != phone_number:
+            request.user.phone_number = phone_number
+            update_fields.append('phone_number')
 
     if 'profile_image_url' in request.data:
         request.user.profile_image_url = profile_image_url or None

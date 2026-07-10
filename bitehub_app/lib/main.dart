@@ -22,8 +22,8 @@ import 'package:bitehub_app/app/presentation_v2/widgets/notification_banner_host
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await _bootstrapNotifications();
   runApp(const MyApp());
-  _bootstrapNotifications();
 }
 
 Future<void> _bootstrapNotifications() async {
