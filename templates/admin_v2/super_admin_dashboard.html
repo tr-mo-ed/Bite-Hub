@@ -175,6 +175,26 @@
       font-size: .86rem;
       font-weight: 700;
     }
+    @media (max-width: 1199px) {
+      .bh-table {
+        min-width: 640px;
+      }
+      .bh-table-actions {
+        align-items: stretch;
+      }
+      .bh-table-actions > .d-flex {
+        width: 100%;
+        justify-content: flex-start;
+        flex-wrap: wrap;
+      }
+      .cafe-password-cell,
+      .cafe-identity {
+        min-width: 0;
+      }
+      .cafe-password-field {
+        min-width: 0;
+      }
+    }
   </style>
 {% endblock %}
 

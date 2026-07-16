@@ -733,6 +733,12 @@
         align-items: flex-start;
         flex-direction: column;
       }
+      .order-ticket-footer {
+        flex-wrap: wrap;
+      }
+      .order-ticket-footer .btn {
+        flex: 1 1 150px;
+      }
     }
   </style>
 {% endblock %}
@@ -1029,19 +1035,19 @@
         <div class="order-ops-toolbar">
           <div class="order-ops-metric">
             <div class="label">الطلبات الحية</div>
-            <div class="value">{{ kpis.live_orders }}</div>
+            <div class="value" id="liveOrdersMetric">{{ kpis.live_orders }}</div>
           </div>
           <div class="order-ops-metric">
             <div class="label">طلبات جديدة</div>
-            <div class="value">{{ orders_by_status.PENDING|length }}</div>
+            <div class="value" id="pendingOrdersMetric">{{ orders_by_status.PENDING|length }}</div>
           </div>
           <div class="order-ops-metric">
             <div class="label">قيد التجهيز</div>
-            <div class="value">{{ orders_by_status.PREPARING|length }}</div>
+            <div class="value" id="preparingOrdersMetric">{{ orders_by_status.PREPARING|length }}</div>
           </div>
           <div class="order-ops-metric">
             <div class="label">جاهز للتسليم</div>
-            <div class="value">{{ orders_by_status.READY|length }}</div>
+            <div class="value" id="readyOrdersMetric">{{ orders_by_status.READY|length }}</div>
           </div>
         </div>
         <div class="kanban-grid" id="kanbanBoard">

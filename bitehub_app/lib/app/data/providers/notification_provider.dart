@@ -42,7 +42,7 @@ class NotificationProvider extends ChangeNotifier {
       return;
     }
     unawaited(refreshFromServer(silent: true));
-    _serverRefreshTimer = Timer.periodic(const Duration(seconds: 20), (_) {
+    _serverRefreshTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       unawaited(refreshFromServer(silent: true));
     });
   }

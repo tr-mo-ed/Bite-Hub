@@ -26,17 +26,23 @@ class WalletV2Controller extends ChangeNotifier {
   }
 
   // ???? ???? refresh ???? ??????? ?? ????? ???? ?????? ?????.
-  Future<void> refresh() async {
-    _isLoading = true;
-    _errorMessage = null;
-    notifyListeners();
+  Future<void> refresh({bool silent = false}) async {
+    if (!silent) {
+      _isLoading = true;
+      _errorMessage = null;
+      notifyListeners();
+    }
 
     try {
       _wallet = await _apiService.getWallet();
     } catch (error) {
-      _errorMessage = error.toString();
+      if (!silent || _wallet == null) {
+        _errorMessage = error.toString();
+      }
     } finally {
-      _isLoading = false;
+      if (!silent) {
+        _isLoading = false;
+      }
       notifyListeners();
     }
   }

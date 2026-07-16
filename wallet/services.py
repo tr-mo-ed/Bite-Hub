@@ -7,19 +7,21 @@ from .models import Transaction, Wallet, WalletDebitRequest
 
 
 def create_cafe_debit_request(*, cafe, wallet, amount, requested_by, note=""):
+    clean_note = (note or "").strip()[:255]
     request_item = WalletDebitRequest.objects.create(
         wallet=wallet,
         cafe=cafe,
         requested_by=requested_by,
         amount=amount,
-        note=(note or "").strip()[:255],
+        note=clean_note,
     )
+    note_text = f" ملاحظة المقهى: {clean_note}" if clean_note else ""
     send_real_notification(
         wallet.user,
         "طلب خصم من المحفظة",
         (
             f"يريد {cafe.name} خصم {amount} د.ل من محفظتك. "
-            "افتح المحفظة للموافقة أو الرفض."
+            f"افتح المحفظة للموافقة أو الرفض.{note_text}"
         ),
         event_type="WALLET_DEBIT_REQUESTED",
     )
@@ -53,6 +55,12 @@ def respond_to_debit_request(*, request_id, user, approve: bool):
             ),
             event_type="WALLET_DEBIT_REJECTED",
         )
+        send_real_notification(
+            request_item.wallet.user,
+            "تم رفض الخصم",
+            f"لم يتم خصم {request_item.amount} د.ل من محفظتك لصالح {request_item.cafe.name}.",
+            event_type="WALLET_DEBIT_REJECTED_STUDENT",
+        )
         return request_item
 
     wallet = Wallet.objects.select_for_update().get(pk=request_item.wallet_id)
@@ -84,5 +92,11 @@ def respond_to_debit_request(*, request_id, user, approve: bool):
             f"على خصم {request_item.amount} د.ل."
         ),
         event_type="WALLET_DEBIT_APPROVED",
+    )
+    send_real_notification(
+        request_item.wallet.user,
+        "تم خصم المحفظة",
+        f"تم خصم {request_item.amount} د.ل من محفظتك لصالح {request_item.cafe.name}.",
+        event_type="WALLET_DEBIT_APPROVED_STUDENT",
     )
     return request_item

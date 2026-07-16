@@ -204,7 +204,11 @@ class NotificationService {
     if (shownIds.contains(item.id)) {
       return;
     }
-    await _showSystemNotification(item);
+    try {
+      await _showSystemNotification(item);
+    } catch (_) {
+      return;
+    }
     shownIds.insert(0, item.id);
     await _saveShownExternalNotificationIds(shownIds);
   }

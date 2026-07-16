@@ -100,6 +100,7 @@ def _broadcast_order_event(order: Order, event_name: str) -> None:
         "payment_method": order.payment_method,
         "notes": order.notes,
         "created_at": order.created_at.isoformat() if order.created_at else None,
+        "updated_at": order.updated_at.isoformat() if order.updated_at else None,
         "items": items_payload,
     }
 
@@ -347,6 +348,14 @@ def create_order(
         OrderItem.objects.bulk_create(order_items)
 
     try:
+        if payment_method in {PaymentMethod.WALLET, PaymentMethod.NFC}:
+            send_real_notification(
+                user,
+                "تم خصم قيمة الطلب",
+                f"تم خصم {computed_total} د.ل من محفظتك للطلب #{order.display_order_number}.",
+                event_type="WALLET_ORDER_WITHDRAWAL",
+                order=order,
+            )
         send_real_notification(
             user,
             "تم استلام طلبك",

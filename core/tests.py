@@ -897,6 +897,39 @@ class OrderWorkflowTests(TestCase):
         self.assertContains(panel_response, "البرغر بدون لحم")
         self.assertContains(panel_response, order.display_order_number)
 
+    def test_create_order_accepts_multiple_products_in_one_package(self):
+        water = Product.objects.create(
+            cafe=self.cafe,
+            category=self.category,
+            name="Water",
+            price=Decimal("2.50"),
+            stock_quantity=8,
+        )
+        self.client.force_login(self.customer)
+
+        response = self.client.post(
+            reverse("v2_app_orders"),
+            data={
+                "cafe_id": self.cafe.id,
+                "payment_method": "CASH",
+                "total_price": "12.50",
+                "items": [
+                    {"product_id": self.product.id, "quantity": 2},
+                    {"product_id": water.id, "quantity": 1},
+                ],
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 201, response.content)
+        order = Order.objects.get()
+        self.assertEqual(order.items.count(), 2)
+        self.assertEqual(order.total_price, Decimal("12.50"))
+        self.product.refresh_from_db()
+        water.refresh_from_db()
+        self.assertEqual(self.product.stock_quantity, 18)
+        self.assertEqual(water.stock_quantity, 7)
+
     def test_products_api_rejects_category_name_filter_in_url(self):
         response = self.client.get(
             reverse("v2_app_products"),
@@ -1782,15 +1815,30 @@ class DashboardRenderSmokeTests(TestCase):
 
         deposit_response = self.client.post(
             reverse("core:cafe_wallet_operation_api"),
-            data={"identifier": self.student.email, "operation": "DEPOSIT", "amount": "25.50"},
+            data={
+                "identifier": self.student.email,
+                "operation": "DEPOSIT",
+                "amount": "25.50",
+                "note": "Daily funding",
+            },
         )
         self.assertEqual(deposit_response.status_code, 200, deposit_response.content)
         self.student.wallet.refresh_from_db()
         self.assertEqual(self.student.wallet.balance, Decimal("25.50"))
+        deposit_notification = Notification.objects.get(
+            user=self.student,
+            event_type="WALLET_DEPOSIT",
+        )
+        self.assertIn("Daily funding", deposit_notification.body)
 
         withdraw_response = self.client.post(
             reverse("core:cafe_wallet_operation_api"),
-            data={"identifier": self.student.email, "operation": "WITHDRAWAL", "amount": "5.50"},
+            data={
+                "identifier": self.student.email,
+                "operation": "WITHDRAWAL",
+                "amount": "5.50",
+                "note": "Manual debit request",
+            },
         )
         self.assertEqual(withdraw_response.status_code, 202, withdraw_response.content)
         self.assertTrue(withdraw_response.json()["pending_approval"])
@@ -1806,12 +1854,11 @@ class DashboardRenderSmokeTests(TestCase):
                 transaction_type="WITHDRAWAL"
             ).exists()
         )
-        self.assertTrue(
-            Notification.objects.filter(
-                user=self.student,
-                event_type="WALLET_DEBIT_REQUESTED",
-            ).exists()
+        debit_notification = Notification.objects.get(
+            user=self.student,
+            event_type="WALLET_DEBIT_REQUESTED",
         )
+        self.assertIn("Manual debit request", debit_notification.body)
 
         self.client.force_login(self.student)
         approval_response = self.client.post(

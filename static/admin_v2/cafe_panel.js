@@ -38,7 +38,7 @@
       </div>
     `;
     stack.appendChild(toast);
-    const instance = bootstrap.Toast.getOrCreateInstance(toast, { delay: 3600 });
+    const instance = bootstrap.Toast.getOrCreateInstance(toast, { delay: 5000 });
     toast.addEventListener("hidden.bs.toast", () => toast.remove());
     instance.show();
   }
@@ -316,14 +316,28 @@
   }
 
   function updateColumnCounts() {
+    const counts = { PENDING: 0, PREPARING: 0, READY: 0 };
     document.querySelectorAll(".kanban-column").forEach((column) => {
       const badge = column.querySelector(".badge");
       const body = column.querySelector(".order-column-body");
       if (!badge || !body) {
         return;
       }
-      badge.textContent = body.querySelectorAll(".kanban-card").length;
+      const count = body.querySelectorAll(".kanban-card").length;
+      badge.textContent = count;
+      if (Object.prototype.hasOwnProperty.call(counts, column.dataset.status)) {
+        counts[column.dataset.status] = count;
+      }
     });
+    const live = counts.PENDING + counts.PREPARING + counts.READY;
+    const liveMetric = document.getElementById("liveOrdersMetric");
+    const pendingMetric = document.getElementById("pendingOrdersMetric");
+    const preparingMetric = document.getElementById("preparingOrdersMetric");
+    const readyMetric = document.getElementById("readyOrdersMetric");
+    if (liveMetric) liveMetric.textContent = live;
+    if (pendingMetric) pendingMetric.textContent = counts.PENDING;
+    if (preparingMetric) preparingMetric.textContent = counts.PREPARING;
+    if (readyMetric) readyMetric.textContent = counts.READY;
   }
 
   function clearOrderCards() {
@@ -460,9 +474,18 @@
     if (!node) {
       return;
     }
+    window.clearTimeout(node.dataset.hideTimer || 0);
     node.textContent = message;
     node.classList.toggle("text-success", variant === "success");
     node.classList.toggle("text-danger", variant === "danger");
+    if (variant === "success") {
+      const timer = window.setTimeout(() => {
+        node.textContent = "";
+        node.classList.remove("text-success", "text-danger");
+        delete node.dataset.hideTimer;
+      }, 5000);
+      node.dataset.hideTimer = String(timer);
+    }
   }
 
   function appendTextElement(parent, tagName, className, text) {

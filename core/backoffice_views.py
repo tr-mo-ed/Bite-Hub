@@ -47,6 +47,7 @@ from .models import Cafe, Category, Order, OrderStatus
 from .serializers import OrderSerializer, ProductSerializer
 from .services import NotFoundServiceError, ValidationServiceError, update_order_status
 from .utils import normalize_libyan_phone
+from .utils import send_real_notification
 from users.models import User
 from wallet.models import Transaction, Wallet, WalletDebitRequest
 from wallet.services import create_cafe_debit_request
@@ -861,6 +862,14 @@ def cafe_wallet_operation_api(request: HttpRequest) -> JsonResponse:
         )
     except ValueError as exc:
         return JsonResponse({"success": False, "message": str(exc)}, status=400)
+
+    send_real_notification(
+        wallet.user,
+        "تم شحن المحفظة",
+        f"تم شحن {amount} د.ل في محفظتك من {cafe.name}."
+        + (f" ملاحظة المقهى: {note}" if note else ""),
+        event_type="WALLET_DEPOSIT",
+    )
 
     return JsonResponse({"success": True, "wallet": _wallet_payload(wallet)})
 

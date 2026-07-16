@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -24,20 +26,34 @@ class _OrdersScreenV2State extends State<OrdersScreenV2> {
   bool _isLoading = true;
   String? _errorMessage;
   List<OrderModel> _orders = const [];
+  Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
     _loadOrders();
+    _refreshTimer = Timer.periodic(const Duration(seconds: 6), (_) {
+      if (mounted) {
+        unawaited(_loadOrders(silent: true));
+      }
+    });
   }
 
-  Future<void> _loadOrders() async {
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _loadOrders({bool silent = false}) async {
     final notificationProvider = context.read<NotificationProvider>();
 
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+    if (!silent) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+    }
 
     try {
       final orders = await _apiService.getOrders();
@@ -52,11 +68,13 @@ class _OrdersScreenV2State extends State<OrdersScreenV2> {
       if (!mounted) {
         return;
       }
-      setState(() {
-        _errorMessage = error.toString();
-      });
+      if (!silent || _orders.isEmpty) {
+        setState(() {
+          _errorMessage = error.toString();
+        });
+      }
     } finally {
-      if (mounted) {
+      if (mounted && !silent) {
         setState(() {
           _isLoading = false;
         });

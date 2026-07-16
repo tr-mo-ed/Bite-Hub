@@ -277,7 +277,15 @@ class LiveOrderController extends ChangeNotifier {
         return;
       }
 
-      _trackedOrder = current.copyWith(status: status);
+      _trackedOrder = OrderModel.fromJson(incoming).copyWith(
+        id: current.id,
+        status: status,
+        cafeId: incoming['cafe_id']?.toString() ?? current.cafeId,
+        cafeName: incoming['cafe_name']?.toString() ?? current.cafeName,
+        items: incoming['items'] is List
+            ? OrderModel.fromJson(incoming).items
+            : current.items,
+      );
       _lastUpdatedAt = DateTime.now();
       _errorMessage = null;
       _isOffline = false;
@@ -326,7 +334,7 @@ class LiveOrderController extends ChangeNotifier {
 
   void _startPolling(int orderId) {
     _pollingTimer?.cancel();
-    _pollingTimer = Timer.periodic(const Duration(seconds: 6), (_) {
+    _pollingTimer = Timer.periodic(const Duration(seconds: 3), (_) {
       unawaited(_pollTrackedOrder(orderId));
     });
   }

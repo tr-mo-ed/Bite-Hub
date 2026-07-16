@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -29,6 +31,7 @@ class HomeScreenV2State extends State<HomeScreenV2> {
   late final HomeV2Controller _controller;
   late final TextEditingController _searchController;
   late final bool _ownsController;
+  Timer? _stockRefreshTimer;
 
   @override
   void initState() {
@@ -38,11 +41,18 @@ class HomeScreenV2State extends State<HomeScreenV2> {
     _searchController = TextEditingController();
     if (widget.initializeController) {
       _controller.initialize();
+      _stockRefreshTimer = Timer.periodic(const Duration(seconds: 12), (_) {
+        if (!mounted || _controller.selectedCafe == null) {
+          return;
+        }
+        unawaited(_controller.refresh(silent: true));
+      });
     }
   }
 
   @override
   void dispose() {
+    _stockRefreshTimer?.cancel();
     _searchController.dispose();
     if (_ownsController) {
       _controller.dispose();

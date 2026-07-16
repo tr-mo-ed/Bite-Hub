@@ -644,6 +644,8 @@ class _CartItemImage extends StatelessWidget {
                 ? Image.network(
                     imageUrl,
                     fit: BoxFit.cover,
+                    cacheWidth:
+                        (88 * MediaQuery.devicePixelRatioOf(context)).round(),
                     filterQuality: FilterQuality.high,
                     isAntiAlias: true,
                     gaplessPlayback: true,

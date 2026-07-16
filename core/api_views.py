@@ -45,6 +45,7 @@ from .serializers import (
 from users.models import EmailLoginCode, EmailSignupCode, User
 from wallet.models import Wallet
 from .utils import normalize_ascii_digits, normalize_libyan_phone
+from .utils import send_real_notification
 
 # --- Caching Setup ---
 PRODUCTS_CACHE_KEY = "products:list:v3"
@@ -577,6 +578,13 @@ def verify_email_signup_code(request):
 
         if not hasattr(user, "wallet"):
             Wallet.objects.create(user=user)
+
+        send_real_notification(
+            user,
+            "تم إنشاء حسابك",
+            "تم إنشاء حسابك في Bite Hub بنجاح. يمكنك الآن الطلب والدفع من المحفظة.",
+            event_type="ACCOUNT_CREATED",
+        )
 
         challenge.consumed_at = now
         challenge.save(update_fields=["consumed_at"])

@@ -97,10 +97,12 @@ class HomeV2Controller extends ChangeNotifier {
   }
 
   // ???? ???? refresh ???? ??????? ?? ????? ???? ?????? ?????.
-  Future<void> refresh() async {
-    _isLoading = true;
-    _errorMessage = null;
-    notifyListeners();
+  Future<void> refresh({bool silent = false}) async {
+    if (!silent) {
+      _isLoading = true;
+      _errorMessage = null;
+      notifyListeners();
+    }
 
     try {
       final cafes = await _apiService.getCafes();
@@ -123,11 +125,15 @@ class HomeV2Controller extends ChangeNotifier {
       }
       _isOffline = false;
     } catch (_) {
-      _errorMessage =
-          'تعذر تحميل المقاهي والمنتجات. تأكد من الإنترنت ثم حاول مرة أخرى.';
-      _isOffline = true;
+      if (!silent || _products.isEmpty) {
+        _errorMessage =
+            'تعذر تحميل المقاهي والمنتجات. تأكد من الإنترنت ثم حاول مرة أخرى.';
+        _isOffline = true;
+      }
     } finally {
-      _isLoading = false;
+      if (!silent) {
+        _isLoading = false;
+      }
       notifyListeners();
     }
   }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -40,16 +42,23 @@ String _displayWalletCode(String value) {
 
 class _WalletScreenV2State extends State<WalletScreenV2> {
   late final WalletV2Controller _controller;
+  Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
     _controller = WalletV2Controller();
     _controller.initialize();
+    _refreshTimer = Timer.periodic(const Duration(seconds: 6), (_) {
+      if (mounted) {
+        unawaited(_controller.refresh(silent: true));
+      }
+    });
   }
 
   @override
   void dispose() {
+    _refreshTimer?.cancel();
     _controller.dispose();
     super.dispose();
   }

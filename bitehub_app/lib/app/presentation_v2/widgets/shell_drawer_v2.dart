@@ -106,40 +106,6 @@ class ShellDrawerV2 extends StatelessWidget {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 16),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 10,
-                          ),
-                          decoration: BoxDecoration(
-                            color:
-                                const Color(0xFFFFD54F).withValues(alpha: .16),
-                            borderRadius: BorderRadius.circular(18),
-                            border: Border.all(
-                              color: const Color(0xFFFFE082)
-                                  .withValues(alpha: .45),
-                            ),
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.auto_awesome_rounded,
-                                size: 18,
-                                color: Color(0xFFFFE082),
-                              ),
-                              SizedBox(width: 8),
-                              Text(
-                                'لوحة الطلبات السريعة',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
                       ],
                     ),
                   ),
